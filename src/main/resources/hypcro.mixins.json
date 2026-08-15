@@ -1,0 +1,15 @@
+{
+  "required": true,
+  "package": "com.hypcro.mixins",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+  ],
+  "client": [
+    "KeyboardMixin",
+    "MouseMixin",
+    "MinecraftMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

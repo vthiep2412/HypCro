@@ -1,0 +1,36 @@
+# Gradle build artifacts and caches
+.gradle/
+build/
+bin/
+out/
+
+# Kotlin / IDE caches
+.kotlin/
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Python virtual environment
+.venv/
+__pycache__/
+*.pyc
+
+# OS & temporary files
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.bak
+
+# Scratch scripts
+scratch_*.kt
+test_*.kt
+
+# Legacy backups
+.legacy/

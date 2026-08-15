@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "hypcro",
+  "version": "${version}",
+  "name": "HypCro",
+  "description": "Clean client-side farm helper and watchdog failsafe for Hypixel SkyBlock",
+  "authors": ["User"],
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      {
+        "adapter": "kotlin",
+        "value": "com.hypcro.HypCroMod"
+      }
+    ]
+  },
+  "mixins": [
+    "hypcro.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": ">=26.1.2",
+    "fabric-api": "*",
+    "fabric-language-kotlin": ">=1.13.11"
+  }
+}
