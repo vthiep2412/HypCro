@@ -42,9 +42,8 @@ object MacroController {
     @Synchronized
     fun stopMacro(reason: String = "Manual") {
         val engine = activeSessionEngine ?: resolveConfiguredEngine()
-        try {
-            engine.stopMacro(reason)
-        } finally {
+        engine.stopMacro(reason)
+        if (!engine.isRunning) {
             activeSessionEngine = null
         }
     }
@@ -52,9 +51,8 @@ object MacroController {
     @Synchronized
     fun abortScript(message: String) {
         val engine = activeSessionEngine ?: resolveConfiguredEngine()
-        try {
-            engine.abortScript(message)
-        } finally {
+        engine.abortScript(message)
+        if (!engine.isRunning) {
             activeSessionEngine = null
         }
     }
