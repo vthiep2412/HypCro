@@ -43,9 +43,18 @@ object WSFarmEngine {
         // 1. Raycast horizontal forward blocks based on player yaw
         val detectedCrop = detectFrontCrop(client)
         if (detectedCrop == null) {
-            HypCroMod.log("Invalid crop detected in front of player!")
+            HypCroMod.logWarn("No valid crop detected in front of player!")
             return false
         }
+
+        // 2. Validate and identify farming tool upfront (without switching yet)
+        val toolSlot = findBestToolSlot(client, detectedCrop)
+        if (toolSlot == null) {
+            HypCroMod.logWarn("Missing farming tool for ${detectedCrop.displayName} on hotbar!")
+            return false
+        }
+        val selectedToolName = player.inventory.getItem(toolSlot).hoverName.string
+        HypCroMod.log("Selected tool: §f$selectedToolName §7for §f${detectedCrop.displayName}")
 
         val targetAngles = getTargetAngles(detectedCrop)
         currentTargetAngles = targetAngles
@@ -54,37 +63,33 @@ object WSFarmEngine {
         isFarmingActive = false
 
         farmJob = CoroutineScope(Dispatchers.Default).launch {
-            // 2. Select Prioritized Tool & wait
-            val toolSlot = findBestToolSlot(client, detectedCrop)
-            if (toolSlot != null) {
+            try {
+                // 3. Check and Align Angles via Mousemat FIRST (before holding tool)
+                val currentYaw = player.yRot
+                val currentPitch = player.xRot
+
+                val yawDelta = abs((((currentYaw - targetAngles.first + 180f) % 360f + 360f) % 360f) - 180f)
+                val pitchDelta = abs(currentPitch - targetAngles.second)
+                val anglesMatched = yawDelta < 0.5f && pitchDelta < 0.5f
+
+                if (!anglesMatched) {
+                    HypCroMod.log("Aligning angles to Yaw: ${targetAngles.first}, Pitch: ${targetAngles.second} via Squeaky Mousemat...")
+                    val aligned = MousematHelper.alignAngles(client, targetAngles.first, targetAngles.second)
+                    if (!aligned) {
+                        abortScript("Failed to align angles via Squeaky Mousemat")
+                        return@launch
+                    }
+                }
+
+                // 4. Now switch directly to the verified farming tool
                 client.execute { player.inventory.selectedSlot = toolSlot }
                 val toolName = player.inventory.getItem(toolSlot).hoverName.string
-                HypCroMod.log("Selected tool: $toolName for ${detectedCrop.displayName}")
-                delay(300)
-            }
+                delay(200)
 
-            // 3. Align Pitch & Yaw via Mousemat
-            val currentYaw = player.yRot
-            val currentPitch = player.xRot
+                // 5. Start Watchdog with expected tool slot
+                HypcroWatchdog.start(toolSlot)
 
-            val yawDelta = abs((((currentYaw - targetAngles.first + 180f) % 360f + 360f) % 360f) - 180f)
-            val pitchDelta = abs(currentPitch - targetAngles.second)
-            val anglesMatched = yawDelta < 0.5f && pitchDelta < 0.5f
-
-            if (!anglesMatched) {
-                HypCroMod.log("Aligning angles to Yaw: ${targetAngles.first}, Pitch: ${targetAngles.second} via Squeaky Mousemat...")
-                MousematHelper.alignAngles(client, targetAngles.first, targetAngles.second)
-                if (toolSlot != null) {
-                    client.execute { player.inventory.selectedSlot = toolSlot }
-                    delay(300)
-                }
-            }
-
-            // 4. Start Watchdog with expected tool slot
-            HypcroWatchdog.start(toolSlot)
-
-            try {
-                // 5. Initialize active key & activate main-thread tick loop
+                // 6. Initialize active key & activate main-thread tick loop
                 lastStatusLogTime = 0L
                 lastPosCheckTime = System.currentTimeMillis()
                 macroStartTime = System.currentTimeMillis()
@@ -95,11 +100,14 @@ object WSFarmEngine {
                     currentActiveKey = if (inWater) 'W' else 'S'
                     applyMovementKeys(client, inWater)
                     
-                    HypCroMod.log("Macro started: inWater=$inWater -> Key=$currentActiveKey")
+                    HypCroMod.logStartBanner(detectedCrop.displayName, targetAngles.first, targetAngles.second, toolName)
                     isFarmingActive = true
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (t: Throwable) {
                 HypCroMod.log("§c[CRASH] startMacro failed: ${t.javaClass.simpleName} - ${t.message}")
+                abortScript("Startup crashed: ${t.message}")
             }
         }
         return true
@@ -136,7 +144,7 @@ object WSFarmEngine {
                         if (neededKey != currentActiveKey) {
                             // Scenario A: Water state dictates a different key -> Switch!
                             currentActiveKey = neededKey
-                            HypCroMod.log(">> Water transition: inWater=$inWater -> Key=$currentActiveKey at (${String.format("%.1f", player.x)}, ${String.format("%.1f", player.y)}, ${String.format("%.1f", player.z)})")
+                            // HypCroMod.log(">> Water transition: inWater=$inWater -> Key=$currentActiveKey at (${String.format("%.1f", player.x)}, ${String.format("%.1f", player.y)}, ${String.format("%.1f", player.z)})")
                         } else {
                             // Scenario B: Stopped moving, but water state is exactly the same -> Edge case, abort
                             HypcroWatchdog.potentialStaffCheck("Farming Interruption")
@@ -183,7 +191,7 @@ object WSFarmEngine {
 
         HypcroWatchdog.stop()
         releaseAllKeys()
-        HypCroMod.log("Macro stopped ($reason).")
+        HypCroMod.logStopBanner(reason)
     }
 
     fun abortScript(message: String) {
@@ -195,7 +203,7 @@ object WSFarmEngine {
 
         HypcroWatchdog.stop()
         releaseAllKeys()
-        HypCroMod.log(message)
+        HypCroMod.logStopBanner(message)
     }
 
     fun isPlayerFeetInWater(client: Minecraft): Boolean {

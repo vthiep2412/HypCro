@@ -66,7 +66,6 @@ object HypCroMod : ClientModInitializer {
         }
         if (WSFarmEngine.isRunning) {
             WSFarmEngine.stopMacro(reason = "User Request")
-            log("Stopped script. Press END or type .hypcro again to open GUI.")
             return
         }
         if (client.screen == null) {
@@ -74,11 +73,57 @@ object HypCroMod : ClientModInitializer {
         }
     }
 
+    fun sendRaw(message: String) {
+        val client = Minecraft.getInstance()
+        client.execute {
+            client.player?.sendSystemMessage(Component.literal(message))
+        }
+    }
+
     fun log(message: String) {
-        Minecraft.getInstance().player?.sendSystemMessage(Component.literal("§b[Hypcro] §f$message"))
+        sendRaw("§8[§bHypCro§8] §7$message")
+    }
+
+    fun logSuccess(message: String) {
+        sendRaw("§8[§aHypCro §8✔] §f$message")
+    }
+
+    fun logWarn(message: String) {
+        sendRaw("§8[§6HypCro §e⚠§8] §e$message")
     }
 
     fun logWatchdog(message: String) {
-        Minecraft.getInstance().player?.sendSystemMessage(Component.literal("§c[Hypcro Watchdog] §f$message"))
+        sendRaw("§8[§cHypCro Watchdog§8] §c$message")
+    }
+
+    fun logStartBanner(crop: String, yaw: Float, pitch: Float, toolName: String?) {
+        sendRaw("")
+        sendRaw("§8§m----------------------------------------")
+        sendRaw(" §8[§bHypCro§8] §a§lMACRO STARTED")
+        sendRaw(" §8• §7Crop: §f$crop §8• §7Yaw: §f${String.format("%.2f", yaw)}° §8• §7Pitch: §f${String.format("%.2f", pitch)}°")
+        if (!toolName.isNullOrBlank()) {
+            sendRaw(" §8• §7Tool: §f$toolName")
+        }
+        sendRaw("§8§m----------------------------------------")
+        sendRaw("")
+    }
+
+    fun logStopBanner(reason: String) {
+        sendRaw("")
+        sendRaw("§8§m----------------------------------------")
+        sendRaw(" §8[§7HypCro§8] §c§lMACRO STOPPED §8(§f$reason§8)")
+        sendRaw(" §8• §7Press toggle key or type §b.hypcro§7 to open menu")
+        sendRaw("§8§m----------------------------------------")
+        sendRaw("")
+    }
+
+    fun logAlarmBanner(reason: String) {
+        sendRaw("")
+        sendRaw("§4§m========================================")
+        sendRaw(" §8[§cHypCro §4🚨§8] §c§lFAILSAFE TRIGGERED")
+        sendRaw(" §8• §f$reason")
+        sendRaw(" §8• §7Macro aborted §8• §eAlarm active")
+        sendRaw("§4§m========================================")
+        sendRaw("")
     }
 }

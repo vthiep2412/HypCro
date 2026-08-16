@@ -107,9 +107,8 @@ object HypcroWatchdog {
     }
 
     fun potentialStaffCheck(reason: String) {
-        WSFarmEngine.stopMacro(reason = reason)
-        HypCroMod.logWatchdog("Potential staff check! Farming interruption.")
-        HypCroMod.logWatchdog("Reason: $reason")
+        WSFarmEngine.abortScript(reason)
+        HypCroMod.logAlarmBanner(reason)
         playFailsafeAlarm()
     }
 

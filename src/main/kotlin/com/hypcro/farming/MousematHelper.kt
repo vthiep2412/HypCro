@@ -1,5 +1,7 @@
 package com.hypcro.farming
 
+import com.hypcro.HypCroMod
+import com.hypcro.input.CommandHelper
 import net.minecraft.client.Minecraft
 import net.minecraft.core.component.DataComponents
 import net.minecraft.world.InteractionHand
@@ -55,12 +57,16 @@ object MousematHelper {
 
     suspend fun alignAngles(client: Minecraft, targetYaw: Float, targetPitch: Float): Boolean {
         val player = client.player ?: return false
-        val mousematSlot = findMousematSlot(client) ?: return false
+        val mousematSlot = findMousematSlot(client)
+        if (mousematSlot == null) {
+            HypCroMod.logWarn("Squeaky Mousemat not found on hotbar (0-8)!")
+            return false
+        }
         val originalSlot = player.inventory.selectedSlot
 
-        // 1. Switch to mousemat & wait
+        // 1. Switch to mousemat & wait 1s (human looking at item / preparing to type)
         client.execute { player.inventory.selectedSlot = mousematSlot }
-        delay(300)
+        delay(1000)
 
         val stack = player.inventory.getItem(mousematSlot)
         val currentAngles = readMousematAngles(stack)
@@ -70,10 +76,8 @@ object MousematHelper {
             abs(currentAngles.second - targetPitch) > 0.05f
 
         if (needSet) {
-            client.connection?.sendCommand("setyaw $targetYaw")
-            delay(350)
-            client.connection?.sendCommand("setpitch $targetPitch")
-            delay(350)
+            CommandHelper.sendCommandHumanized(client, "setyaw $targetYaw")
+            CommandHelper.sendCommandHumanized(client, "setpitch $targetPitch")
         }
 
         // 2. Perform genuine item swing / left-click with the Squeaky Mousemat
@@ -96,14 +100,19 @@ object MousematHelper {
 
             // Check if server snapped the player's rotation with 0.5 deg tolerance
             if (yawDelta < 0.5f && pitchDelta < 0.5f) {
+                HypCroMod.logSuccess("Snapped to Squeaky Mousemat!")
                 client.execute { player.inventory.selectedSlot = originalSlot }
                 delay(200)
                 return true
             }
-            delay(400) // Wait longer before trying again
+            if (attempt < 3) {
+                HypCroMod.logWarn("Mousemat alignment attempt $attempt failed, retrying in 3s...")
+                delay(3000) // Wait at least 3 seconds before next click attempt
+            }
         }
 
         client.execute { player.inventory.selectedSlot = originalSlot }
         return false
     }
 }
+

@@ -30,8 +30,14 @@ public class KeyboardMixin {
             return;
         }
 
-        // Catch the inventory key dynamically from user settings!
         Minecraft client = Minecraft.getInstance();
+
+        // Allow tab / player list view
+        if (client.options.keyPlayerList.matches(event)) {
+            return;
+        }
+
+        // Catch the inventory key dynamically from user settings!
         if (client.options.keyInventory.matches(event)) {
             // We only want to process the press down, not the release
             if (action == GLFW.GLFW_PRESS) {
