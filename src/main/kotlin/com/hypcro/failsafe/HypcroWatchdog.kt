@@ -29,7 +29,7 @@ object HypcroWatchdog {
         expectedToolSlot = toolSlot
 
         watchdogJob = CoroutineScope(Dispatchers.Default).launch {
-            while (isActive && WSFarmEngine.isRunning) {
+            while (isActive && com.hypcro.farming.MacroController.isRunning) {
                 delay(50)
                 checkFailsafes()
             }
@@ -61,7 +61,7 @@ object HypcroWatchdog {
 
         val currentPos = player.position()
         val currentSlot = player.inventory.selectedSlot
-        val targetAngles = WSFarmEngine.currentTargetAngles
+        val targetAngles = com.hypcro.farming.MacroController.currentTargetAngles
 
         // 1. Hotbar Slot Switch Check (staff check disarm or unexpected slot swap)
         expectedToolSlot?.let { expected ->
@@ -94,11 +94,11 @@ object HypcroWatchdog {
     }
 
     fun handleChatMessage(message: String) {
-        if (!WSFarmEngine.isRunning) return
+        if (!com.hypcro.farming.MacroController.isRunning) return
 
         if (restartRegex.matches(message)) {
             HypCroMod.logWatchdog("Server restart announced. Stopping macro and warping to hub...")
-            WSFarmEngine.stopMacro(reason = "Server Restart")
+            com.hypcro.farming.MacroController.stopMacro(reason = "Server Restart")
             CoroutineScope(Dispatchers.Default).launch {
                 delay(2000)
                 Minecraft.getInstance().connection?.sendCommand("hub")
@@ -107,7 +107,7 @@ object HypcroWatchdog {
     }
 
     fun potentialStaffCheck(reason: String) {
-        WSFarmEngine.abortScript(reason)
+        com.hypcro.farming.MacroController.abortScript(reason)
         HypCroMod.logAlarmBanner(reason)
         playFailsafeAlarm()
     }

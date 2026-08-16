@@ -1,13 +1,12 @@
-- Add humanization for W/S movement, applying a 1.2s delayed reaction/switch occasionally (1 to 2 mins go up to 1.2s). Normally randome from current to 800ms
-(DONE)
-- Improve logging and printing to be more detailed and raise readiness.
+- Add humanization for W/S movement. Every 1–2 minutes, delay a reaction or direction switch by up to 1.2 s. Otherwise, choose a random delay from 0 to 800 ms.
+
+- Improve logging and printing to be more detailed and raise readiness.(DONE)
     - Add color to text, spacing!
 
 - Add a better failsafe for when an admin rotates the player back immediately after a macro check rotation.
     - maybe we have to delay the check a little bit.
 
 - If player is floating while farming repeat sneak, and if can't fix it, we call staff as "Antistuck failed" and stop the macro.
-
 - Fix by adding try catch when got tp out during macro. (not-enough-crash mod save me once, but not many times more, I have to act on my own!)
 
 - ADD FREE LOOK!!!

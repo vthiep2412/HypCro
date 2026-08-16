@@ -12,7 +12,7 @@ public class MouseMixin {
 
     @Inject(method = "onScroll", at = @At("HEAD"), cancellable = true)
     private void onMouseScroll(long window, double horizontal, double vertical, CallbackInfo ci) {
-        if (WSFarmEngine.INSTANCE.isRunning()) {
+        if (com.hypcro.farming.MacroController.INSTANCE.isRunning()) {
             // Completely block scrolling (prevents hotbar slot switching)
             ci.cancel();
         }
@@ -20,7 +20,7 @@ public class MouseMixin {
 
     @Inject(method = "turnPlayer", at = @At("HEAD"), cancellable = true)
     private void onTurnPlayer(CallbackInfo ci) {
-        if (WSFarmEngine.INSTANCE.isRunning()) {
+        if (com.hypcro.farming.MacroController.INSTANCE.isRunning()) {
             // Completely block all camera turning from physical mouse movement!
             ci.cancel();
         }

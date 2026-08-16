@@ -15,23 +15,30 @@ import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
 
-object WSFarmEngine {
-    var isRunning: Boolean = false
+object WSFarmEngine : IFarmEngine {
+    override val engineName: String = "W/S Crop Farming"
+
+    @Volatile
+    override var isRunning: Boolean = false
         private set
 
+    @Volatile
     var currentActiveKey: Char = 'S'
         private set
 
-    var currentTargetAngles: Pair<Float, Float>? = null
+    @Volatile
+    override var currentTargetAngles: Pair<Float, Float>? = null
         private set
 
+    @Volatile
     private var farmJob: Job? = null
     private var lastToggleTime: Long = 0L
 
-    var isFarmingActive: Boolean = false
+    @Volatile
+    override var isFarmingActive: Boolean = false
         private set
 
-    fun startMacro(): Boolean {
+    override fun startMacro(): Boolean {
         val now = System.currentTimeMillis()
         if (now - lastToggleTime < 500) return false // 500ms debounce
         lastToggleTime = now
@@ -100,7 +107,7 @@ object WSFarmEngine {
                     currentActiveKey = if (inWater) 'W' else 'S'
                     applyMovementKeys(client, inWater)
                     
-                    HypCroMod.logStartBanner(detectedCrop.displayName, targetAngles.first, targetAngles.second, toolName)
+                    HypCroMod.logStartBanner(engineName, detectedCrop.displayName, targetAngles.first, targetAngles.second, toolName)
                     isFarmingActive = true
                 }
             } catch (e: CancellationException) {
@@ -118,7 +125,7 @@ object WSFarmEngine {
     private var lastCheckPos: Vec3? = null
     private var macroStartTime: Long = 0L
 
-    fun onClientTick(client: Minecraft) {
+    override fun onClientTick(client: Minecraft) {
         try {
             if (!isRunning || !isFarmingActive) return
             val player = client.player ?: return
@@ -177,7 +184,7 @@ object WSFarmEngine {
         }
     }
 
-    fun stopMacro(reason: String = "Manual") {
+    override fun stopMacro(reason: String) {
         val now = System.currentTimeMillis()
         if (now - lastToggleTime < 300) return
         lastToggleTime = now
@@ -194,7 +201,7 @@ object WSFarmEngine {
         HypCroMod.logStopBanner(reason)
     }
 
-    fun abortScript(message: String) {
+    override fun abortScript(message: String) {
         isRunning = false
         isFarmingActive = false
         farmJob?.cancel()

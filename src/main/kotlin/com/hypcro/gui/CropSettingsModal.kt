@@ -15,7 +15,7 @@ import org.lwjgl.glfw.GLFW
 
 class CropSettingsModal(private val parent: Screen) : Screen(Component.literal("Settings: Crop Farming")) {
 
-    private var activeModeIndex = 0
+    private var activeModeIndex = if (ConfigManager.config.activeMethod.equals("VERTICAL", ignoreCase = true)) 1 else 0
     private var selectedCropIndex = 0
     private val cropList = CropType.values().toList()
     private var isCropDropdownOpen = false
@@ -34,16 +34,16 @@ class CropSettingsModal(private val parent: Screen) : Screen(Component.literal("
 
     private var modalX = 0
     private var modalY = 0
-    private val modalW = 380
-    private val modalH = 265
+    private val modalW = 390
+    private val modalH = 275
 
     override fun init() {
         modalX = (width - modalW) / 2
         modalY = (height - modalH) / 2
 
-        // 1. Centered Mode Switcher Pill ( [ W/S ] | Vertical )
+        // Top Mode Switcher Pill ( [ W/S ] | Vertical )
         modePill = PillToggleWidget(
-            modalX + (modalW - 160) / 2, modalY + 26, 160, 18,
+            modalX + (modalW - 160) / 2, modalY + 24, 160, 18,
             listOf("W/S", "Vertical"), activeModeIndex
         ) { idx ->
             saveFieldValues()
@@ -52,53 +52,56 @@ class CropSettingsModal(private val parent: Screen) : Screen(Component.literal("
         }
         addRenderableWidget(modePill)
 
-        // 2. Top-level Crop Selector Dropdown Button
-        cropSelectBtn = Button.builder(Component.literal("${cropList[selectedCropIndex].displayName} ▼")) {
-            isCropDropdownOpen = !isCropDropdownOpen
-        }.bounds(modalX + 115, modalY + 48, 115, 18).build()
-        addRenderableWidget(cropSelectBtn)
-
-        // 3. Global Yaw & Pitch Fields
-        globalYawField = EditBox(font, modalX + 95, modalY + 88, 50, 16, Component.literal("Global Yaw"))
-        globalPitchField = EditBox(font, modalX + 205, modalY + 88, 50, 16, Component.literal("Global Pitch"))
+        // --- SECTION 1: GLOBAL SETTINGS ---
+        // Global Yaw & Pitch Fields (Row Y = modalY + 68)
+        globalYawField = EditBox(font, modalX + 130, modalY + 66, 52, 16, Component.literal("Global Yaw"))
+        globalPitchField = EditBox(font, modalX + 235, modalY + 66, 52, 16, Component.literal("Global Pitch"))
         addRenderableWidget(globalYawField)
         addRenderableWidget(globalPitchField)
 
-        // 4. Crop Angle Pill ( [ Global ] | [ Custom ] )
+        // Global Speed Field (Row Y = modalY + 88)
+        globalSpeedField = EditBox(font, modalX + 130, modalY + 88, 52, 16, Component.literal("Global Speed"))
+        addRenderableWidget(globalSpeedField)
+
+        // --- SECTION 2: CROP-SPECIFIC CUSTOM SETTINGS ---
+        // Crop Selector Dropdown Button (Row Y = modalY + 130)
+        cropSelectBtn = Button.builder(Component.literal("${cropList[selectedCropIndex].displayName} ▼")) {
+            isCropDropdownOpen = !isCropDropdownOpen
+        }.bounds(modalX + 130, modalY + 130, 120, 18).build()
+        addRenderableWidget(cropSelectBtn)
+
+        // Crop Angle Mode Pill (Row Y = modalY + 152)
         anglePill = PillToggleWidget(
-            modalX + 115, modalY + 110, 130, 18,
+            modalX + 130, modalY + 152, 130, 18,
             listOf("Global", "Custom"), 1
-        ) { /* Direct state update */ }
+        ) { /* State updated on save */ }
         addRenderableWidget(anglePill)
 
-        // 5. Custom Yaw & Pitch Fields
-        customYawField = EditBox(font, modalX + 95, modalY + 134, 50, 16, Component.literal("Custom Yaw"))
-        customPitchField = EditBox(font, modalX + 205, modalY + 134, 50, 16, Component.literal("Custom Pitch"))
+        // Custom Yaw & Pitch Fields (Row Y = modalY + 174)
+        customYawField = EditBox(font, modalX + 130, modalY + 174, 52, 16, Component.literal("Custom Yaw"))
+        customPitchField = EditBox(font, modalX + 235, modalY + 174, 52, 16, Component.literal("Custom Pitch"))
         addRenderableWidget(customYawField)
         addRenderableWidget(customPitchField)
 
-        // 6. Global Speed Field
-        globalSpeedField = EditBox(font, modalX + 115, modalY + 174, 55, 16, Component.literal("Global Speed"))
-        addRenderableWidget(globalSpeedField)
-
-        // 7. Crop Speed Pill
+        // Crop Speed Mode Pill (Row Y = modalY + 196)
         speedPill = PillToggleWidget(
-            modalX + 115, modalY + 196, 130, 18,
+            modalX + 130, modalY + 196, 130, 18,
             listOf("Global", "Custom"), 0
-        ) { /* Direct state update */ }
+        ) { /* State updated on save */ }
         addRenderableWidget(speedPill)
 
-        // 8. Custom Speed Field
-        customSpeedField = EditBox(font, modalX + 115, modalY + 220, 55, 16, Component.literal("Custom Speed"))
+        // Custom Speed Field (Row Y = modalY + 218)
+        customSpeedField = EditBox(font, modalX + 130, modalY + 218, 52, 16, Component.literal("Custom Speed"))
         addRenderableWidget(customSpeedField)
 
-        // 9. Centered Apply & Cancel Buttons
-        val btnW = 65
+        // Bottom Actions: Apply & Cancel
+        val btnW = 68
         val btnH = 18
         val btnY = modalY + modalH - 24
 
         addRenderableWidget(Button.builder(Component.literal("Apply")) {
             saveFieldValues()
+            ConfigManager.config.activeMethod = if (activeModeIndex == 1) "VERTICAL" else "WS"
             ConfigManager.save()
             minecraft.setScreen(parent)
         }.bounds(modalX + modalW / 2 - btnW - 6, btnY, btnW, btnH).build())
@@ -110,7 +113,7 @@ class CropSettingsModal(private val parent: Screen) : Screen(Component.literal("
         // Top right close [X]
         addRenderableWidget(Button.builder(Component.literal("X")) {
             minecraft.setScreen(parent)
-        }.bounds(modalX + modalW - 24, modalY + 6, 18, 16).build())
+        }.bounds(modalX + modalW - 22, modalY + 6, 16, 16).build())
 
         loadFieldValues()
     }
@@ -161,60 +164,64 @@ class CropSettingsModal(private val parent: Screen) : Screen(Component.literal("
     }
 
     override fun extractRenderState(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, delta: Float) {
-        // Main modal container
-        graphics.fill(modalX, modalY, modalX + modalW, modalY + modalH, 0xF00F172A.toInt())
+        // Main modal dark background
+        graphics.fill(modalX, modalY, modalX + modalW, modalY + modalH, 0xF20F172A.toInt())
 
         // Header title
-        graphics.text(font, "Settings: Crop Farming", modalX + 12, modalY + 10, 0xFFE2E8F0.toInt())
+        graphics.text(font, "Settings: Crop Farming", modalX + 12, modalY + 9, 0xFFE2E8F0.toInt())
 
-        // Selected Crop Selector Header
-        graphics.text(font, "Selected Crop:", modalX + 24, modalY + 53, 0xFF94A3B8.toInt())
+        // --- SECTION 1: GLOBAL SETTINGS ---
+        graphics.text(font, "§b[ Global Settings ]", modalX + 16, modalY + 50, 0xFF38BDF8.toInt())
+        graphics.text(font, "Global Angle: Yaw", modalX + 26, modalY + 70, 0xFF94A3B8.toInt())
+        graphics.text(font, "Pitch", modalX + 195, modalY + 70, 0xFF94A3B8.toInt())
+        graphics.text(font, "Global Speed:", modalX + 26, modalY + 92, 0xFF94A3B8.toInt())
 
-        // Pitch & Yaw Section Header
-        graphics.text(font, "§b[ Pitch & Yaw ]", modalX + 16, modalY + 74, 0xFF38BDF8.toInt())
-        graphics.text(font, "Global Yaw:", modalX + 24, modalY + 92, 0xFF94A3B8.toInt())
-        graphics.text(font, "Pitch:", modalX + 160, modalY + 92, 0xFF94A3B8.toInt())
-        graphics.text(font, "Angle Mode:", modalX + 24, modalY + 115, 0xFF94A3B8.toInt())
-        graphics.text(font, "Custom Yaw:", modalX + 24, modalY + 138, 0xFF94A3B8.toInt())
-        graphics.text(font, "Pitch:", modalX + 160, modalY + 138, 0xFF94A3B8.toInt())
-
-        // Speed Section Header
-        graphics.text(font, "§b[ Speed ]", modalX + 16, modalY + 158, 0xFF38BDF8.toInt())
-        graphics.text(font, "Global Speed:", modalX + 24, modalY + 178, 0xFF94A3B8.toInt())
-        graphics.text(font, "Speed Mode:", modalX + 24, modalY + 201, 0xFF94A3B8.toInt())
-        graphics.text(font, "Custom Speed:", modalX + 24, modalY + 224, 0xFF94A3B8.toInt())
+        // --- SECTION 2: CROP-SPECIFIC CUSTOM SETTINGS ---
+        val cropName = cropList[selectedCropIndex].displayName
+        graphics.text(font, "§b[ Crop-Specific Custom Settings ]", modalX + 16, modalY + 114, 0xFF38BDF8.toInt())
+        graphics.text(font, "Target Crop:", modalX + 26, modalY + 135, 0xFF94A3B8.toInt())
+        graphics.text(font, "Angle Mode:", modalX + 26, modalY + 157, 0xFF94A3B8.toInt())
+        graphics.text(font, "$cropName Angle: Yaw", modalX + 26, modalY + 178, 0xFF94A3B8.toInt())
+        graphics.text(font, "Pitch", modalX + 195, modalY + 178, 0xFF94A3B8.toInt())
+        graphics.text(font, "Speed Mode:", modalX + 26, modalY + 201, 0xFF94A3B8.toInt())
+        graphics.text(font, "$cropName Speed:", modalX + 26, modalY + 222, 0xFF94A3B8.toInt())
 
         super.extractRenderState(graphics, mouseX, mouseY, delta)
 
         // Render Crop Dropdown Menu overlay on top if open
         if (isCropDropdownOpen) {
-            val dropX = modalX + 115
-            val dropY = modalY + 68
-            val dropW = 115
-            val itemH = 16
+            val dropX = modalX + 130
+            val dropY = modalY + 150
+            val dropW = 120
+            val itemH = 18
             val dropH = cropList.size * itemH
 
             graphics.fill(dropX - 1, dropY - 1, dropX + dropW + 1, dropY + dropH + 1, 0xFF334155.toInt())
-            graphics.fill(dropX, dropY, dropX + dropW, dropY + dropH, 0xFF1E293B.toInt())
+            graphics.fill(dropX, dropY, dropX + dropW, dropY + dropH, 0xFF0F172A.toInt())
 
             for ((i, crop) in cropList.withIndex()) {
                 val iy = dropY + (i * itemH)
                 val isHovered = mouseX in dropX until (dropX + dropW) && mouseY in iy until (iy + itemH)
-                if (isHovered || i == selectedCropIndex) {
-                    graphics.fill(dropX, iy, dropX + dropW, iy + itemH, if (i == selectedCropIndex) 0xFF38BDF8.toInt() else 0xFF475569.toInt())
+                val isSelected = i == selectedCropIndex
+
+                if (isSelected) {
+                    graphics.fill(dropX, iy, dropX + dropW, iy + itemH, 0xFF0284C7.toInt())
+                } else if (isHovered) {
+                    graphics.fill(dropX, iy, dropX + dropW, iy + itemH, 0xFF1E293B.toInt())
                 }
-                val textColor = if (i == selectedCropIndex) 0xFF0F172A.toInt() else 0xFFF1F5F9.toInt()
-                graphics.text(font, crop.displayName, dropX + 6, iy + 4, textColor)
+
+                val textColor = if (isSelected) 0xFFFFFFFF.toInt() else if (isHovered) 0xFF38BDF8.toInt() else 0xFFCBD5E1.toInt()
+                graphics.text(font, crop.displayName, dropX + 8, iy + 5, textColor)
             }
         }
     }
 
     override fun mouseClicked(event: MouseButtonEvent, doubleClick: Boolean): Boolean {
         if (isCropDropdownOpen && event.button() == 0) {
-            val dropX = modalX + 115
-            val dropY = modalY + 68
-            val dropW = 115
-            val itemH = 16
+            val dropX = modalX + 130
+            val dropY = modalY + 150
+            val dropW = 120
+            val itemH = 18
             val mouseX = event.x().toInt()
             val mouseY = event.y().toInt()
 

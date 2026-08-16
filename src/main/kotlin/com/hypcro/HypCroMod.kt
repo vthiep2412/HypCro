@@ -38,7 +38,7 @@ object HypCroMod : ClientModInitializer {
                 }
                 false // Cancel sending to server
             } else {
-                if (com.hypcro.farming.WSFarmEngine.isRunning) {
+                if (com.hypcro.farming.MacroController.isRunning) {
                     log("Chat blocked while macro")
                     false
                 } else {
@@ -51,7 +51,7 @@ object HypCroMod : ClientModInitializer {
             while (openGuiKey.consumeClick()) {
                 handleOpenGuiOrStop()
             }
-            com.hypcro.farming.WSFarmEngine.onClientTick(client)
+            com.hypcro.farming.MacroController.onClientTick(client)
         }
 
         com.hypcro.config.ConfigManager.load()
@@ -64,8 +64,8 @@ object HypCroMod : ClientModInitializer {
             log("Watchdog alarm silenced. Press END or type .hypcro again to open GUI.")
             return
         }
-        if (WSFarmEngine.isRunning) {
-            WSFarmEngine.stopMacro(reason = "User Request")
+        if (com.hypcro.farming.MacroController.isRunning) {
+            com.hypcro.farming.MacroController.stopMacro(reason = "User Request")
             return
         }
         if (client.screen == null) {
@@ -96,10 +96,10 @@ object HypCroMod : ClientModInitializer {
         sendRaw("§8[§cHypCro Watchdog§8] §c$message")
     }
 
-    fun logStartBanner(crop: String, yaw: Float, pitch: Float, toolName: String?) {
+    fun logStartBanner(mode: String, crop: String, yaw: Float, pitch: Float, toolName: String?) {
         sendRaw("")
         sendRaw("§8§m----------------------------------------")
-        sendRaw(" §8[§bHypCro§8] §a§lMACRO STARTED")
+        sendRaw(" §8[§bHypCro§8] §a§lMACRO STARTED §8(§b$mode§8)")
         sendRaw(" §8• §7Crop: §f$crop §8• §7Yaw: §f${String.format("%.2f", yaw)}° §8• §7Pitch: §f${String.format("%.2f", pitch)}°")
         if (!toolName.isNullOrBlank()) {
             sendRaw(" §8• §7Tool: §f$toolName")

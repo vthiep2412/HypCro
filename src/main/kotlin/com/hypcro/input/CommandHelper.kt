@@ -22,7 +22,9 @@ object CommandHelper {
         val typingDuration = (baseDelay + jitter).coerceAtLeast(800L)
 
         delay(typingDuration) // Simulate typing time
-        client.connection?.sendCommand(command)
+        client.execute {
+            client.connection?.sendCommand(command)
+        }
         delay(300) // Brief pause after pressing enter
     }
 }

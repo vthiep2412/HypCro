@@ -15,14 +15,14 @@ public class KeyboardMixin {
     @Inject(method = "keyPress", at = @At("HEAD"), cancellable = true)
     private void onKeyPress(long window, int action, net.minecraft.client.input.KeyEvent event, CallbackInfo ci) {
         int key = event.key();
-        if (!WSFarmEngine.INSTANCE.isRunning()) {
+        if (!com.hypcro.farming.MacroController.INSTANCE.isRunning()) {
             return;
         }
 
         // Always allow ESC (Menu) and our toggle key to pass through
         if (key == GLFW.GLFW_KEY_ESCAPE) {
             if (action == GLFW.GLFW_PRESS) {
-                WSFarmEngine.INSTANCE.stopMacro("Opened Pause Menu");
+                com.hypcro.farming.MacroController.INSTANCE.stopMacro("Opened Pause Menu");
             }
             return;
         }
@@ -32,18 +32,18 @@ public class KeyboardMixin {
 
         Minecraft client = Minecraft.getInstance();
 
-        // Allow tab / player list view
-        if (client.options.keyPlayerList.matches(event)) {
-            return;
-        }
-
-        // Catch the inventory key dynamically from user settings!
+        // Catch the inventory key dynamically from user settings first!
         if (client.options.keyInventory.matches(event)) {
             // We only want to process the press down, not the release
             if (action == GLFW.GLFW_PRESS) {
-                WSFarmEngine.INSTANCE.stopMacro("Open inventory");
+                com.hypcro.farming.MacroController.INSTANCE.stopMacro("Open inventory");
             }
             // We allow the key through so the inventory actually opens after stopping the macro
+            return;
+        }
+
+        // Allow tab / player list view
+        if (client.options.keyPlayerList.matches(event)) {
             return;
         }
 

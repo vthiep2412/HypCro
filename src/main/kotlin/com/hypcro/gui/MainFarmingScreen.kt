@@ -19,7 +19,7 @@ class MainFarmingScreen : Screen(Component.literal("Hypcro Deck")) {
     private var cardH = 0
 
     private val modeOptions = listOf("W/S", "Vertical")
-    private var currentModeIndex = 0
+    private var currentModeIndex = if (com.hypcro.config.ConfigManager.config.activeMethod.equals("VERTICAL", ignoreCase = true)) 1 else 0
     private var isModeDropdownOpen = false
     private lateinit var modeDropdownBtn: Button
 
@@ -28,6 +28,8 @@ class MainFarmingScreen : Screen(Component.literal("Hypcro Deck")) {
         cardY = 24
         cardW = width - cardX - 24
         cardH = 85
+
+        currentModeIndex = if (com.hypcro.config.ConfigManager.config.activeMethod.equals("VERTICAL", ignoreCase = true)) 1 else 0
 
         // 1. Background Section Box
         addRenderableWidget(SectionBoxWidget("CROP FARMING", cardX, cardY, cardW, cardH))
@@ -60,8 +62,8 @@ class MainFarmingScreen : Screen(Component.literal("Hypcro Deck")) {
         graphics.text(font, "> Farming", 12, 44, 0xFFFFFFFF.toInt())
 
         // Card status & details
-        val statusColor = if (WSFarmEngine.isRunning) 0xFF4ADE80.toInt() else 0xFF94A3B8.toInt()
-        val statusText = if (WSFarmEngine.isRunning) "Running (Click to Stop)" else "Idle (Click card to Start)"
+        val statusColor = if (com.hypcro.farming.MacroController.isRunning) 0xFF4ADE80.toInt() else 0xFF94A3B8.toInt()
+        val statusText = if (com.hypcro.farming.MacroController.isRunning) "Running (Click to Stop)" else "Idle (Click card to Start)"
 
         graphics.text(font, "Status: $statusText", cardX + 14, cardY + 32, statusColor)
         graphics.text(font, "Supported: Wheat, Carrot, Potato, Nether Wart, Mushroom", cardX + 14, cardY + 54, 0xFF64748B.toInt())
@@ -77,15 +79,20 @@ class MainFarmingScreen : Screen(Component.literal("Hypcro Deck")) {
             val dropH = modeOptions.size * itemH
 
             graphics.fill(dropX - 1, dropY - 1, dropX + dropW + 1, dropY + dropH + 1, 0xFF334155.toInt())
-            graphics.fill(dropX, dropY, dropX + dropW, dropY + dropH, 0xFF1E293B.toInt())
+            graphics.fill(dropX, dropY, dropX + dropW, dropY + dropH, 0xFF0F172A.toInt())
 
             for ((i, opt) in modeOptions.withIndex()) {
                 val iy = dropY + (i * itemH)
                 val isHovered = mouseX in dropX until (dropX + dropW) && mouseY in iy until (iy + itemH)
-                if (isHovered || i == currentModeIndex) {
-                    graphics.fill(dropX, iy, dropX + dropW, iy + itemH, if (i == currentModeIndex) 0xFF38BDF8.toInt() else 0xFF475569.toInt())
+                val isSelected = i == currentModeIndex
+
+                if (isSelected) {
+                    graphics.fill(dropX, iy, dropX + dropW, iy + itemH, 0xFF0284C7.toInt())
+                } else if (isHovered) {
+                    graphics.fill(dropX, iy, dropX + dropW, iy + itemH, 0xFF1E293B.toInt())
                 }
-                val textColor = if (i == currentModeIndex) 0xFF0F172A.toInt() else 0xFFF1F5F9.toInt()
+
+                val textColor = if (isSelected) 0xFFFFFFFF.toInt() else if (isHovered) 0xFF38BDF8.toInt() else 0xFFCBD5E1.toInt()
                 graphics.text(font, opt, dropX + 8, iy + 5, textColor)
             }
         }
@@ -107,6 +114,10 @@ class MainFarmingScreen : Screen(Component.literal("Hypcro Deck")) {
                     currentModeIndex = i
                     modeDropdownBtn.message = Component.literal("Mode: $opt ▼")
                     isModeDropdownOpen = false
+
+                    // Save selected mode to ConfigManager
+                    com.hypcro.config.ConfigManager.config.activeMethod = if (i == 1) "VERTICAL" else "WS"
+                    com.hypcro.config.ConfigManager.save()
                     return true
                 }
             }
@@ -117,10 +128,10 @@ class MainFarmingScreen : Screen(Component.literal("Hypcro Deck")) {
         // Click on left/main area of the card toggles start/stop
         if (mouseX >= cardX && mouseX <= cardX + cardW - 136 && mouseY >= cardY && mouseY <= cardY + cardH) {
             if (event.button() == 0) {
-                if (WSFarmEngine.isRunning) {
-                    WSFarmEngine.stopMacro(reason = "GUI Toggle")
+                if (com.hypcro.farming.MacroController.isRunning) {
+                    com.hypcro.farming.MacroController.stopMacro(reason = "GUI Toggle")
                 } else {
-                    WSFarmEngine.startMacro()
+                    com.hypcro.farming.MacroController.startMacro()
                 }
                 onClose()
                 return true

@@ -19,7 +19,7 @@ public class MinecraftMixin {
             return;
         }
 
-        if (WSFarmEngine.INSTANCE.isFarmingActive() && screen != null) {
+        if (com.hypcro.farming.MacroController.INSTANCE.isFarmingActive() && screen != null) {
             // A GUI is attempting to open while the macro is running.
             // Since we intercept manual E presses in KeyboardMixin and stop the macro first,
             // reaching here means it was either forced by the server or an unhandled key.
