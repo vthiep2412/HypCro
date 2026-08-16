@@ -26,7 +26,14 @@ public class KeyboardMixin {
             }
             return;
         }
-        if (com.hypcro.HypCroMod.INSTANCE.getOpenGuiKey().matches(event)) {
+        if (com.hypcro.HypCroMod.INSTANCE.openGuiKey.matches(event)) {
+            return;
+        }
+        if (com.hypcro.HypCroMod.INSTANCE.freeLookKey.matches(event)) {
+            return;
+        }
+        // Allow F1 (Hide HUD), F3 (Debug Screen), and F11 (Fullscreen) to pass through
+        if (key == GLFW.GLFW_KEY_F1 || key == GLFW.GLFW_KEY_F3 || key == GLFW.GLFW_KEY_F11) {
             return;
         }
 

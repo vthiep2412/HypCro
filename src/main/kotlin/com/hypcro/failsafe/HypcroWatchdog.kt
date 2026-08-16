@@ -107,6 +107,14 @@ object HypcroWatchdog {
     }
 
     fun potentialStaffCheck(reason: String) {
+        // Disable Free Look immediately so player returns to normal perspective
+        val client = Minecraft.getInstance()
+        client.execute {
+            if (com.hypcro.camera.FreeLookManager.isFreeLookActive) {
+                com.hypcro.camera.FreeLookManager.disable(client)
+            }
+        }
+
         com.hypcro.farming.MacroController.abortScript(reason)
         HypCroMod.logAlarmBanner(reason)
         playFailsafeAlarm()
@@ -120,11 +128,9 @@ object HypcroWatchdog {
         alarmJob = CoroutineScope(Dispatchers.Default).launch {
             while (isActive && isAlarmActive) {
                 client.execute {
-                    val player = client.player
-                    if (player != null) {
-                        player.playSound(SoundEvents.GHAST_SCREAM, 1.0f, 1.0f)
-                        player.playSound(SoundEvents.ANVIL_LAND, 1.0f, 1.0f)
-                    }
+                    // Play non-positional UI sound (0% distance attenuation, full volume anywhere!)
+                    client.soundManager.play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(SoundEvents.GHAST_SCREAM, 1.0f, 2.0f))
+                    client.soundManager.play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(SoundEvents.ANVIL_LAND, 1.0f, 2.0f))
                 }
                 delay(500) // 0.5s interval to protect hearing
             }

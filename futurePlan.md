@@ -2,7 +2,6 @@
 
 ## High Priority & Core Improvements
 - [ ] Add humanization for W/S movement. Every 1–2 minutes, delay a reaction or direction switch by up to 1.2 s. Otherwise, choose a random delay from 0 to 800 ms.
-- [ ] ADD FREE LOOK!!!
 - [ ] Add a persistent on-screen HUD while the macro is running.
     - Stats to show: Elapsed time (uptime), average crops/second, current crop being farmed, current movement direction (W or S), and failsafe status.
 
@@ -37,6 +36,7 @@
 - Improve logging and printing to be more detailed and raise readiness.
     - Add color to text, spacing!
 - Fix multiple areas where the dropdown menu does not work correctly in GUI.
+- ADD FREE LOOK!!!
 
 ---
 

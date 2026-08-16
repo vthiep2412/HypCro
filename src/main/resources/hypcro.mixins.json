@@ -5,9 +5,11 @@
   "mixins": [
   ],
   "client": [
+    "CameraMixin",
     "KeyboardMixin",
     "MouseMixin",
-    "MinecraftMixin"
+    "MinecraftMixin",
+    "OptionsAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

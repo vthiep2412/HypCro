@@ -15,6 +15,7 @@ import org.lwjgl.glfw.GLFW
 object HypCroMod : ClientModInitializer {
     const val MOD_ID = "hypcro"
     lateinit var openGuiKey: KeyMapping
+    lateinit var freeLookKey: KeyMapping
 
     private val CATEGORY = KeyMapping.Category.register(
         Identifier.fromNamespaceAndPath(MOD_ID, "main")
@@ -26,6 +27,15 @@ object HypCroMod : ClientModInitializer {
                 "key.hypcro.opengui",
                 InputConstants.Type.KEYSYM,
                 GLFW.GLFW_KEY_END,
+                CATEGORY
+            )
+        )
+
+        freeLookKey = KeyMappingHelper.registerKeyMapping(
+            KeyMapping(
+                "key.hypcro.freelook",
+                InputConstants.Type.KEYSYM,
+                GLFW.GLFW_KEY_V,
                 CATEGORY
             )
         )
@@ -48,9 +58,35 @@ object HypCroMod : ClientModInitializer {
         }
 
         ClientTickEvents.END_CLIENT_TICK.register { client ->
+            // Reset Free Look on disconnect / world unload
+            if ((client.level == null || client.player == null) && com.hypcro.camera.FreeLookManager.isFreeLookActive) {
+                com.hypcro.camera.FreeLookManager.reset(client)
+            }
+
             while (openGuiKey.consumeClick()) {
                 handleOpenGuiOrStop()
             }
+
+            // Free Look Key Handling
+            val isHold = com.hypcro.config.ConfigManager.config.qolConfig.freeLookMode.equals("HOLD", ignoreCase = true)
+            if (isHold) {
+                while (freeLookKey.consumeClick()) { /* Drain clicks */ }
+                if (freeLookKey.isDown) {
+                    if (!com.hypcro.camera.FreeLookManager.isFreeLookActive) {
+                        com.hypcro.camera.FreeLookManager.enable(client)
+                    }
+                } else {
+                    if (com.hypcro.camera.FreeLookManager.isFreeLookActive) {
+                        com.hypcro.camera.FreeLookManager.disable(client)
+                    }
+                }
+            } else {
+                if (freeLookKey.consumeClick()) {
+                    com.hypcro.camera.FreeLookManager.toggle(client)
+                    while (freeLookKey.consumeClick()) { /* Drain extra clicks */ }
+                }
+            }
+
             com.hypcro.farming.MacroController.onClientTick(client)
         }
 

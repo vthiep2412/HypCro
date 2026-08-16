@@ -31,8 +31,18 @@ data class ModeConfig(
 )
 
 @Serializable
+data class QOLConfig(
+    var freeLookMode: String = "HOLD",
+    var freeLookInvertZoom: Boolean = false,
+    var freeLookRememberZoom: Boolean = false,
+    var freeLookSavedZoom: Float = 4.0f,
+    var freeLookRespectInvertMouse: String = "ON" // "OFF", "ON", "ALWAYS"
+)
+
+@Serializable
 data class FarmConfig(
     var activeMethod: String = "WS",
     var wsConfig: ModeConfig = ModeConfig(),
-    var verticalConfig: ModeConfig = ModeConfig()
+    var verticalConfig: ModeConfig = ModeConfig(),
+    var qolConfig: QOLConfig = QOLConfig()
 )
