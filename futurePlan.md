@@ -17,7 +17,7 @@
 
 ## Failsafe & Protection
 - [x] Add a better failsafe for when an admin rotates the player back immediately during a macro check rotation, because sometimes some macro mod will react immediately, unlike human which usually not notice that. (print out message "Rotation check WatchDog was
-triggered but the admin rotated you back. DO NOT RERCT")
+triggered but the admin rotated you back. DO NOT REACT")
     - maybe we have to delay the check a little bit.
 - [x] If player is floating while farming repeat sneak, and if can't fix it, we call staff as "Antistuck failed" and stop the macro.
 - [ ] Fix by adding try catch when got tp out during macro. (not-enough-crash mod save me once, but not many times more, I have to act on my own!)

@@ -114,8 +114,10 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         // 3. Settings View - Free Look Widgets
         val curMode = ConfigManager.config.qolConfig.freeLookMode
         val curModeIdx = if (curMode.equals("TOGGLE", ignoreCase = true)) 1 else 0
+        val pillW = 100
+        val pillX = cardX + cardW - pillW - 12
         freeLookModePill = PillToggleWidget(
-            cardX + 220, cardY + 22, 100, 16,
+            pillX, cardY + 22, pillW, 16,
             listOf("Hold", "Toggle"), curModeIdx
         ) { idx ->
             ConfigManager.config.qolConfig.freeLookMode = if (idx == 1) "TOGGLE" else "HOLD"
@@ -235,8 +237,8 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
 
         val blockChatTooltip = "§eBlock Chat & Commands\n" +
                 "§7Blocks outgoing chat messages and commands from sending to the server while macroing.\n" +
-                "§7• There are many background QOL mods send commands without triggering anti-cheats.\n" +
-                "§7• However, typing or executing commands during macroing can easily flag staff checks."
+                "§7• Most QOL mods send commands during your action safely without triggering anti-cheats.\n" +
+                "§7• However, running commands while macroing is risky and can easily get you flagged by staff."
         blockChatAndCommandsInfo = InfoIconWidget(cardX + 12 + font.width(Component.literal("Block Chat and Command:")) + 6, lockCardY + 104, blockChatTooltip)
         addRenderableWidget(blockChatAndCommandsInfo)
 

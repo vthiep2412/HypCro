@@ -40,22 +40,29 @@ object ConfigManager {
         }
     }
 
-    @Synchronized
-    fun save(async: Boolean = true) {
-        if (async) {
-            ioScope.launch {
-                saveSync()
+    private val saveChannel = kotlinx.coroutines.channels.Channel<String>(kotlinx.coroutines.channels.Channel.UNLIMITED)
+
+    init {
+        ioScope.launch {
+            for (text in saveChannel) {
+                writeTextToFile(text)
             }
-        } else {
-            saveSync()
         }
     }
 
     @Synchronized
-    private fun saveSync() {
+    fun save(async: Boolean = true) {
+        val text = json.encodeToString(config)
+        if (async) {
+            saveChannel.trySend(text)
+        } else {
+            writeTextToFile(text)
+        }
+    }
+
+    private fun writeTextToFile(text: String) {
         try {
             configFile.parentFile?.mkdirs()
-            val text = json.encodeToString(config)
             configFile.writeText(text)
         } catch (e: Exception) {
             e.printStackTrace()

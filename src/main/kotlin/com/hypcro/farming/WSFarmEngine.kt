@@ -81,9 +81,15 @@ object WSFarmEngine : IFarmEngine {
                 }
 
                 // 3. Check and Align Angles via Mousemat FIRST (before holding tool)
-                val curPlayer = client.player
-                val currentYaw = curPlayer?.yRot ?: 0f
-                val currentPitch = curPlayer?.xRot ?: 0f
+                var currentYaw = 0f
+                var currentPitch = 0f
+                client.execute {
+                    val curPlayer = client.player
+                    currentYaw = curPlayer?.yRot ?: 0f
+                    currentPitch = curPlayer?.xRot ?: 0f
+                }
+                // Allow client tick to capture orientation if needed
+                delay(50)
 
                 val yawDelta = abs((((currentYaw - targetAngles.first + 180f) % 360f + 360f) % 360f) - 180f)
                 val pitchDelta = abs(currentPitch - targetAngles.second)
@@ -100,20 +106,25 @@ object WSFarmEngine : IFarmEngine {
                 }
 
                 // 4. Now switch directly to the verified farming tool
-                client.execute { client.player?.inventory?.selectedSlot = toolSlot }
-                val toolName = client.player?.inventory?.getItem(toolSlot)?.hoverName?.string ?: "Farming Tool"
+                var toolName = "Farming Tool"
+                client.execute {
+                    client.player?.inventory?.selectedSlot = toolSlot
+                    toolName = client.player?.inventory?.getItem(toolSlot)?.hoverName?.string ?: "Farming Tool"
+                }
                 delay(200)
 
-                // 5. Start Watchdog with expected tool slot
-                HypcroWatchdog.start(toolSlot)
+                // 5. Start Watchdog with expected tool slot on client thread
+                client.execute {
+                    HypcroWatchdog.start(toolSlot)
+                }
 
                 // 6. Initialize active key & activate main-thread tick loop
                 lastStatusLogTime = 0L
                 lastPosCheckTime = System.currentTimeMillis()
                 macroStartTime = System.currentTimeMillis()
-                lastCheckPos = client.player?.position()
                 
                 client.execute {
+                    lastCheckPos = client.player?.position()
                     val inWater = isPlayerFeetInWater(client)
                     currentActiveKey = if (inWater) 'W' else 'S'
                     applyMovementKeys(inWater)

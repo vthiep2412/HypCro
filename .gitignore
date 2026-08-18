@@ -36,5 +36,5 @@ test_*.kt
 .legacy/
 
 # Reference learning repos
-Learn/
+/Learn/
 
