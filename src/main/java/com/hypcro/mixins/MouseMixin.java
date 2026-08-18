@@ -21,6 +21,10 @@ public class MouseMixin {
 
     @Inject(method = "onScroll", at = @At("HEAD"), cancellable = true)
     private void onMouseScroll(long window, double horizontal, double vertical, CallbackInfo ci) {
+        if (Minecraft.getInstance().screen != null) {
+            return;
+        }
+
         if (FreeLookManager.INSTANCE.isFreeLookActive()) {
             // Smooth zoom scroll
             FreeLookManager.INSTANCE.onMouseScroll(vertical);
@@ -54,9 +58,13 @@ public class MouseMixin {
         }
 
         if (MacroController.INSTANCE.isRunning()) {
-            this.accumulatedDX = 0.0;
-            this.accumulatedDY = 0.0;
-            ci.cancel();
+            boolean lockMouse = com.hypcro.config.ConfigManager.INSTANCE.getConfig().getGeneralConfig().getInputLock().getLockMouse();
+            if (lockMouse) {
+                this.accumulatedDX = 0.0;
+                this.accumulatedDY = 0.0;
+                ci.cancel();
+            }
+            // Intended: Do not notify watchdog here. Any abrupt rotation while macroing must be caught by failsafe.
         }
     }
 }

@@ -63,11 +63,14 @@ object FreeLookManager {
     }
 
     fun reset(client: Minecraft) {
-        isFreeLookActive = false
-        previousCameraType?.let {
-            client.options.cameraType = it
+        if (isFreeLookActive) {
+            disable(client)
+        } else {
+            previousCameraType?.let {
+                client.options.cameraType = it
+            }
+            previousCameraType = null
         }
-        previousCameraType = null
         cameraDistance = 4.0f
     }
 

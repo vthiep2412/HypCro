@@ -21,11 +21,13 @@ class PillToggleWidget(
         val segmentWidth = width / options.size
 
         // Background pill
-        graphics.fill(x, y, x + width, y + height, 0xFF1E293B.toInt())
+        val bgCol = if (active) 0xFF1E293B.toInt() else 0xFF0F172A.toInt()
+        graphics.fill(x, y, x + width, y + height, bgCol)
 
         // Selected pill highlight
         val selX = x + selectedIndex * segmentWidth
-        graphics.fill(selX + 2, y + 2, selX + segmentWidth - 2, y + height - 2, 0xFF3B82F6.toInt())
+        val selCol = if (active) 0xFF3B82F6.toInt() else 0xFF334155.toInt()
+        graphics.fill(selX + 2, y + 2, selX + segmentWidth - 2, y + height - 2, selCol)
 
         // Render option texts
         val font = Minecraft.getInstance().font
@@ -33,7 +35,13 @@ class PillToggleWidget(
             val text = options[i]
             val optX = x + i * segmentWidth + segmentWidth / 2
             val optY = y + (height - 8) / 2
-            val color = if (i == selectedIndex) 0xFFFFFFFF.toInt() else 0xFF94A3B8.toInt()
+            val color = if (!active) {
+                0xFF64748B.toInt()
+            } else if (i == selectedIndex) {
+                0xFFFFFFFF.toInt()
+            } else {
+                0xFF94A3B8.toInt()
+            }
             
             val strWidth = font.width(text)
             graphics.text(font, text, optX - strWidth / 2, optY, color)
@@ -41,6 +49,7 @@ class PillToggleWidget(
     }
 
     override fun onClick(event: MouseButtonEvent, doubleClick: Boolean) {
+        if (!active) return
         val mouseX = event.x()
         if (mouseX >= x && mouseX <= x + width) {
             val segmentWidth = width / options.size

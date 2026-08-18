@@ -6,6 +6,7 @@
   "description": "Clean client-side farm helper and watchdog failsafe for Hypixel SkyBlock",
   "authors": ["User"],
   "license": "MIT",
+  "icon": "assets/hypcro/textures/gui/icon.png",
   "environment": "client",
   "entrypoints": {
     "client": [

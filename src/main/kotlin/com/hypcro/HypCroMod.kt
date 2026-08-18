@@ -48,12 +48,7 @@ object HypCroMod : ClientModInitializer {
                 }
                 false // Cancel sending to server
             } else {
-                if (com.hypcro.farming.MacroController.isRunning) {
-                    log("Chat blocked while macro")
-                    false
-                } else {
-                    true
-                }
+                true
             }
         }
 
@@ -97,6 +92,7 @@ object HypCroMod : ClientModInitializer {
         val client = Minecraft.getInstance()
         if (com.hypcro.failsafe.HypcroWatchdog.isAlarmActive) {
             com.hypcro.failsafe.HypcroWatchdog.silenceAlarm()
+            com.hypcro.farming.MacroController.stopMacro(reason = "Watchdog Alarm")
             log("Watchdog alarm silenced. Press END or type .hypcro again to open GUI.")
             return
         }
@@ -117,25 +113,44 @@ object HypCroMod : ClientModInitializer {
     }
 
     fun log(message: String) {
-        sendRaw("§8[§bHypCro§8] §7$message")
+        sendRaw("§8[§b§lHypCro§8] §7$message")
     }
 
     fun logSuccess(message: String) {
-        sendRaw("§8[§aHypCro §8✔] §f$message")
+        sendRaw("§8[§a§lHypCro §8✔] §f$message")
     }
 
     fun logWarn(message: String) {
-        sendRaw("§8[§6HypCro §e⚠§8] §e$message")
+        sendRaw("§8[§6§lHypCro §e⚠§8] §e$message")
+        val client = Minecraft.getInstance()
+        client.execute {
+            client.soundManager.play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(net.minecraft.sounds.SoundEvents.BELL_BLOCK, 1.0f, 1.0f))
+        }
+    }
+
+    fun logWatchdogWarn(message: String) {
+        sendRaw("")
+        sendRaw("§6§m----------------------------------------")
+        sendRaw(" §8[§6§lHypCro Watchdog §e⚠§8] §e§lROTATION WARNING")
+        sendRaw(" §8• §e$message")
+        sendRaw("§6§m----------------------------------------")
+        sendRaw("")
+        val client = Minecraft.getInstance()
+        client.execute {
+            client.soundManager.play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(net.minecraft.sounds.SoundEvents.GHAST_SCREAM, 1.0f, 1.5f))
+            client.soundManager.play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(net.minecraft.sounds.SoundEvents.BELL_BLOCK, 1.0f, 1.0f))
+            client.soundManager.play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(net.minecraft.sounds.SoundEvents.BELL_BLOCK, 1.0f, 1.2f))
+        }
     }
 
     fun logWatchdog(message: String) {
-        sendRaw("§8[§cHypCro Watchdog§8] §c$message")
+        sendRaw("§8[§c§lHypCro Watchdog§8] §c$message")
     }
 
     fun logStartBanner(mode: String, crop: String, yaw: Float, pitch: Float, toolName: String?) {
         sendRaw("")
         sendRaw("§8§m----------------------------------------")
-        sendRaw(" §8[§bHypCro§8] §a§lMACRO STARTED §8(§b$mode§8)")
+        sendRaw(" §8[§b§lHypCro§8] §a§lMACRO STARTED §8(§b$mode§8)")
         sendRaw(" §8• §7Crop: §f$crop §8• §7Yaw: §f${String.format("%.2f", yaw)}° §8• §7Pitch: §f${String.format("%.2f", pitch)}°")
         if (!toolName.isNullOrBlank()) {
             sendRaw(" §8• §7Tool: §f$toolName")
@@ -147,7 +162,7 @@ object HypCroMod : ClientModInitializer {
     fun logStopBanner(reason: String) {
         sendRaw("")
         sendRaw("§8§m----------------------------------------")
-        sendRaw(" §8[§7HypCro§8] §c§lMACRO STOPPED §8(§f$reason§8)")
+        sendRaw(" §8[§7§lHypCro§8] §c§lMACRO STOPPED §8(§f$reason§8)")
         sendRaw(" §8• §7Press toggle key or type §b.hypcro§7 to open menu")
         sendRaw("§8§m----------------------------------------")
         sendRaw("")
@@ -156,7 +171,7 @@ object HypCroMod : ClientModInitializer {
     fun logAlarmBanner(reason: String) {
         sendRaw("")
         sendRaw("§4§m========================================")
-        sendRaw(" §8[§cHypCro §4🚨§8] §c§lFAILSAFE TRIGGERED")
+        sendRaw(" §8[§c§lHypCro §4🚨§8] §c§lFAILSAFE TRIGGERED")
         sendRaw(" §8• §f$reason")
         sendRaw(" §8• §7Macro aborted §8• §eAlarm active")
         sendRaw("§4§m========================================")

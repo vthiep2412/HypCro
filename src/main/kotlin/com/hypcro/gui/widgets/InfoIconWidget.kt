@@ -6,6 +6,7 @@ import net.minecraft.client.gui.components.AbstractWidget
 import net.minecraft.client.gui.narration.NarrationElementOutput
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.network.chat.Component
+import net.minecraft.util.FormattedCharSequence
 
 class InfoIconWidget(
     x: Int,
@@ -13,6 +14,10 @@ class InfoIconWidget(
     val tooltipText: String,
     val wrapWidth: Int = 260
 ) : AbstractWidget(x, y, 14, 10, Component.empty()) {
+
+    private val cachedLines: List<FormattedCharSequence> by lazy {
+        Minecraft.getInstance().font.split(Component.literal(tooltipText), wrapWidth)
+    }
 
     override fun extractWidgetRenderState(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, delta: Float) {
         val isHovered = mouseX in x until (x + width) && mouseY in y until (y + height)
@@ -22,8 +27,7 @@ class InfoIconWidget(
         graphics.text(font, iconText, x, y, 0xFFFFFFFF.toInt())
 
         if (isHovered) {
-            val lines = font.split(Component.literal(tooltipText), wrapWidth)
-            graphics.setTooltipForNextFrame(font, lines, mouseX, mouseY)
+            graphics.setTooltipForNextFrame(font, cachedLines, mouseX, mouseY)
         }
     }
 
@@ -33,3 +37,4 @@ class InfoIconWidget(
 
     override fun updateWidgetNarration(output: NarrationElementOutput) {}
 }
+

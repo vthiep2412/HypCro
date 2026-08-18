@@ -34,6 +34,8 @@ object WSFarmEngine : IFarmEngine {
     private var farmJob: Job? = null
     private var lastToggleTime: Long = 0L
 
+    private val engineScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+
     @Volatile
     override var isFarmingActive: Boolean = false
         private set
@@ -69,15 +71,24 @@ object WSFarmEngine : IFarmEngine {
         isRunning = true
         isFarmingActive = false
 
-        farmJob = CoroutineScope(Dispatchers.Default).launch {
+        farmJob = engineScope.launch {
             try {
+                // 2.5 Anti-Stuck: Check Flying (if player is airborne or flying, sneak down to ground)
+                val grounded = com.hypcro.failsafe.AntiStuckEngine.resolveFlyingState(client)
+                if (!grounded) {
+                    abortScript("Anti-Stuck: Player could not reach ground safely.")
+                    return@launch
+                }
+
                 // 3. Check and Align Angles via Mousemat FIRST (before holding tool)
-                val currentYaw = player.yRot
-                val currentPitch = player.xRot
+                val curPlayer = client.player
+                val currentYaw = curPlayer?.yRot ?: 0f
+                val currentPitch = curPlayer?.xRot ?: 0f
 
                 val yawDelta = abs((((currentYaw - targetAngles.first + 180f) % 360f + 360f) % 360f) - 180f)
                 val pitchDelta = abs(currentPitch - targetAngles.second)
-                val anglesMatched = yawDelta < 0.5f && pitchDelta < 0.5f
+                // Intended: Strict 0.1 degree precision check before allowing farming loop to proceed
+                val anglesMatched = yawDelta < 0.1f && pitchDelta < 0.1f
 
                 if (!anglesMatched) {
                     HypCroMod.log("Aligning angles to Yaw: ${targetAngles.first}, Pitch: ${targetAngles.second} via Squeaky Mousemat...")
@@ -89,8 +100,8 @@ object WSFarmEngine : IFarmEngine {
                 }
 
                 // 4. Now switch directly to the verified farming tool
-                client.execute { player.inventory.selectedSlot = toolSlot }
-                val toolName = player.inventory.getItem(toolSlot).hoverName.string
+                client.execute { client.player?.inventory?.selectedSlot = toolSlot }
+                val toolName = client.player?.inventory?.getItem(toolSlot)?.hoverName?.string ?: "Farming Tool"
                 delay(200)
 
                 // 5. Start Watchdog with expected tool slot
@@ -105,7 +116,7 @@ object WSFarmEngine : IFarmEngine {
                 client.execute {
                     val inWater = isPlayerFeetInWater(client)
                     currentActiveKey = if (inWater) 'W' else 'S'
-                    applyMovementKeys(client, inWater)
+                    applyMovementKeys(inWater)
                     
                     HypCroMod.logStartBanner(engineName, detectedCrop.displayName, targetAngles.first, targetAngles.second, toolName)
                     isFarmingActive = true
@@ -131,8 +142,12 @@ object WSFarmEngine : IFarmEngine {
             val player = client.player ?: return
             val level = client.level ?: return
 
-            // Maintain attack key every client tick
-            client.options.keyAttack.setDown(true)
+            // Run Watchdog failsafes on client tick
+            HypcroWatchdog.onClientTick(client)
+            if (!isRunning || !isFarmingActive) return
+
+            // Maintain attack and movement via MacroInputController
+            MacroInputController.attack = true
 
             val now = System.currentTimeMillis()
 
@@ -153,9 +168,12 @@ object WSFarmEngine : IFarmEngine {
                             currentActiveKey = neededKey
                             // HypCroMod.log(">> Water transition: inWater=$inWater -> Key=$currentActiveKey at (${String.format("%.1f", player.x)}, ${String.format("%.1f", player.y)}, ${String.format("%.1f", player.z)})")
                         } else {
-                            // Scenario B: Stopped moving, but water state is exactly the same -> Edge case, abort
-                            HypcroWatchdog.potentialStaffCheck("Farming Interruption")
-                            return
+                            // Scenario B: Stopped moving, but water state is exactly the same
+                            // Intended: Only trigger failsafe if configured; full anti-stuck handles broader recovery flows
+                            if (ConfigManager.config.generalConfig.watchdog.checkFarmingInterruption) {
+                                HypcroWatchdog.potentialStaffCheck("Farming Interruption")
+                                return
+                            }
                         }
                     }
                 }
@@ -164,18 +182,20 @@ object WSFarmEngine : IFarmEngine {
                 lastPosCheckTime = now
             }
 
-            // Apply movement keys based on currentActiveKey
+            // Apply movement keys to central MacroInputController
             if (currentActiveKey == 'W') {
+                MacroInputController.holdW()
                 client.options.keyUp.setDown(true)
                 client.options.keyDown.setDown(false)
             } else {
+                MacroInputController.holdS()
                 client.options.keyUp.setDown(false)
                 client.options.keyDown.setDown(true)
             }
 
             if (now - lastStatusLogTime >= 3000L) { // Every 3 seconds real time
                 lastStatusLogTime = now
-                val inWater = isPlayerFeetInWater(client)
+                // val inWater = isPlayerFeetInWater(client)
                 // HypCroMod.log("[Farming] key=$currentActiveKey | inWater=$inWater | pos=(${String.format("%.1f", player.x)}, ${String.format("%.1f", player.y)}, ${String.format("%.1f", player.z)})")
             }
         } catch (t: Throwable) {
@@ -185,10 +205,6 @@ object WSFarmEngine : IFarmEngine {
     }
 
     override fun stopMacro(reason: String) {
-        val now = System.currentTimeMillis()
-        if (now - lastToggleTime < 300) return
-        lastToggleTime = now
-
         if (!isRunning) return
         isRunning = false
         isFarmingActive = false
@@ -197,7 +213,7 @@ object WSFarmEngine : IFarmEngine {
         currentTargetAngles = null
 
         HypcroWatchdog.stop()
-        releaseAllKeys()
+        MacroInputController.releaseAll()
         HypCroMod.logStopBanner(reason)
     }
 
@@ -209,7 +225,7 @@ object WSFarmEngine : IFarmEngine {
         currentTargetAngles = null
 
         HypcroWatchdog.stop()
-        releaseAllKeys()
+        MacroInputController.releaseAll()
         HypCroMod.logStopBanner(message)
     }
 
@@ -229,15 +245,16 @@ object WSFarmEngine : IFarmEngine {
         val minZ = kotlin.math.floor(bb.minZ).toInt()
         val maxZ = kotlin.math.floor(bb.maxZ).toInt()
 
+        val mutablePos = BlockPos.MutableBlockPos()
         for (x in minX..maxX) {
             for (y in minY..maxY) {
                 for (z in minZ..maxZ) {
-                    val bPos = BlockPos(x, y, z)
-                    val fluid = level.getFluidState(bPos)
+                    mutablePos.set(x, y, z)
+                    val fluid = level.getFluidState(mutablePos)
                     if (fluid.`is`(FluidTags.WATER) && !fluid.isEmpty) {
                         return true
                     }
-                    val blockState = level.getBlockState(bPos)
+                    val blockState = level.getBlockState(mutablePos)
                     if (blockState.block == Blocks.WATER || blockState.block == Blocks.BUBBLE_COLUMN) {
                         return true
                     }
@@ -255,18 +272,20 @@ object WSFarmEngine : IFarmEngine {
         val forwardDir = Vec3(-sin(yawRad), 0.0, cos(yawRad)).normalize()
         val footPos = player.position()
 
+        val mutablePos = BlockPos.MutableBlockPos()
         // Scan 1 to 3 blocks forward in horizontal yaw direction
         for (i in 1..3) {
-            val checkVec = footPos.add(forwardDir.scale(i.toDouble()))
-            val yLevels = listOf(
-                kotlin.math.floor(checkVec.y).toInt() - 1,
-                kotlin.math.floor(checkVec.y).toInt(),
-                kotlin.math.floor(checkVec.y).toInt() + 1
-            )
+            val checkX = footPos.x + forwardDir.x * i
+            val checkY = footPos.y
+            val checkZ = footPos.z + forwardDir.z * i
 
-            for (y in yLevels) {
-                val bPos = BlockPos(kotlin.math.floor(checkVec.x).toInt(), y, kotlin.math.floor(checkVec.z).toInt())
-                val block = level.getBlockState(bPos).block
+            val blockX = kotlin.math.floor(checkX).toInt()
+            val blockY = kotlin.math.floor(checkY).toInt()
+            val blockZ = kotlin.math.floor(checkZ).toInt()
+
+            for (dy in -1..1) {
+                mutablePos.set(blockX, blockY + dy, blockZ)
+                val block = level.getBlockState(mutablePos).block
 
                 when (block) {
                     is CropBlock -> {
@@ -328,27 +347,12 @@ object WSFarmEngine : IFarmEngine {
         }
     }
 
-    private fun applyMovementKeys(client: Minecraft, inWater: Boolean) {
-        client.execute {
-            client.options.keyAttack.setDown(true)
-            if (inWater) {
-                client.options.keyUp.setDown(true)
-                client.options.keyDown.setDown(false)
-            } else {
-                client.options.keyUp.setDown(false)
-                client.options.keyDown.setDown(true)
-            }
-        }
-    }
-
-    private fun releaseAllKeys() {
-        val client = Minecraft.getInstance()
-        client.execute {
-            client.options.keyUp.setDown(false)
-            client.options.keyDown.setDown(false)
-            client.options.keyLeft.setDown(false)
-            client.options.keyRight.setDown(false)
-            client.options.keyAttack.setDown(false)
+    private fun applyMovementKeys(inWater: Boolean) {
+        MacroInputController.holdAttack()
+        if (inWater) {
+            MacroInputController.holdW()
+        } else {
+            MacroInputController.holdS()
         }
     }
 }

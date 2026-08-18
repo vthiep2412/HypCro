@@ -14,6 +14,10 @@ public class KeyboardMixin {
 
     @Inject(method = "keyPress", at = @At("HEAD"), cancellable = true)
     private void onKeyPress(long window, int action, net.minecraft.client.input.KeyEvent event, CallbackInfo ci) {
+        if (Minecraft.getInstance().screen != null) {
+            return;
+        }
+
         int key = event.key();
         if (!com.hypcro.farming.MacroController.INSTANCE.isRunning()) {
             return;
@@ -38,6 +42,7 @@ public class KeyboardMixin {
         }
 
         Minecraft client = Minecraft.getInstance();
+        com.hypcro.config.InputLockConfig lockConfig = com.hypcro.config.ConfigManager.INSTANCE.getConfig().getGeneralConfig().getInputLock();
 
         // Catch the inventory key dynamically from user settings first!
         if (client.options.keyInventory.matches(event)) {
@@ -54,7 +59,38 @@ public class KeyboardMixin {
             return;
         }
 
-        // If macro is running and it's not an excluded key, eat the input
-        ci.cancel();
+        // Allow opening chat during macro
+        if (client.options.keyChat.matches(event)) {
+            return;
+        }
+
+        // 1. Hotbar lock check
+        if (lockConfig.getLockHotbar()) {
+            for (net.minecraft.client.KeyMapping hotbarKey : client.options.keyHotbarSlots) {
+                if (hotbarKey.matches(event)) {
+                    ci.cancel();
+                    return;
+                }
+            }
+        }
+
+        // 2. Movement lock check
+        if (lockConfig.getLockMovement()) {
+            if (client.options.keyUp.matches(event) ||
+                client.options.keyDown.matches(event) ||
+                client.options.keyLeft.matches(event) ||
+                client.options.keyRight.matches(event) ||
+                client.options.keyJump.matches(event) ||
+                client.options.keyShift.matches(event) ||
+                client.options.keySprint.matches(event)) {
+                ci.cancel();
+                return;
+            }
+        }
+
+        // 3. Lock all other keybinds (Intended: requires both hotbar and movement lock to be ON)
+        if (lockConfig.getLockAllOtherKeybinds() && lockConfig.getLockHotbar() && lockConfig.getLockMovement()) {
+            ci.cancel();
+        }
     }
 }

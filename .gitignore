@@ -34,3 +34,7 @@ test_*.kt
 
 # Legacy backups
 .legacy/
+
+# Reference learning repos
+Learn/
+
