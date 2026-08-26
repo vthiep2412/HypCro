@@ -122,11 +122,6 @@ object PestTargetTracker {
             forgetPest(pest.entity.uuid)
             return true
         }
-        val stillInWorld = level.entitiesForRendering().any { it.id == pest.entity.id && !it.isRemoved }
-        if (!stillInWorld) {
-            forgetPest(pest.entity.uuid)
-            return true
-        }
         return false
     }
 

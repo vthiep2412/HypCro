@@ -550,7 +550,11 @@ object ThetaStarPathfinder : IPathfinder {
         } else {
             HypCroMod.logWarn("Theta*: search frontier exhausted, using partial forward path")
         }
-        val fallbackRaw = reconstructPathForward(poolF, closestNodeF, effectiveStart).toMutableList().apply { add(targetDest) }
+        val fallbackRaw = reconstructPathForward(poolF, closestNodeF, effectiveStart).toMutableList()
+        val fallbackTail = fallbackRaw.lastOrNull()
+        if (fallbackTail != null && hasLineOfSight(level, fallbackTail, targetDest)) {
+            fallbackRaw.add(targetDest)
+        }
         val fallbackPruned = pruneCollinearWaypoints(level, fallbackRaw, targetDest)
         recordChosenPathDebug(fallbackPruned)
         PathfindingVisualizer.setPath("Theta*", fallbackPruned, System.currentTimeMillis() - startTime)

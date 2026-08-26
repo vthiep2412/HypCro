@@ -162,7 +162,7 @@ object RRTStarPathfinder : IPathfinder {
             }
 
             // 2. Interleaved Vertex Expansion: expand vertices into edgeQueue until edgeQueue top is competitive
-            while (vertexQueue.isNotEmpty() && (edgeQueue.isEmpty() || (vertexQueue.peek().cost + vertexQueue.peek().pos.distanceTo(targetDest)) <= edgeQueue.peek().estimatedCost)) {
+            while (System.currentTimeMillis() - startTime < timeBudgetMs && vertexQueue.isNotEmpty() && (edgeQueue.isEmpty() || (vertexQueue.peek().cost + vertexQueue.peek().pos.distanceTo(targetDest)) <= edgeQueue.peek().estimatedCost)) {
                 if (CentralMovementCoordinator.isAbortTriggered()) {
                     PathfindingVisualizer.clearDebug()
                     return emptyList()

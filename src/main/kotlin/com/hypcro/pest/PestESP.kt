@@ -11,7 +11,8 @@ object PestESP {
 
     private var cachedIsInGarden: Boolean = false
     private var cachedPests: List<TrackedPest> = emptyList()
-    private var lastTickTimeMs: Long = 0L
+    private var lastGardenCheckMs: Long = 0L
+    private var lastScanTimeMs: Long = 0L
 
     fun tick(client: Minecraft) {
         if (!ConfigManager.config.pestDestroyer.pestEsp) {
@@ -26,11 +27,21 @@ object PestESP {
             cachedPests = emptyList()
             return
         }
-        cachedIsInGarden = PestTabReader.isInGarden(client)
+
+        val now = System.currentTimeMillis()
+
+        // 1. Refresh Garden presence once every 1000ms (1 second)
+        if (now - lastGardenCheckMs >= 1000L) {
+            lastGardenCheckMs = now
+            cachedIsInGarden = PestTabReader.isInGarden(client)
+        }
+
         if (!cachedIsInGarden) {
             cachedPests = emptyList()
             return
         }
+
+        // 2. Refresh entity positions every 50ms
         cachedPests = PestTargetTracker.findPestsInRadius(client, player.position(), 64.0)
     }
 
@@ -42,8 +53,8 @@ object PestESP {
         }
         val client = Minecraft.getInstance()
         val now = System.currentTimeMillis()
-        if (now - lastTickTimeMs >= 50L) {
-            lastTickTimeMs = now
+        if (now - lastScanTimeMs >= 50L) {
+            lastScanTimeMs = now
             tick(client)
         }
 

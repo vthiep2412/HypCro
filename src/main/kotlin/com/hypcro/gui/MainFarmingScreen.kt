@@ -38,6 +38,23 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
             ItemStack(Items.POTATO),
             ItemStack(Items.NETHER_WART)
         )
+
+        private const val SEC_MOUSE_H = 104
+        private const val SEC_MOUSE_GAP = 110
+        private const val SEC_PATHFINDING_H = 64
+        private const val SEC_PATHFINDING_GAP = 70
+        private const val SEC_VISUALS_H = 64
+        private const val SEC_VISUALS_GAP = 70
+        private const val SEC_FREELOOK_H = 104
+        private const val SEC_FREELOOK_GAP = 110
+        private const val SEC_WATCHDOG_H = 144
+        private const val SEC_WATCHDOG_GAP = 150
+        private const val SEC_LOCK_H = 124
+
+        private const val SEC_FARM_FLY_GAP = 44
+        private const val SEC_FARM_PEST_GAP = 64
+        private const val SEC_PEST_CONF_GAP = 156
+        private const val SEC_MISC_CONF_GAP = 88
     }
 
     private val sidebarWidth = 110
@@ -656,10 +673,10 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
     private fun calculateMaxScroll(): Int {
         val viewH = height - headerLineY - 14
         val contentH = when (selectedTab) {
-            "Settings" -> (110 + 70 + 70 + 110 + 150 + 124) + 20
-            "Farming" -> if (farmingSubTab == 1) 44 + 64 + 20 else cardH + 20
-            "Pester" -> if (pesterSubTab == 1) 156 + 20 else cardH + 20
-            "Misc" -> if (miscSubTab == 1) 88 + 20 else cardH + 20
+            "Settings" -> (SEC_MOUSE_GAP + SEC_PATHFINDING_GAP + SEC_VISUALS_GAP + SEC_FREELOOK_GAP + SEC_WATCHDOG_GAP + SEC_LOCK_H) + 20
+            "Farming" -> if (farmingSubTab == 1) SEC_FARM_FLY_GAP + SEC_FARM_PEST_GAP + 20 else cardH + 20
+            "Pester" -> if (pesterSubTab == 1) SEC_PEST_CONF_GAP + 20 else cardH + 20
+            "Misc" -> if (miscSubTab == 1) SEC_MISC_CONF_GAP + 20 else cardH + 20
             else -> 100
         }
         return (contentH - viewH).coerceAtLeast(0)
@@ -675,23 +692,23 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         mouseOvershootPill.y = mmY + 60
         mouseDpiSlider.y = mmY + 80
 
-        val pfY = mmY + 110
+        val pfY = mmY + SEC_MOUSE_GAP
         pathfindingAlgoPill.y = pfY + 20
         stopAfterDestPill.y = pfY + 40
         stopAfterDestInfo.y = pfY + 42
 
-        val visY = pfY + 70
+        val visY = pfY + SEC_PATHFINDING_GAP
         pathfindingVisualizerPill.y = visY + 20
         verboseVisualizerPill.y = visY + 40
 
-        val flY = visY + 70
+        val flY = visY + SEC_VISUALS_GAP
         freeLookModePill.y = flY + 20
         invertZoomPill.y = flY + 40
         rememberZoomPill.y = flY + 60
         respectInvertPill.y = flY + 80
         respectInvertInfo.y = flY + 82
 
-        val wdY = flY + 110
+        val wdY = flY + SEC_FREELOOK_GAP
         checkRotationPill.y = wdY + 20
         debounceRotationInfo.y = wdY + 42
         debounceRotationPill.y = wdY + 40
@@ -702,7 +719,7 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         checkUnfamiliarGuiInfo.y = wdY + 122
         checkUnfamiliarGuiPill.y = wdY + 120
 
-        val lockCardY = wdY + 150
+        val lockCardY = wdY + SEC_WATCHDOG_GAP
         keyMouseLockHeaderInfo.y = lockCardY + 5
         lockHotbarPill.y = lockCardY + 20
         lockMovementPill.y = lockCardY + 40
@@ -775,7 +792,11 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         pathfindingVisualizerPill.visible = isSettings
         val isVisOn = ConfigManager.config.generalConfig.visuals.pathfindingVisualizer
         verboseVisualizerPill.active = isVisOn
-        if (!isVisOn) {
+        if (!isVisOn && ConfigManager.config.generalConfig.visuals.verbosePathfindingVisual) {
+            ConfigManager.config.generalConfig.visuals.verbosePathfindingVisual = false
+            verboseVisualizerPill.selectedIndex = 0
+            ConfigManager.save()
+        } else if (!isVisOn) {
             verboseVisualizerPill.selectedIndex = 0
         }
         verboseVisualizerPill.visible = isSettings
@@ -1126,7 +1147,7 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
 
     private fun renderSettingsView(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
         val mmY = cardY - scrollOffset
-        val mmH = 104
+        val mmH = SEC_MOUSE_H
         graphics.fill(cardX - 1, mmY - 1, cardX + cardW + 1, mmY + mmH + 1, 0xFF334155.toInt())
         graphics.fill(cardX, mmY, cardX + cardW, mmY + mmH, 0xFF1E293B.toInt())
         graphics.fill(cardX, mmY, cardX + cardW, mmY + 18, 0xFF334155.toInt())
@@ -1136,8 +1157,8 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         graphics.text(font, "Overshoot:", cardX + 12, mmY + 65, 0xFF94A3B8.toInt())
         graphics.text(font, "DPI Speed:", cardX + 12, mmY + 85, 0xFF94A3B8.toInt())
 
-        val pfY = mmY + 110
-        val pfH = 64
+        val pfY = mmY + SEC_MOUSE_GAP
+        val pfH = SEC_PATHFINDING_H
         graphics.fill(cardX - 1, pfY - 1, cardX + cardW + 1, pfY + pfH + 1, 0xFF334155.toInt())
         graphics.fill(cardX, pfY, cardX + cardW, pfY + pfH, 0xFF1E293B.toInt())
         graphics.fill(cardX, pfY, cardX + cardW, pfY + 18, 0xFF334155.toInt())
@@ -1145,8 +1166,8 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         graphics.text(font, "Pathfinding Algorithm:", cardX + 12, pfY + 25, 0xFF94A3B8.toInt())
         graphics.text(font, "Brake after reaching destination:", cardX + 12, pfY + 45, 0xFF94A3B8.toInt())
 
-        val visY = pfY + 70
-        val visH = 64
+        val visY = pfY + SEC_PATHFINDING_GAP
+        val visH = SEC_VISUALS_H
         graphics.fill(cardX - 1, visY - 1, cardX + cardW + 1, visY + visH + 1, 0xFF334155.toInt())
         graphics.fill(cardX, visY, cardX + cardW, visY + visH, 0xFF1E293B.toInt())
         graphics.fill(cardX, visY, cardX + cardW, visY + 18, 0xFF334155.toInt())
@@ -1156,8 +1177,8 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         val verboseColor = if (verboseVisualizerPill.active) 0xFF94A3B8.toInt() else 0xFF475569.toInt()
         graphics.text(font, "§8└─ §rVerbose Visualizer:", cardX + 18, visY + 45, verboseColor)
 
-        val flY = visY + 70
-        val flH = 104
+        val flY = visY + SEC_VISUALS_GAP
+        val flH = SEC_FREELOOK_H
         graphics.fill(cardX - 1, flY - 1, cardX + cardW + 1, flY + flH + 1, 0xFF334155.toInt())
         graphics.fill(cardX, flY, cardX + cardW, flY + flH, 0xFF1E293B.toInt())
         graphics.fill(cardX, flY, cardX + cardW, flY + 18, 0xFF334155.toInt())
@@ -1167,8 +1188,8 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         graphics.text(font, "Remember Zoom (Max 25b):", cardX + 12, flY + 65, 0xFF94A3B8.toInt())
         graphics.text(font, "Respect Invert Mouse:", cardX + 12, flY + 85, 0xFF94A3B8.toInt())
 
-        val wdY = flY + 110
-        val wdH = 144
+        val wdY = flY + SEC_FREELOOK_GAP
+        val wdH = SEC_WATCHDOG_H
         graphics.fill(cardX - 1, wdY - 1, cardX + cardW + 1, wdY + wdH + 1, 0xFF334155.toInt())
         graphics.fill(cardX, wdY, cardX + cardW, wdY + wdH, 0xFF1E293B.toInt())
         graphics.fill(cardX, wdY, cardX + cardW, wdY + 18, 0xFF334155.toInt())
@@ -1182,8 +1203,8 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         graphics.text(font, "Farming Interruption failsafe:", cardX + 12, wdY + 105, 0xFF94A3B8.toInt())
         graphics.text(font, "Unfamiliar GUI failsafe:", cardX + 12, wdY + 125, 0xFF94A3B8.toInt())
 
-        val lockY = wdY + 150
-        val lockH = 124
+        val lockY = wdY + SEC_WATCHDOG_GAP
+        val lockH = SEC_LOCK_H
         graphics.fill(cardX - 1, lockY - 1, cardX + cardW + 1, lockY + lockH + 1, 0xFF334155.toInt())
         graphics.fill(cardX, lockY, cardX + cardW, lockY + lockH, 0xFF1E293B.toInt())
         graphics.fill(cardX, lockY, cardX + cardW, lockY + 18, 0xFF334155.toInt())

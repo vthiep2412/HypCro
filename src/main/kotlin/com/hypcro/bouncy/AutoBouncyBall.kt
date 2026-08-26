@@ -422,13 +422,13 @@ object AutoBouncyBall {
                 if (nbt.contains("ExtraAttributes")) {
                     val ea = nbt.getCompound("ExtraAttributes").orElse(null)
                     val id = ea?.getString("id")?.orElse("")?.uppercase() ?: ""
-                    if (id == "BOUNCY_BEACH_BALL" || id == "GIANT_BOUNCY_BEACH_BALL" || id.contains("BEACH_BALL") || id.contains("BOUNCY")) {
+                    if (id == "BOUNCY_BEACH_BALL") {
                         return slot
                     }
                 }
             }
             val name = stack.hoverName.string.uppercase()
-            if (name.contains("BEACH BALL") || name.contains("BOUNCY")) {
+            if (name.contains("BOUNCY BEACH BALL")) {
                 return slot
             }
         }
@@ -532,6 +532,13 @@ object AutoBouncyBall {
             updateDirection(newPos)
             data.add(newPos)
 
+            // Cap sample history to prevent unbounded memory growth while keeping enough trajectory context
+            if (data.size > 200) {
+                val toDrop = data.size - 100
+                repeat(toDrop) { data.removeAt(0) }
+                startIndex = maxOf(0, startIndex - toDrop)
+            }
+
             val distToGround = abs(newPos.y - playerY)
             if (distToGround < 2.1) {
                 startIndex = data.lastIndex
@@ -628,20 +635,27 @@ object AutoBouncyBall {
             val y2 = yTransform(t2)
             val y3 = yTransform(t3)
 
-            val denominator = ((t3 * t3 - t1 * t1) * (t2 - t1) + (t2 * t2 - t1 * t1) * (t1 - t3)).toDouble()
+            val l1 = t1.toLong()
+            val l2 = t2.toLong()
+            val l3 = t3.toLong()
+
+            val denominator = ((l3 * l3 - l1 * l1) * (l2 - l1) + (l2 * l2 - l1 * l1) * (l1 - l3)).toDouble()
             if (abs(denominator) < 1e-6) return listOf(given[current])
 
-            val a = ((y3 - y1) * (t2 - t1) + (y2 - y1) * (t1 - t3)) / denominator
-            val b = ((y2 - y1) - a * (t2 * t2 - t1 * t1)) / (t2 - t1)
-            val c = y1 - b * t1 - a * t1 * t1
+            val a = ((y3 - y1) * (l2 - l1) + (y2 - y1) * (l1 - l3)) / denominator
+            val b = ((y2 - y1) - a * (l2 * l2 - l1 * l1)) / (l2 - l1)
+            val c = y1 - b * l1 - a * l1 * l1
 
-            fun poly(t: Int) = a * t * t + b * t + c
+            fun poly(t: Int): Double {
+                val lt = t.toLong()
+                return a * lt * lt + b * lt + c
+            }
 
             val dx = dX(start, current, minY)
             val dz = dZ(start, current, minY)
 
             val result = mutableListOf<Vec3>()
-            var prev = given[t1]
+            var prev = given[current]
 
             for (t in (current + 1)..(current + 300)) {
                 val y = poly(t)

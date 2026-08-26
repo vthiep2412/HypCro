@@ -15,6 +15,7 @@ import net.minecraft.client.Minecraft
 import net.minecraft.core.component.DataComponents
 import net.minecraft.world.entity.ambient.Bat
 import net.minecraft.world.phys.Vec3
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.*
 import kotlin.random.Random
 
@@ -387,16 +388,16 @@ object PestDestroyerEngine {
 
             // Real-Time Scoreboard Plot Arrival Trigger during flight (targetY = null to cruise at current Y=85)
             currentState = State.APPROACH_PLOT_CENTER
-            var arrivedViaScoreboard = false
+            val arrivedViaScoreboard = AtomicBoolean(false)
 
-            val scoreboardWatcher = CoroutineScope(Dispatchers.Default).launch {
+            val scoreboardWatcher = engineScope.launch {
                 while (isActive && isRunning) {
                     delay(100L) // 2 ticks
                     val lines = PestTabReader.readScoreboardLines(client)
                     val plotRegex = Regex("""(?i)Plot\s*-\s*$targetPlotId(?!\d)""")
                     val altPlotRegex = Regex("""(?i)Plot\s+$targetPlotId(?!\d)""")
                     if (lines.any { plotRegex.containsMatchIn(it) || altPlotRegex.containsMatchIn(it) }) {
-                        arrivedViaScoreboard = true
+                        arrivedViaScoreboard.set(true)
                         CentralMovementCoordinator.stopNavigation()
                         break
                     }
@@ -415,7 +416,7 @@ object PestDestroyerEngine {
                 break
             }
 
-            if (arrivedViaScoreboard) {
+            if (arrivedViaScoreboard.get()) {
                 HypCroMod.logSuccess("Plot #$targetPlotId confirmed via scoreboard arrival trigger!")
             }
 

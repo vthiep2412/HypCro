@@ -1,9 +1,13 @@
 package com.hypcro.config
 
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import net.fabricmc.loader.api.FabricLoader
@@ -40,9 +44,9 @@ object ConfigManager {
         }
     }
 
-    private class SaveRequest(val text: String, val completion: kotlinx.coroutines.CompletableDeferred<Unit>?)
+    private class SaveRequest(val text: String, val completion: CompletableDeferred<Unit>?)
 
-    private val saveChannel = kotlinx.coroutines.channels.Channel<SaveRequest>(kotlinx.coroutines.channels.Channel.UNLIMITED)
+    private val saveChannel = Channel<SaveRequest>(Channel.UNLIMITED)
 
     init {
         ioScope.launch {
@@ -57,12 +61,25 @@ object ConfigManager {
     fun save(async: Boolean = true) {
         val text = json.encodeToString(config)
         if (async) {
-            saveChannel.trySend(SaveRequest(text, null))
+            val result = saveChannel.trySend(SaveRequest(text, null))
+            if (result.isFailure) {
+                writeTextToFile(text)
+            }
         } else {
-            val deferred = kotlinx.coroutines.CompletableDeferred<Unit>()
-            saveChannel.trySend(SaveRequest(text, deferred))
-            kotlinx.coroutines.runBlocking {
-                deferred.await()
+            val deferred = CompletableDeferred<Unit>()
+            val result = saveChannel.trySend(SaveRequest(text, deferred))
+            if (result.isSuccess) {
+                try {
+                    runBlocking {
+                        withTimeout(2000L) {
+                            deferred.await()
+                        }
+                    }
+                } catch (e: Exception) {
+                    writeTextToFile(text)
+                }
+            } else {
+                writeTextToFile(text)
             }
         }
     }

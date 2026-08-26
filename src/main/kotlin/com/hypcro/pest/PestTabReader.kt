@@ -113,8 +113,7 @@ object PestTabReader {
             val plotsMatcher = INFESTED_PLOTS_PATTERN.matcher(line)
             if (plotsMatcher.find()) {
                 val rawPlots = plotsMatcher.group(1)
-                for (part in rawPlots.split(",")) {
-                    val digits = part.replace(Regex("\\D"), "")
+                for (digits in Regex("\\d+").findAll(rawPlots).map { it.value }) {
                     val plotId = digits.toIntOrNull()
                     if (plotId != null && plotId in 0..24) {
                         plots.add(plotId)
