@@ -31,6 +31,21 @@ data class ModeConfig(
 )
 
 @Serializable
+data class MouseMovementConfig(
+    var humanize: Boolean = true,
+    var highPrecision: Boolean = false,
+    var movementType: String = "GCD", // "Simple", "Bezier", "GCD"
+    var overshoot: Boolean = true,
+    var dpiSpeed: Int = 10 // 1 to 20
+)
+
+@Serializable
+data class VisualsConfig(
+    var pathfindingVisualizer: Boolean = true,
+    var verbosePathfindingVisual: Boolean = false
+)
+
+@Serializable
 data class QOLConfig(
     var freeLookMode: String = "HOLD",
     var freeLookInvertZoom: Boolean = false,
@@ -65,16 +80,49 @@ data class InputLockConfig(
 
 @Serializable
 data class GeneralConfig(
+    var mouseMovement: MouseMovementConfig = MouseMovementConfig(),
+    var visuals: VisualsConfig = VisualsConfig(),
     var antiStuck: AntiStuckConfig = AntiStuckConfig(),
     var watchdog: WatchDogConfig = WatchDogConfig(),
     var inputLock: InputLockConfig = InputLockConfig()
 )
 
 @Serializable
+data class PestDestroyerConfig(
+    var pestEsp: Boolean = true,
+    var flightEngineVersion: String = "V2", // "V2" (Decoupled BetterBot), "CLASSIC" (Legacy)
+    var pathfindingAlgorithm: String = "Theta*", // "Theta*", "3D A* with Smoothing", "BIT*"
+    var bitStarTimeSeconds: Double = 1.0, // Computation time budget in seconds for BIT*
+    var stopAfterDestination: Boolean = true,
+    var getRooftop: Boolean = true,
+    var teleportablePlots: MutableSet<Int> = (1..24).toMutableSet(),
+    var keepPest: Boolean = false,
+    var leavePestPlots: MutableSet<Int> = mutableSetOf(),
+    var derpy: Boolean = false
+)
+
+@Serializable
+data class BouncyBallConfig(
+    var autoMove: Boolean = true,
+    var aggressive: Boolean = false,
+    var targetBounces: Int = 40,
+    var goBackToStart: Boolean = true,
+    var visualizeTrajectory: Boolean = true,
+    var visualizeLandingBox: Boolean = true
+)
+
+@Serializable
 data class FarmConfig(
     var activeMethod: String = "WS",
+    var autoActivePest: Boolean = false,
+    var pestTriggerCount: Int = 4,
+    var pestRangeMin: Int = 3,
+    var pestRangeMax: Int = 4,
     var wsConfig: ModeConfig = ModeConfig(),
     var verticalConfig: ModeConfig = ModeConfig(),
     var qolConfig: QOLConfig = QOLConfig(),
-    var generalConfig: GeneralConfig = GeneralConfig()
+    var generalConfig: GeneralConfig = GeneralConfig(),
+    var pestDestroyer: PestDestroyerConfig = PestDestroyerConfig(),
+    var bouncyBall: BouncyBallConfig = BouncyBallConfig()
 )
+

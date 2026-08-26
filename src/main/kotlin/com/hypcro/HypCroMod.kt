@@ -11,6 +11,10 @@ import net.minecraft.network.chat.Component
 import net.minecraft.resources.Identifier
 import com.mojang.blaze3d.platform.InputConstants
 import org.lwjgl.glfw.GLFW
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 object HypCroMod : ClientModInitializer {
     const val MOD_ID = "hypcro"
@@ -40,22 +44,34 @@ object HypCroMod : ClientModInitializer {
             )
         )
 
-        // Intercept client-side .hypcro command before it reaches the server
+        // Intercept client-side dot commands before they reach the server
         ClientSendMessageEvents.ALLOW_CHAT.register { message ->
-            if (message.trim().equals(".hypcro", ignoreCase = true)) {
-                Minecraft.getInstance().execute {
-                    handleOpenGuiOrStop()
+            val trimmed = message.trim()
+            if (trimmed.startsWith(".")) {
+                if (trimmed.startsWith("./")) {
+                    true
+                } else {
+                    handleDotCommand(trimmed)
                 }
-                false // Cancel sending to server
             } else {
                 true
             }
         }
 
         ClientTickEvents.END_CLIENT_TICK.register { client ->
-            // Reset Free Look on disconnect / world unload
-            if ((client.level == null || client.player == null) && com.hypcro.camera.FreeLookManager.isFreeLookActive) {
-                com.hypcro.camera.FreeLookManager.reset(client)
+            // Reset Free Look and pest memory on disconnect / world unload
+            if (client.level == null || client.player == null) {
+                if (com.hypcro.camera.FreeLookManager.isFreeLookActive) {
+                    com.hypcro.camera.FreeLookManager.reset(client)
+                }
+                com.hypcro.pest.PestTargetTracker.clearSessionMemory()
+            }
+
+            // Render Pathfinding Visualizer, Pest ESP, and Auto Bouncy Ball in-world Gizmos
+            if (client.level != null && client.player != null) {
+                com.hypcro.pathfinding.PathfindingVisualizer.renderWorld()
+                com.hypcro.pest.PestESP.renderWorld()
+                com.hypcro.bouncy.AutoBouncyBall.renderWorld()
             }
 
             while (openGuiKey.consumeClick()) {
@@ -88,16 +104,284 @@ object HypCroMod : ClientModInitializer {
         com.hypcro.config.ConfigManager.load()
     }
 
+    private val modScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default + kotlinx.coroutines.SupervisorJob())
+    private var activeTestJob: kotlinx.coroutines.Job? = null
+
+    fun hasActiveTest(): Boolean = activeTestJob?.isActive == true
+
+    fun stopAllTests() {
+        activeTestJob?.cancel()
+        activeTestJob = null
+        com.hypcro.movement.CentralMovementCoordinator.isAbortRequested = true
+        com.hypcro.movement.CentralMovementCoordinator.lastAbortTimestamp = System.currentTimeMillis()
+        com.hypcro.movement.CentralMovementCoordinator.stopNavigation()
+        com.hypcro.pathfinding.PathfindingVisualizer.clearDebug()
+    }
+
+    private fun handleDotCommand(cmd: String): Boolean {
+        val client = Minecraft.getInstance()
+        val parts = cmd.split(" ").filter { it.isNotBlank() }
+        if (parts.isEmpty()) return true
+
+        when (parts[0].lowercase()) {
+            ".hypcro" -> {
+                client.execute { handleOpenGuiOrStop() }
+                return false // Intercepted
+            }
+            ".hypcrogettablist" -> {
+                val lines = com.hypcro.pest.PestTabReader.readTabList(client)
+                log("=== Tab List (${lines.size} entries) ===")
+                if (lines.isEmpty()) {
+                    log("Tab list is empty or not loaded.")
+                } else {
+                    for ((idx, line) in lines.withIndex()) {
+                        log("[$idx] $line")
+                    }
+                }
+                return false
+            }
+            ".hypcrogetscoreboard" -> {
+                val level = client.level
+                if (level == null) {
+                    logWarn("Level not loaded.")
+                    return false
+                }
+                val scoreboard = level.scoreboard
+                val objective = scoreboard.getDisplayObjective(net.minecraft.world.scores.DisplaySlot.SIDEBAR)
+                if (objective == null) {
+                    logWarn("No active sidebar scoreboard found.")
+                    return false
+                }
+                val title = com.hypcro.pest.PestTabReader.stripColor(objective.displayName.string)
+                log("=== Scoreboard: $title ===")
+                val entries = scoreboard.listPlayerScores(objective)
+                    .sortedByDescending { it.value() }
+                if (entries.isEmpty()) {
+                    log("Scoreboard is empty.")
+                } else {
+                    for (entry in entries) {
+                        if (entry.isHidden) continue
+                        val team = scoreboard.getPlayersTeam(entry.owner())
+                        val fullComponent = if (team != null) {
+                            team.playerPrefix.copy().append(entry.display() ?: net.minecraft.network.chat.Component.empty()).append(team.playerSuffix)
+                        } else {
+                            entry.display() ?: entry.ownerName()
+                        }
+                        val cleanText = com.hypcro.pest.PestTabReader.stripColor(fullComponent.string)
+                        log("[${entry.value()}] $cleanText")
+                    }
+                }
+                return false
+            }
+            ".hypcropathfindverbose" -> {
+                val newState = if (parts.size > 1) {
+                    when (parts[1].lowercase()) {
+                        "true", "on", "1", "enable" -> true
+                        "false", "off", "0", "disable" -> false
+                        else -> !com.hypcro.pathfinding.PathfindingVisualizer.isVerbose
+                    }
+                } else {
+                    !com.hypcro.pathfinding.PathfindingVisualizer.isVerbose
+                }
+                com.hypcro.pathfinding.PathfindingVisualizer.isVerbose = newState
+                if (newState) {
+                    logSuccess("Pathfinding Verbose mode ENABLED (Yellow=Searching, Green=Reachable, Red=Unreachable, Cyan=Chosen)")
+                } else {
+                    com.hypcro.pathfinding.PathfindingVisualizer.clearDebug()
+                    log("Pathfinding Verbose mode DISABLED")
+                }
+                return false
+            }
+            ".hypcrobot" -> {
+                val currentVer = com.hypcro.config.ConfigManager.config.pestDestroyer.flightEngineVersion
+                if (parts.size < 2) {
+                    val newVer = if (currentVer.equals("V2", ignoreCase = true)) "CLASSIC" else "V2"
+                    com.hypcro.config.ConfigManager.config.pestDestroyer.flightEngineVersion = newVer
+                    com.hypcro.config.ConfigManager.save()
+                    logSuccess("Toggled flight engine: $newVer (${if (newVer == "V2") "Decoupled 6-DOF BetterBot" else "Legacy Waypoint Tracking"})")
+                    return false
+                }
+                when (parts[1].lowercase()) {
+                    "new", "v2", "decoupled", "better" -> {
+                        com.hypcro.config.ConfigManager.config.pestDestroyer.flightEngineVersion = "V2"
+                        com.hypcro.config.ConfigManager.save()
+                        logSuccess("Flight engine set to: V2 (Decoupled 6-DOF BetterBot)")
+                    }
+                    "old", "classic", "legacy", "v1" -> {
+                        com.hypcro.config.ConfigManager.config.pestDestroyer.flightEngineVersion = "CLASSIC"
+                        com.hypcro.config.ConfigManager.save()
+                        logSuccess("Flight engine set to: CLASSIC (Legacy Waypoint Tracking)")
+                    }
+                    else -> {
+                        logWarn("Usage: .hypcrobot [new | old]")
+                    }
+                }
+                return false
+            }
+            ".hypcrobitstar" -> {
+                if (parts.size < 2) {
+                    val currentSec = com.hypcro.config.ConfigManager.config.pestDestroyer.bitStarTimeSeconds
+                    log("Current BIT* compute budget: ${currentSec}s")
+                    log("Usage: .hypcrobitstar <seconds> (e.g. .hypcrobitstar 2.5)")
+                    return false
+                }
+                val sec = parts[1].toDoubleOrNull()
+                if (sec == null || sec <= 0.0) {
+                    logWarn("Invalid duration. Usage: .hypcrobitstar <seconds> (e.g. .hypcrobitstar 2.5)")
+                    return false
+                }
+                com.hypcro.config.ConfigManager.config.pestDestroyer.bitStarTimeSeconds = sec
+                com.hypcro.config.ConfigManager.save()
+                logSuccess("BIT* pathfinder computation budget set to ${sec}s")
+                return false
+            }
+            ".hypcrotest" -> {
+                if (parts.size < 2) {
+                    log("HypCro Test Usage:")
+                    log("• .hypcrotest movecam <pitch> <yaw>")
+                    log("• .hypcrotest flyto <x> <y> <z> [pitch] [yaw]")
+                    log("• .hypcrotest pathfind <x> <y> <z>")
+                    return false
+                }
+
+                when (parts[1].lowercase()) {
+                    "movecam" -> {
+                        if (parts.size < 4) {
+                            logWarn("Usage: .hypcrotest movecam <yaw> <pitch>")
+                            return false
+                        }
+                        val yaw = parts[2].toFloatOrNull() ?: 0f
+                        val pitch = parts[3].toFloatOrNull() ?: 0f
+                        log("Testing camera rotation: Yaw $yaw, Pitch $pitch")
+                        stopAllTests()
+                        com.hypcro.movement.CentralMovementCoordinator.isAbortRequested = false
+                        activeTestJob = modScope.launch {
+                            com.hypcro.movement.MouseMovementEngine.rotateTo(client, yaw, pitch)
+                            logSuccess("Camera rotation test complete.")
+                        }
+                        return false
+                    }
+                    "flyto" -> {
+                        if (parts.size < 5) {
+                            logWarn("Usage: .hypcrotest flyto <x> <y> <z> [yaw] [pitch]")
+                            return false
+                        }
+                        val player = client.player ?: return false
+                        val curPos = player.position()
+                        val targetX = com.hypcro.movement.CentralMovementCoordinator.parseCoordinate(parts[2], curPos.x)
+                        val targetY = com.hypcro.movement.CentralMovementCoordinator.parseCoordinate(parts[3], curPos.y)
+                        val targetZ = com.hypcro.movement.CentralMovementCoordinator.parseCoordinate(parts[4], curPos.z)
+                        val targetYaw = if (parts.size > 5) parts[5].toFloatOrNull() else null
+                        val targetPitch = if (parts.size > 6) parts[6].toFloatOrNull() else null
+
+                        log("Testing flight navigation to ($targetX, $targetY, $targetZ)...")
+                        stopAllTests()
+                        com.hypcro.movement.CentralMovementCoordinator.isAbortRequested = false
+                        com.hypcro.movement.CentralMovementCoordinator.lastAbortTimestamp = 0L
+                        activeTestJob = modScope.launch {
+                            val success = com.hypcro.movement.CentralMovementCoordinator.flyTo(
+                                client,
+                                targetX = targetX,
+                                targetY = targetY,
+                                targetZ = targetZ,
+                                targetPitch = targetPitch,
+                                targetYaw = targetYaw
+                            )
+                            if (success) {
+                                logSuccess("Flight test reached destination.")
+                            } else {
+                                logWarn("Flight test aborted or failed.")
+                            }
+                        }
+                        return false
+                    }
+                    "pathfind" -> {
+                        if (parts.size < 5) {
+                            logWarn("Usage: .hypcrotest pathfind <x> <y> <z>")
+                            return false
+                        }
+                        val player = client.player ?: return false
+                        val level = client.level ?: return false
+                        val curPos = player.position()
+                        val targetX = com.hypcro.movement.CentralMovementCoordinator.parseCoordinate(parts[2], curPos.x) ?: curPos.x
+                        val targetY = com.hypcro.movement.CentralMovementCoordinator.parseCoordinate(parts[3], curPos.y) ?: curPos.y
+                        val targetZ = com.hypcro.movement.CentralMovementCoordinator.parseCoordinate(parts[4], curPos.z) ?: curPos.z
+
+                        val destPos = net.minecraft.world.phys.Vec3(targetX, targetY, targetZ)
+                        val bp = net.minecraft.core.BlockPos(targetX.toInt(), targetY.toInt(), targetZ.toInt())
+
+                        if (!level.hasChunk(bp.x shr 4, bp.z shr 4)) {
+                            logWarn("Pathfind destination exceeds loaded chunk render distance!")
+                            return false
+                        }
+
+                        val start = player.position()
+                        stopAllTests()
+                        com.hypcro.movement.CentralMovementCoordinator.isAbortRequested = false
+                        activeTestJob = modScope.launch {
+                            val startTime = System.currentTimeMillis()
+                            val path = com.hypcro.movement.CentralMovementCoordinator.getActivePathfinder().computePath(level, start, destPos)
+                            val elapsed = System.currentTimeMillis() - startTime
+                            if (com.hypcro.movement.CentralMovementCoordinator.isAbortRequested) {
+                                com.hypcro.movement.CentralMovementCoordinator.isAbortRequested = false
+                                logWarn("Pathfinding calculation aborted by user.")
+                            } else {
+                                logSuccess("Computed ${path.size} waypoints in ${elapsed}ms via ${com.hypcro.config.ConfigManager.config.pestDestroyer.pathfindingAlgorithm}")
+                            }
+                        }
+                        return false
+                    }
+                    else -> {
+                        logWarn("Unknown test subcommand: ${parts[1]}")
+                        return false
+                    }
+                }
+            }
+            else -> {
+                logWarn("Unknown command: ${parts[0]}")
+                return false
+            }
+        }
+        return false
+    }
+
     private fun handleOpenGuiOrStop() {
         val client = Minecraft.getInstance()
         if (com.hypcro.failsafe.HypcroWatchdog.isAlarmActive) {
             com.hypcro.failsafe.HypcroWatchdog.silenceAlarm()
             com.hypcro.farming.MacroController.stopMacro(reason = "Watchdog Alarm")
-            log("Watchdog alarm silenced. Press END or type .hypcro again to open GUI.")
+            log("Watchdog alarm silenced. Press key or type .hypcro again to open GUI.")
             return
         }
+        val now = System.currentTimeMillis()
+        if (now - com.hypcro.movement.CentralMovementCoordinator.lastAbortTimestamp < 600L) {
+            return
+        }
+        var stoppedAny = false
+        if (com.hypcro.movement.CentralMovementCoordinator.isNavigating || com.hypcro.movement.CentralMovementCoordinator.isPathfinding || hasActiveTest()) {
+            stopAllTests()
+            com.hypcro.farming.MacroInputController.releaseAllMovement()
+            logWarn("Pathfinding and movement aborted by user!")
+            stoppedAny = true
+        }
+        if (com.hypcro.pest.PestDestroyerEngine.isRunning) {
+            com.hypcro.movement.CentralMovementCoordinator.lastAbortTimestamp = now
+            com.hypcro.pest.PestDestroyerEngine.stop()
+            logWarn("Pest destroyer stopped by user!")
+            stoppedAny = true
+        }
+        if (com.hypcro.bouncy.AutoBouncyBall.isRunning) {
+            com.hypcro.movement.CentralMovementCoordinator.lastAbortTimestamp = now
+            com.hypcro.bouncy.AutoBouncyBall.stop()
+            logWarn("Auto Bouncy Ball stopped by user!")
+            stoppedAny = true
+        }
         if (com.hypcro.farming.MacroController.isRunning) {
+            com.hypcro.movement.CentralMovementCoordinator.lastAbortTimestamp = now
             com.hypcro.farming.MacroController.stopMacro(reason = "User Request")
+            stoppedAny = true
+        }
+        if (stoppedAny) {
             return
         }
         if (client.screen == null) {

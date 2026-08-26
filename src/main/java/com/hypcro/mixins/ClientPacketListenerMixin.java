@@ -18,9 +18,6 @@ public class ClientPacketListenerMixin {
     private void onHandleMovePlayer(ClientboundPlayerPositionPacket packet, CallbackInfo ci) {
         Minecraft client = Minecraft.getInstance();
         client.execute(() -> {
-            if (FreeLookManager.INSTANCE.isFreeLookActive()) {
-                FreeLookManager.INSTANCE.disable(client);
-            }
             com.hypcro.failsafe.HypcroWatchdog.INSTANCE.onPacketTeleport(packet);
         });
     }
@@ -28,7 +25,7 @@ public class ClientPacketListenerMixin {
     @Inject(method = "sendChat", at = @At("HEAD"), cancellable = true)
     private void onSendChat(String message, CallbackInfo ci) {
         boolean blockChat = com.hypcro.config.ConfigManager.INSTANCE.getConfig().getGeneralConfig().getInputLock().getBlockChatAndCommands();
-        if (blockChat && MacroController.INSTANCE.isRunning()) {
+        if (blockChat && com.hypcro.farming.MacroInputController.isAnyMacroRunning()) {
             String target = message.length() < 30 ? message : "chat";
             HypCroMod.INSTANCE.logWarn("Your \"" + target + "\" message is blocked, macro in active.");
             ci.cancel();
@@ -38,7 +35,7 @@ public class ClientPacketListenerMixin {
     @Inject(method = "sendCommand", at = @At("HEAD"), cancellable = true)
     private void onSendCommand(String command, CallbackInfo ci) {
         boolean blockChat = com.hypcro.config.ConfigManager.INSTANCE.getConfig().getGeneralConfig().getInputLock().getBlockChatAndCommands();
-        if (blockChat && MacroController.INSTANCE.isRunning()) {
+        if (blockChat && com.hypcro.farming.MacroInputController.isAnyMacroRunning()) {
             String target = ("/" + command).length() < 30 ? ("/" + command) : "chat";
             HypCroMod.INSTANCE.logWarn("Your \"" + target + "\" command is blocked, macro in active.");
             ci.cancel();

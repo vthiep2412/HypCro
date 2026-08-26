@@ -73,8 +73,11 @@ object WSFarmEngine : IFarmEngine {
 
         farmJob = engineScope.launch {
             try {
+                if (!isRunning) return@launch
+
                 // 2.5 Anti-Stuck: Check Flying (if player is airborne or flying, sneak down to ground)
                 val grounded = com.hypcro.failsafe.AntiStuckEngine.resolveFlyingState(client)
+                if (!isRunning) return@launch
                 if (!grounded) {
                     abortScript("Anti-Stuck: Player could not reach ground safely.")
                     return@launch
@@ -90,6 +93,7 @@ object WSFarmEngine : IFarmEngine {
                 }
                 // Allow client tick to capture orientation if needed
                 delay(50)
+                if (!isRunning) return@launch
 
                 val yawDelta = abs((((currentYaw - targetAngles.first + 180f) % 360f + 360f) % 360f) - 180f)
                 val pitchDelta = abs(currentPitch - targetAngles.second)
@@ -99,22 +103,28 @@ object WSFarmEngine : IFarmEngine {
                 if (!anglesMatched) {
                     HypCroMod.log("Aligning angles to Yaw: ${targetAngles.first}, Pitch: ${targetAngles.second} via Squeaky Mousemat...")
                     val aligned = MousematHelper.alignAngles(client, targetAngles.first, targetAngles.second)
+                    if (!isRunning) return@launch
                     if (!aligned) {
                         abortScript("Failed to align angles via Squeaky Mousemat")
                         return@launch
                     }
                 }
 
+                if (!isRunning) return@launch
+
                 // 4. Now switch directly to the verified farming tool
                 var toolName = "Farming Tool"
                 client.execute {
+                    if (!isRunning) return@execute
                     client.player?.inventory?.selectedSlot = toolSlot
                     toolName = client.player?.inventory?.getItem(toolSlot)?.hoverName?.string ?: "Farming Tool"
                 }
                 delay(200)
+                if (!isRunning) return@launch
 
                 // 5. Start Watchdog with expected tool slot on client thread
                 client.execute {
+                    if (!isRunning) return@execute
                     HypcroWatchdog.start(toolSlot)
                 }
 
@@ -124,6 +134,7 @@ object WSFarmEngine : IFarmEngine {
                 macroStartTime = System.currentTimeMillis()
                 
                 client.execute {
+                    if (!isRunning) return@execute
                     lastCheckPos = client.player?.position()
                     val inWater = isPlayerFeetInWater(client)
                     currentActiveKey = if (inWater) 'W' else 'S'
@@ -135,8 +146,10 @@ object WSFarmEngine : IFarmEngine {
             } catch (e: CancellationException) {
                 throw e
             } catch (t: Throwable) {
-                HypCroMod.log("§c[CRASH] startMacro failed: ${t.javaClass.simpleName} - ${t.message}")
-                abortScript("Startup crashed: ${t.message}")
+                if (isRunning) {
+                    HypCroMod.log("§c[CRASH] startMacro failed: ${t.javaClass.simpleName} - ${t.message}")
+                    abortScript("Startup crashed: ${t.message}")
+                }
             }
         }
         return true
@@ -144,6 +157,7 @@ object WSFarmEngine : IFarmEngine {
 
     private var lastStatusLogTime: Long = 0L
     private var lastPosCheckTime: Long = 0L
+    private var lastPestCheckTime: Long = 0L
     private var lastCheckPos: Vec3? = null
     private var macroStartTime: Long = 0L
 
@@ -157,10 +171,29 @@ object WSFarmEngine : IFarmEngine {
             HypcroWatchdog.onClientTick(client)
             if (!isRunning || !isFarmingActive) return
 
+            val now = System.currentTimeMillis()
+
+            // Automatic Pest Destroyer activation check (evaluated every 1000ms / 1s)
+            if (ConfigManager.config.autoActivePest && now - lastPestCheckTime >= 1000L) {
+                lastPestCheckTime = now
+                val scbInfo = com.hypcro.pest.PestTabReader.scanScoreboardPests(client)
+                val tabInfo = com.hypcro.pest.PestTabReader.scanPests(client)
+                val pestCount = kotlin.math.max(scbInfo.aliveCount, tabInfo.aliveCount)
+                val threshold = ConfigManager.config.pestTriggerCount
+
+                if (pestCount >= threshold && !com.hypcro.pest.PestDestroyerEngine.isRunning) {
+                    HypCroMod.log("Auto Pest Trigger activated ($pestCount pests >= $threshold threshold). Pausing farm and starting Pest Destroyer...")
+                    stopMacro(reason = "Auto Pest Sweep")
+                    com.hypcro.pest.PestDestroyerEngine.startPestDestroyer(
+                        source = com.hypcro.pest.PestCallerSource.WS_FARM_ENGINE,
+                        callingEngine = this
+                    )
+                    return
+                }
+            }
+
             // Maintain attack and movement via MacroInputController
             MacroInputController.attack = true
-
-            val now = System.currentTimeMillis()
 
             // 200ms positional check loop
             if (now - lastPosCheckTime >= 200L) {

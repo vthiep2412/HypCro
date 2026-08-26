@@ -29,7 +29,7 @@ object HypcroWatchdog {
     private val recentYaws = ArrayDeque<Float>()
     private val recentPitches = ArrayDeque<Float>()
 
-    private const val TELEPORT_DISTANCE_THRESHOLD = 4.0
+    private const val TELEPORT_DISTANCE_THRESHOLD = 6.0
 
     fun start(toolSlot: Int?) {
         stop()
@@ -161,9 +161,6 @@ object HypcroWatchdog {
     }
 
     fun onPacketTeleport(packet: net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket) {
-        if (!isWatchdogActive || !com.hypcro.farming.MacroController.isRunning) return
-        if (!com.hypcro.config.ConfigManager.config.generalConfig.watchdog.checkTeleport) return
-
         val client = Minecraft.getInstance()
         val player = client.player
         val prev = player?.position()
@@ -181,8 +178,15 @@ object HypcroWatchdog {
         }
 
         val dist = if (prev != null) prev.distanceTo(targetPos) else 0.0
-        if (dist >= TELEPORT_DISTANCE_THRESHOLD) {
-            potentialStaffCheck("Teleport Packet Received (instant move ${String.format("%.2f", dist)} blocks to $targetPos)")
+
+        val isMacroRunning = com.hypcro.farming.MacroInputController.isAnyMacroRunning()
+        val isWatchdogChecking = isWatchdogActive && com.hypcro.config.ConfigManager.config.generalConfig.watchdog.checkTeleport
+
+        if (isMacroRunning && isWatchdogChecking) {
+            // While macroing: 6b+ threshold for failsafe staff check (automatically disables FreeLook in potentialStaffCheck)
+            if (dist > TELEPORT_DISTANCE_THRESHOLD) {
+                potentialStaffCheck("Teleport Packet Received (instant move ${String.format("%.2f", dist)} blocks to $targetPos)")
+            }
         }
     }
 

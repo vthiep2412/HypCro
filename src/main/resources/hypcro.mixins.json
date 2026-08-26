@@ -7,8 +7,10 @@
   "client": [
     "CameraMixin",
     "ClientPacketListenerMixin",
+    "CommandSuggestionsMixin",
     "KeyboardInputMixin",
     "KeyboardMixin",
+    "LocalPlayerMixin",
     "MouseMixin",
     "MinecraftMixin",
     "OptionsAccessor"

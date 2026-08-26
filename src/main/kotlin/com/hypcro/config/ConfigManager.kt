@@ -40,12 +40,15 @@ object ConfigManager {
         }
     }
 
-    private val saveChannel = kotlinx.coroutines.channels.Channel<String>(kotlinx.coroutines.channels.Channel.UNLIMITED)
+    private class SaveRequest(val text: String, val completion: kotlinx.coroutines.CompletableDeferred<Unit>?)
+
+    private val saveChannel = kotlinx.coroutines.channels.Channel<SaveRequest>(kotlinx.coroutines.channels.Channel.UNLIMITED)
 
     init {
         ioScope.launch {
-            for (text in saveChannel) {
-                writeTextToFile(text)
+            for (request in saveChannel) {
+                writeTextToFile(request.text)
+                request.completion?.complete(Unit)
             }
         }
     }
@@ -54,9 +57,13 @@ object ConfigManager {
     fun save(async: Boolean = true) {
         val text = json.encodeToString(config)
         if (async) {
-            saveChannel.trySend(text)
+            saveChannel.trySend(SaveRequest(text, null))
         } else {
-            writeTextToFile(text)
+            val deferred = kotlinx.coroutines.CompletableDeferred<Unit>()
+            saveChannel.trySend(SaveRequest(text, deferred))
+            kotlinx.coroutines.runBlocking {
+                deferred.await()
+            }
         }
     }
 

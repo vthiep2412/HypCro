@@ -43,11 +43,116 @@ object MacroInputController {
     fun holdW() {
         forward = true
         backward = false
+        val client = Minecraft.getInstance()
+        client.execute {
+            client.options.keyUp.setDown(true)
+            client.options.keyDown.setDown(false)
+        }
+    }
+
+    fun releaseW() {
+        forward = false
+        val client = Minecraft.getInstance()
+        client.execute {
+            client.options.keyUp.setDown(false)
+        }
     }
 
     fun holdS() {
         forward = false
         backward = true
+        val client = Minecraft.getInstance()
+        client.execute {
+            client.options.keyUp.setDown(false)
+            client.options.keyDown.setDown(true)
+        }
+    }
+
+    fun releaseS() {
+        backward = false
+        val client = Minecraft.getInstance()
+        client.execute {
+            client.options.keyDown.setDown(false)
+        }
+    }
+
+    fun holdA() {
+        left = true
+        right = false
+        val client = Minecraft.getInstance()
+        client.execute {
+            client.options.keyLeft.setDown(true)
+            client.options.keyRight.setDown(false)
+        }
+    }
+
+    fun holdD() {
+        left = false
+        right = true
+        val client = Minecraft.getInstance()
+        client.execute {
+            client.options.keyLeft.setDown(false)
+            client.options.keyRight.setDown(true)
+        }
+    }
+
+    fun releaseStrafe() {
+        left = false
+        right = false
+        val client = Minecraft.getInstance()
+        client.execute {
+            client.options.keyLeft.setDown(false)
+            client.options.keyRight.setDown(false)
+        }
+    }
+
+    fun holdJump() {
+        jump = true
+        val client = Minecraft.getInstance()
+        client.execute {
+            client.options.keyJump.setDown(true)
+        }
+    }
+
+    fun releaseJump() {
+        jump = false
+        val client = Minecraft.getInstance()
+        client.execute {
+            client.options.keyJump.setDown(false)
+        }
+    }
+
+    fun holdShift() {
+        shift = true
+        val client = Minecraft.getInstance()
+        client.execute {
+            client.options.keyShift.setDown(true)
+        }
+    }
+
+    fun releaseShift() {
+        shift = false
+        val client = Minecraft.getInstance()
+        client.execute {
+            client.options.keyShift.setDown(false)
+        }
+    }
+
+    fun holdSprint() {
+        sprint = true
+        val client = Minecraft.getInstance()
+        client.execute {
+            client.options.keySprint.setDown(true)
+        }
+    }
+
+    fun releaseSprint() {
+        sprint = false
+        val client = Minecraft.getInstance()
+        client.execute {
+            client.options.keySprint.setDown(false)
+            client.player?.isSprinting = false
+        }
     }
 
     fun holdAttack() {
@@ -90,6 +195,17 @@ object MacroInputController {
         jump = false
         shift = false
         sprint = false
+        val client = Minecraft.getInstance()
+        client.execute {
+            client.options.keyUp.setDown(false)
+            client.options.keyDown.setDown(false)
+            client.options.keyLeft.setDown(false)
+            client.options.keyRight.setDown(false)
+            client.options.keyJump.setDown(false)
+            client.options.keyShift.setDown(false)
+            client.options.keySprint.setDown(false)
+            client.player?.isSprinting = false
+        }
     }
 
     fun releaseAll() {
@@ -115,15 +231,24 @@ object MacroInputController {
         return screen == null || screen is ChatScreen
     }
 
+    @JvmStatic
+    fun isAnyMacroRunning(): Boolean {
+        return MacroController.isRunning || com.hypcro.pest.PestDestroyerEngine.isRunning || com.hypcro.bouncy.AutoBouncyBall.isRunning
+    }
+
+    fun isInputAllowed(): Boolean {
+        return (isAnyMacroRunning() || com.hypcro.movement.CentralMovementCoordinator.isNavigating) && canPenetrateScreen()
+    }
+
     fun createInput(): Input {
-        if (!MacroController.isRunning || !canPenetrateScreen()) {
+        if (!isInputAllowed()) {
             return Input.EMPTY
         }
         return Input(forward, backward, left, right, jump, shift, sprint)
     }
 
     fun calculateMoveVector(): Vec2 {
-        if (!MacroController.isRunning || !canPenetrateScreen()) {
+        if (!isInputAllowed()) {
             return Vec2.ZERO
         }
         var forwardImpulse = 0.0f

@@ -1,0 +1,1 @@
+- Fix to make the command suggestion normal, not a full command suggest, but a suggest then sub agr suggest

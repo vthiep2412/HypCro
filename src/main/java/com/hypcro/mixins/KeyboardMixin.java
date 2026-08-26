@@ -19,7 +19,9 @@ public class KeyboardMixin {
         }
 
         int key = event.key();
-        if (!com.hypcro.farming.MacroController.INSTANCE.isRunning()) {
+
+
+        if (!com.hypcro.farming.MacroInputController.isAnyMacroRunning()) {
             return;
         }
 
@@ -27,6 +29,8 @@ public class KeyboardMixin {
         if (key == GLFW.GLFW_KEY_ESCAPE) {
             if (action == GLFW.GLFW_PRESS) {
                 com.hypcro.farming.MacroController.INSTANCE.stopMacro("Opened Pause Menu");
+                com.hypcro.pest.PestDestroyerEngine.INSTANCE.stop();
+                com.hypcro.bouncy.AutoBouncyBall.INSTANCE.stop();
             }
             return;
         }

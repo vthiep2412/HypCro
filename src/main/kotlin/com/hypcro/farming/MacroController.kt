@@ -31,6 +31,11 @@ object MacroController {
     @Synchronized
     fun startMacro(): Boolean {
         if (activeSessionEngine?.isRunning == true) return false
+        val client = Minecraft.getInstance()
+        if (!com.hypcro.pest.PestTabReader.isInGarden(client)) {
+            com.hypcro.HypCroMod.logWarn("Macro halted: Player is not in Area: Garden.")
+            return false
+        }
         val engine = resolveConfiguredEngine()
         val started = engine.startMacro()
         if (started) {
@@ -43,6 +48,7 @@ object MacroController {
     fun stopMacro(reason: String = "Manual") {
         val engine = activeSessionEngine ?: resolveConfiguredEngine()
         engine.stopMacro(reason)
+        com.hypcro.pest.PestDestroyerEngine.stop()
         if (!engine.isRunning) {
             activeSessionEngine = null
         }
@@ -52,6 +58,7 @@ object MacroController {
     fun abortScript(message: String) {
         val engine = activeSessionEngine ?: resolveConfiguredEngine()
         engine.abortScript(message)
+        com.hypcro.pest.PestDestroyerEngine.stop()
         if (!engine.isRunning) {
             activeSessionEngine = null
         }

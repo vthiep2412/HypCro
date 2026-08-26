@@ -38,3 +38,4 @@ test_*.kt
 # Reference learning repos
 /Learn/
 
+/.agents/
