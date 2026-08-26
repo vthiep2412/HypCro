@@ -1,9 +1,11 @@
 package com.hypcro.config
 
+import com.hypcro.HypCroMod
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -51,8 +53,12 @@ object ConfigManager {
     init {
         ioScope.launch {
             for (request in saveChannel) {
-                writeTextToFile(request.text)
-                request.completion?.complete(Unit)
+                val ok = writeTextToFile(request.text)
+                if (ok) {
+                    request.completion?.complete(Unit)
+                } else {
+                    request.completion?.completeExceptionally(RuntimeException("Failed to write config file"))
+                }
             }
         }
     }
@@ -75,8 +81,10 @@ object ConfigManager {
                             deferred.await()
                         }
                     }
-                } catch (e: Exception) {
+                } catch (e: TimeoutCancellationException) {
                     writeTextToFile(text)
+                } catch (e: Exception) {
+                    // Already failed and logged inside writeTextToFile; do not retry duplicate write
                 }
             } else {
                 writeTextToFile(text)
@@ -84,12 +92,15 @@ object ConfigManager {
         }
     }
 
-    private fun writeTextToFile(text: String) {
-        try {
+    private fun writeTextToFile(text: String): Boolean {
+        return try {
             configFile.parentFile?.mkdirs()
             configFile.writeText(text)
+            true
         } catch (e: Exception) {
             e.printStackTrace()
+            HypCroMod.logError("Failed to save config to ${configFile.name}: ${e.message}")
+            false
         }
     }
 }

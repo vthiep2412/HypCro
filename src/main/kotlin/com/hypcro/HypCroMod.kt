@@ -18,6 +18,8 @@ import kotlinx.coroutines.SupervisorJob
 
 object HypCroMod : ClientModInitializer {
     const val MOD_ID = "hypcro"
+    private val LOGGER = org.slf4j.LoggerFactory.getLogger(MOD_ID)
+
     lateinit var openGuiKey: KeyMapping
     lateinit var freeLookKey: KeyMapping
 
@@ -397,10 +399,12 @@ object HypCroMod : ClientModInitializer {
     }
 
     fun log(message: String) {
+        LOGGER.info(message)
         sendRaw("§8[§b§lHypCro§8] §7$message")
     }
 
     fun logSuccess(message: String) {
+        LOGGER.info(message)
         sendRaw("§8[§a§lHypCro §8✔] §f$message")
     }
 
@@ -408,7 +412,20 @@ object HypCroMod : ClientModInitializer {
         sendRaw("§8[§6§lHypCro §e⚠§8] §e$message")
         val client = Minecraft.getInstance()
         client.execute {
-            client.soundManager.play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(net.minecraft.sounds.SoundEvents.BELL_BLOCK, 1.0f, 1.0f))
+            if (client.player != null) {
+                client.soundManager.play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(net.minecraft.sounds.SoundEvents.BELL_BLOCK, 1.0f, 1.0f))
+            }
+        }
+    }
+
+    fun logError(message: String) {
+        LOGGER.error(message)
+        sendRaw("§8[§c§lHypCro Error§8] §c$message")
+        val client = Minecraft.getInstance()
+        client.execute {
+            if (client.player != null) {
+                client.soundManager.play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(net.minecraft.sounds.SoundEvents.BELL_BLOCK, 1.0f, 0.8f))
+            }
         }
     }
 

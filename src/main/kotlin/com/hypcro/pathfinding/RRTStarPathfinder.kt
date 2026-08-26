@@ -200,6 +200,9 @@ object RRTStarPathfinder : IPathfinder {
 
             // 3. Process best candidate edge from edgeQueue with Lazy Collision Evaluation
             if (edgeQueue.isNotEmpty()) {
+                if (System.currentTimeMillis() - startTime >= timeBudgetMs) {
+                    break
+                }
                 if (CentralMovementCoordinator.isAbortTriggered()) {
                     PathfindingVisualizer.clearDebug()
                     return emptyList()

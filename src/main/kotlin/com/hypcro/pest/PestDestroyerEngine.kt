@@ -390,26 +390,28 @@ object PestDestroyerEngine {
             currentState = State.APPROACH_PLOT_CENTER
             val arrivedViaScoreboard = AtomicBoolean(false)
 
-            val scoreboardWatcher = engineScope.launch {
-                while (isActive && isRunning) {
-                    delay(100L) // 2 ticks
-                    val lines = PestTabReader.readScoreboardLines(client)
-                    val plotRegex = Regex("""(?i)Plot\s*-\s*$targetPlotId(?!\d)""")
-                    val altPlotRegex = Regex("""(?i)Plot\s+$targetPlotId(?!\d)""")
-                    if (lines.any { plotRegex.containsMatchIn(it) || altPlotRegex.containsMatchIn(it) }) {
-                        arrivedViaScoreboard.set(true)
-                        CentralMovementCoordinator.stopNavigation()
-                        break
+            coroutineScope {
+                val scoreboardWatcher = launch {
+                    while (isActive && isRunning) {
+                        delay(100L) // 2 ticks
+                        val lines = PestTabReader.readScoreboardLines(client)
+                        val plotRegex = Regex("""(?i)Plot\s*-\s*$targetPlotId(?!\d)""")
+                        val altPlotRegex = Regex("""(?i)Plot\s+$targetPlotId(?!\d)""")
+                        if (lines.any { plotRegex.containsMatchIn(it) || altPlotRegex.containsMatchIn(it) }) {
+                            arrivedViaScoreboard.set(true)
+                            CentralMovementCoordinator.stopNavigation()
+                            break
+                        }
                     }
                 }
-            }
 
-            try {
-                // Fly to target plot X/Z only (targetY is null to cruise at current Y=85 altitude)
-                CentralMovementCoordinator.flyTo(client, targetX = center.x, targetY = null, targetZ = center.z)
-            } finally {
-                scoreboardWatcher.cancel()
-                MacroInputController.releaseAllMovement()
+                try {
+                    // Fly to target plot X/Z only (targetY is null to cruise at current Y=85 altitude)
+                    CentralMovementCoordinator.flyTo(client, targetX = center.x, targetY = null, targetZ = center.z)
+                } finally {
+                    scoreboardWatcher.cancelAndJoin()
+                    MacroInputController.releaseAllMovement()
+                }
             }
 
             if (!isRunning || CentralMovementCoordinator.isAbortTriggered(client)) {
