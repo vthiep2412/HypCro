@@ -112,6 +112,15 @@ data class BouncyBallConfig(
 )
 
 @Serializable
+data class HudConfig(
+    var enabled: Boolean = true,
+    var opacity: Float = 0.80f,
+    var posX: Float = -1f,
+    var posY: Float = -1f,
+    var scale: Float = 1.0f
+)
+
+@Serializable
 data class FarmConfig(
     var activeMethod: String = "WS",
     var autoActivePest: Boolean = false,
@@ -123,6 +132,7 @@ data class FarmConfig(
     var qolConfig: QOLConfig = QOLConfig(),
     var generalConfig: GeneralConfig = GeneralConfig(),
     var pestDestroyer: PestDestroyerConfig = PestDestroyerConfig(),
-    var bouncyBall: BouncyBallConfig = BouncyBallConfig()
+    var bouncyBall: BouncyBallConfig = BouncyBallConfig(),
+    var hud: HudConfig = HudConfig()
 )
 

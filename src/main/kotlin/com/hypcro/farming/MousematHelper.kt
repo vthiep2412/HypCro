@@ -47,9 +47,9 @@ object MousematHelper {
         }
         val originalSlot = player.inventory.selectedSlot
 
-        // 1. Switch to mousemat & wait 1s (human looking at item / preparing to type)
+        // 1. Switch to mousemat & wait 500ms (human looking at item / preparing to type)
         client.execute { player.inventory.selectedSlot = mousematSlot }
-        delay(1000)
+        delay(500)
 
         val stack = player.inventory.getItem(mousematSlot)
         val currentAngles = readMousematAngles(stack)
@@ -66,6 +66,7 @@ object MousematHelper {
         if (needSet) {
             CommandHelper.sendCommandHumanized(client, "setyaw $targetYaw")
             CommandHelper.sendCommandHumanized(client, "setpitch $targetPitch")
+            delay(100)
         }
 
         // 2. Perform left-click alignment attempts with chat cooldown detection
@@ -82,8 +83,8 @@ object MousematHelper {
                 client.options.keyAttack.setDown(false)
             }
 
-            // 300ms response window
-            delay(300)
+            // 400ms response window
+            delay(400)
 
             val pYaw = player.yRot
             val pPitch = player.xRot
@@ -112,7 +113,7 @@ object MousematHelper {
             } else {
                 HypCroMod.logWarn("Mousemat did not snap and not on cooldown. Rotating pitch to 80°...")
                 MouseMovementEngine.rotateTo(client, player.yRot, 80.0f)
-                delay(1200)
+                delay(1500)
             }
         }
 

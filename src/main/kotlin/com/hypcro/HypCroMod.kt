@@ -46,6 +46,9 @@ object HypCroMod : ClientModInitializer {
             )
         )
 
+        // Initialize central BPS tracker block break listener
+        com.hypcro.util.CropBpsTracker.init()
+
         // Intercept client-side dot commands before they reach the server
         ClientSendMessageEvents.ALLOW_CHAT.register { message ->
             val trimmed = message.trim()
@@ -61,12 +64,15 @@ object HypCroMod : ClientModInitializer {
         }
 
         ClientTickEvents.END_CLIENT_TICK.register { client ->
-            // Reset Free Look and pest memory on disconnect / world unload
+            // Reset Free Look, pest memory, and crop session on disconnect / world unload
             if (client.level == null || client.player == null) {
                 if (com.hypcro.camera.FreeLookManager.isFreeLookActive) {
                     com.hypcro.camera.FreeLookManager.reset(client)
                 }
                 com.hypcro.pest.PestTargetTracker.clearSessionMemory()
+                com.hypcro.util.CropBpsTracker.resetSession()
+            } else {
+                com.hypcro.util.CropBpsTracker.onClientTick(client)
             }
 
             // Render Pathfinding Visualizer, Pest ESP, and Auto Bouncy Ball in-world Gizmos

@@ -28,6 +28,13 @@ object AutoBouncyBall {
     var bounceCount: Int = 0
         private set
 
+    var ballCount: Int = 0
+        private set
+
+    private var sessionStartTimeMs: Long = 0L
+    val sessionUptimeMs: Long
+        get() = if (isRunning && sessionStartTimeMs > 0) System.currentTimeMillis() - sessionStartTimeMs else 0L
+
     var currentStatusText: String = "Inactive"
         private set
 
@@ -59,6 +66,8 @@ object AutoBouncyBall {
 
         isRunning = true
         bounceCount = 0
+        ballCount = 1
+        sessionStartTimeMs = System.currentTimeMillis()
         currentStatusText = "Initializing..."
         lastTargetDistance = 0.0
         activePredictor = null

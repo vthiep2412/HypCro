@@ -55,10 +55,11 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         private const val SEC_FARM_PEST_GAP = 64
         private const val SEC_PEST_CONF_GAP = 156
         private const val SEC_MISC_CONF_GAP = 88
+        private const val SEC_HUD_H = 88
     }
 
     private val sidebarWidth = 110
-    private var selectedTab = "Farming" // "Farming", "Pester", or "Settings"
+    private var selectedTab = "Farming" // "Farming", "Pester", "Misc", "HUD", or "Settings"
     private var farmingSubTab = 0 // 0 = "Macro", 1 = "General Config"
     private var pesterSubTab = 0  // 0 = "Macro", 1 = "General Config"
     private var miscSubTab = 0    // 0 = "Macro", 1 = "General Config"
@@ -143,6 +144,11 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
     private lateinit var targetBouncesInfo: InfoIconWidget
     private lateinit var goBackToStartPill: PillToggleWidget
     private lateinit var goBackToStartInfo: InfoIconWidget
+
+    // HUD Config Widgets
+    private lateinit var hudStatusPill: PillToggleWidget
+    private lateinit var hudOpacitySlider: SingleSliderWidget
+    private lateinit var hudEditBtn: Button
 
     override fun init() {
         cardX = sidebarWidth + 16
@@ -667,6 +673,35 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         }
         addRenderableWidget(goBackToStartPill)
 
+        // 9. HUD Config Widgets
+        val hudCfg = ConfigManager.config.hud
+        hudStatusPill = PillToggleWidget(
+            cardX + 220, cardY + 20, 100, 16,
+            listOf("OFF", "ON"), if (hudCfg.enabled) 1 else 0
+        ) { idx ->
+            val on = (idx == 1)
+            ConfigManager.config.hud.enabled = on
+            hudOpacitySlider.active = on
+            ConfigManager.save()
+        }
+        addRenderableWidget(hudStatusPill)
+
+        val clampedOpacity = (hudCfg.opacity * 100).toInt().coerceIn(10, 100)
+        hudOpacitySlider = SingleSliderWidget(
+            cardX + 220, cardY + 42, 140, 16,
+            10, 100, clampedOpacity, labelPrefix = "Opacity: ", labelSuffix = "%"
+        ) { value ->
+            ConfigManager.config.hud.opacity = value / 100.0f
+            ConfigManager.save()
+        }
+        hudOpacitySlider.active = hudCfg.enabled
+        addRenderableWidget(hudOpacitySlider)
+
+        hudEditBtn = Button.builder(Component.literal("Edit")) {
+            minecraft.setScreen(HudEditScreen(this))
+        }.bounds(cardX + 220, cardY + 64, 80, 18).build()
+        addRenderableWidget(hudEditBtn)
+
         updateWidgetVisibility()
     }
 
@@ -677,6 +712,7 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
             "Farming" -> if (farmingSubTab == 1) SEC_FARM_FLY_GAP + SEC_FARM_PEST_GAP + 20 else cardH + 20
             "Pester" -> if (pesterSubTab == 1) SEC_PEST_CONF_GAP + 20 else cardH + 20
             "Misc" -> if (miscSubTab == 1) SEC_MISC_CONF_GAP + 20 else cardH + 20
+            "HUD" -> SEC_HUD_H + 20
             else -> 100
         }
         return (contentH - viewH).coerceAtLeast(0)
@@ -753,6 +789,12 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         targetBouncesSlider.y = effectiveCardY + 40
         goBackToStartInfo.y = effectiveCardY + 64
         goBackToStartPill.y = effectiveCardY + 62
+
+        // HUD Config Widgets
+        val hudSecY = effectiveCardY
+        hudStatusPill.y = hudSecY + 20
+        hudOpacitySlider.y = hudSecY + 42
+        hudEditBtn.y = hudSecY + 64
     }
 
     private fun updateWidgetVisibility() {
@@ -864,6 +906,13 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         goBackToStartPill.visible = isMiscConfig
         goBackToStartInfo.visible = isMiscConfig
 
+        // HUD Config
+        val isHud = selectedTab == "HUD"
+        hudStatusPill.visible = isHud
+        hudOpacitySlider.visible = isHud
+        hudOpacitySlider.active = ConfigManager.config.hud.enabled
+        hudEditBtn.visible = isHud
+
         updateWidgetPositions()
     }
 
@@ -946,9 +995,27 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
             graphics.text(font, "  Misc", 14, miscBoxY + 8, if (miscHovered) 0xFF38BDF8.toInt() else 0xFF94A3B8.toInt())
         }
 
-        // 4. Sidebar Item: Settings (Bottom)
+        // 4. Sidebar Item: HUD (Above Settings)
         val settingsBoxH = 24
         val settingsBoxY = height - settingsBoxH - 12
+        val hudBoxH = 24
+        val hudBoxY = settingsBoxY - hudBoxH - 4
+        val hudHovered = mouseX in 6 until (sidebarWidth - 6) && mouseY in hudBoxY until (hudBoxY + hudBoxH)
+        val isHudActive = selectedTab == "HUD"
+
+        val hudBorderColor = if (isHudActive) 0xFF38BDF8.toInt() else if (hudHovered) 0xFF475569.toInt() else 0xFF1E293B.toInt()
+        graphics.fill(6, hudBoxY - 1, sidebarWidth - 6, hudBoxY, hudBorderColor)
+        graphics.fill(6, hudBoxY + hudBoxH, sidebarWidth - 6, hudBoxY + hudBoxH + 1, hudBorderColor)
+
+        if (isHudActive) {
+            graphics.fill(6, hudBoxY, sidebarWidth - 6, hudBoxY + hudBoxH, 0x3338BDF8)
+            graphics.text(font, "> HUD", 14, hudBoxY + 8, 0xFFFFFFFF.toInt())
+        } else {
+            if (hudHovered) graphics.fill(6, hudBoxY, sidebarWidth - 6, hudBoxY + hudBoxH, 0x1A38BDF8)
+            graphics.text(font, "  HUD", 14, hudBoxY + 8, if (hudHovered) 0xFF38BDF8.toInt() else 0xFF94A3B8.toInt())
+        }
+
+        // 5. Sidebar Item: Settings (Bottom)
         val settingsHovered = mouseX in 6 until (sidebarWidth - 6) && mouseY in settingsBoxY until (settingsBoxY + settingsBoxH)
         val isSettingsActive = selectedTab == "Settings"
 
@@ -986,6 +1053,9 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
                 } else {
                     renderMiscConfig(graphics, mouseX, mouseY)
                 }
+            }
+            "HUD" -> {
+                renderHudView(graphics, mouseX, mouseY)
             }
             "Settings" -> {
                 renderSettingsView(graphics, mouseX, mouseY)
@@ -1108,6 +1178,20 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         graphics.text(font, "Aggressive Mode:", cardX + 12, sec1Y + 25, 0xFF94A3B8.toInt())
         graphics.text(font, "Target Bounces:", cardX + 12, sec1Y + 45, 0xFF94A3B8.toInt())
         graphics.text(font, "Go back to Start:", cardX + 12, sec1Y + 67, 0xFF94A3B8.toInt())
+    }
+
+    private fun renderHudView(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
+        val secY = cardY - scrollOffset
+        val secH = SEC_HUD_H
+        graphics.fill(cardX - 1, secY - 1, cardX + cardW + 1, secY + secH + 1, 0xFF334155.toInt())
+        graphics.fill(cardX, secY, cardX + cardW, secY + secH, 0xFF1E293B.toInt())
+        graphics.fill(cardX, secY, cardX + cardW, secY + 18, 0xFF334155.toInt())
+        graphics.text(font, "§b§lHUD Config", cardX + 10, secY + 5, 0xFF38BDF8.toInt())
+
+        graphics.text(font, "Macro Status:", cardX + 12, secY + 25, 0xFF94A3B8.toInt())
+        val opacityColor = if (ConfigManager.config.hud.enabled) 0xFF94A3B8.toInt() else 0xFF475569.toInt()
+        graphics.text(font, "Background Opacity:", cardX + 12, secY + 47, opacityColor)
+        graphics.text(font, "HUD Edit:", cardX + 12, secY + 69, 0xFF94A3B8.toInt())
     }
 
     private fun renderFarmingConfig(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
@@ -1257,6 +1341,17 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
 
                 val settingsBoxH = 24
                 val settingsBoxY = height - settingsBoxH - 12
+                val hudBoxH = 24
+                val hudBoxY = settingsBoxY - hudBoxH - 4
+
+                if (mouseY in hudBoxY until (hudBoxY + hudBoxH)) {
+                    selectedTab = "HUD"
+                    isModeDropdownOpen = false
+                    scrollOffset = 0
+                    updateWidgetVisibility()
+                    return true
+                }
+
                 if (mouseY in settingsBoxY until (settingsBoxY + settingsBoxH)) {
                     selectedTab = "Settings"
                     isModeDropdownOpen = false

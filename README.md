@@ -17,6 +17,13 @@ A client-side Fabric mod for Hypixel SkyBlock Garden farming with zero memory in
   - Universal ArmorStand skull marker tracking for all pest variants.
   - Multi-layer kill confirmation, Vacuum hotbar management, keep-pest radial repositioning to prevent collateral multi-kills, and automatic `/warp garden` return with crop engine restoration.
   - 5x5 Garden Plot selector modals for teleportable plots and preserved pest plots.
+- **Persistent On-Screen HUD & BPS Tracker**:
+  - Live in-game status card rendering current macro engine, active crop, uptime duration, instantaneous BPS, average BPS, and direction.
+  - State-specific layouts for Farming, Auto Pester sweeps, Manual Pester, and Auto Bouncy Ball.
+  - Sharp minimalist aesthetic with dynamic left/right border color responders (Green for active running, Yellow for warnings, Red for staff/watchdog alerts, and Gray for idle).
+  - Dedicated **HUD** tab in the main deck with Macro Status toggle and Background Opacity slider (10% to 100%).
+  - Interactive **HUD Editor** (`HudEditScreen`) with drag-to-move repositioning across all screen corners and scroll-wheel scaling (50% to 250%).
+  - Centralized `CropBpsTracker` measuring instantaneous crop breaking rates and session averages.
 - **Visuals & Debugging**:
   - In-world 3D Pest ESP (bounding boxes and distance tags).
   - Pathfinding Visualizer (3D Gizmo waypoints, flight trajectories, and goal markers).

@@ -2,7 +2,7 @@
 
 ## High Priority & Core Improvements
 - [ ] Add humanization for W/S movement. Every 1–2 minutes, delay a reaction or direction switch by up to 1.2 s. Otherwise, choose a random delay from 0 to 800 ms.
-- [ ] Add a persistent on-screen HUD while the macro is running.
+- [x] Add a persistent on-screen HUD while the macro is running.
     - Stats to show: Elapsed time (uptime), average crops/second, current crop being farmed, current movement direction (W or S), and failsafe status.
 - [ ] Add smart mode and remake the type for Bouncy balls in misc
     - Change to Mode: [Aggresive | Calm | Smart]

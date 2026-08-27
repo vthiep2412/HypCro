@@ -9,6 +9,7 @@
     "ChatComponentMixin",
     "ClientPacketListenerMixin",
     "CommandSuggestionsMixin",
+    "GuiMixin",
     "KeyboardInputMixin",
     "KeyboardMixin",
     "LocalPlayerMixin",

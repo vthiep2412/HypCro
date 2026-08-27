@@ -65,6 +65,18 @@ object HypcroWatchdog {
         alarmJob = null
     }
 
+    @Volatile
+    var lastWarningTimeMs: Long = 0L
+        private set
+
+    fun triggerWarning() {
+        lastWarningTimeMs = System.currentTimeMillis()
+    }
+
+    fun hasRecentWarning(): Boolean {
+        return (System.currentTimeMillis() - lastWarningTimeMs) < 3000L
+    }
+
     private var rotationDebounceStartTime: Long = 0L
     @Volatile
     private var isDebouncingRotation: Boolean = false

@@ -32,6 +32,8 @@ object ChatHistoryTracker {
     fun getMessagesSince(sinceTimestamp: Long, maxTimestamp: Long = Long.MAX_VALUE): List<ChatEntry> {
         val now = System.currentTimeMillis()
         cleanup(now)
-        return history.filter { it.timestamp in sinceTimestamp..maxTimestamp }
+        return history.filter {
+            it.timestamp > sinceTimestamp && it.timestamp <= maxTimestamp
+        }
     }
 }

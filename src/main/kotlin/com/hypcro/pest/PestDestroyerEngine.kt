@@ -59,6 +59,10 @@ object PestDestroyerEngine {
     var totalPestsKilled = 0
         private set
 
+    private var sessionStartTimeMs: Long = 0L
+    val sessionUptimeMs: Long
+        get() = if (isRunning && sessionStartTimeMs > 0) System.currentTimeMillis() - sessionStartTimeMs else 0L
+
     @Volatile
     var callerSource = PestCallerSource.MANUAL_USER
         private set
@@ -107,6 +111,7 @@ object PestDestroyerEngine {
         callerSource = source
         callingEngineInstance = callingEngine
         isRunning = true
+        sessionStartTimeMs = System.currentTimeMillis()
         currentState = State.INITIALIZE_SPAWN
         totalPestsKilled = 0
 

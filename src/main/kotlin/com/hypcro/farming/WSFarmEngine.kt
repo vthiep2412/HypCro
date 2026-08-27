@@ -11,6 +11,7 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.block.*
 import net.minecraft.world.phys.Vec3
 import kotlinx.coroutines.*
+import com.hypcro.util.CropBpsTracker
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
@@ -24,6 +25,10 @@ object WSFarmEngine : IFarmEngine {
 
     @Volatile
     var currentActiveKey: Char = 'S'
+        private set
+
+    @Volatile
+    var currentFarmedCrop: CropType? = null
         private set
 
     @Volatile
@@ -137,6 +142,8 @@ object WSFarmEngine : IFarmEngine {
                     lastCheckPos = client.player?.position()
                     val inWater = isPlayerFeetInWater(client)
                     currentActiveKey = if (inWater) 'W' else 'S'
+                    currentFarmedCrop = detectedCrop
+                    CropBpsTracker.startOrResumeSession(detectedCrop)
                     applyMovementKeys(inWater)
                     
                     HypCroMod.logStartBanner(engineName, detectedCrop.displayName, targetAngles.first, targetAngles.second, toolName)
@@ -165,6 +172,8 @@ object WSFarmEngine : IFarmEngine {
             if (!isRunning || !isFarmingActive) return
             val player = client.player ?: return
             val level = client.level ?: return
+
+            CropBpsTracker.onClientTick(client)
 
             // Run Watchdog failsafes on client tick
             HypcroWatchdog.onClientTick(client)
@@ -251,6 +260,8 @@ object WSFarmEngine : IFarmEngine {
         if (!isRunning) return
         isRunning = false
         isFarmingActive = false
+        currentFarmedCrop = null
+        CropBpsTracker.pauseSession()
         farmJob?.cancel()
         farmJob = null
         currentTargetAngles = null
@@ -263,6 +274,8 @@ object WSFarmEngine : IFarmEngine {
     override fun abortScript(message: String) {
         isRunning = false
         isFarmingActive = false
+        currentFarmedCrop = null
+        CropBpsTracker.pauseSession()
         farmJob?.cancel()
         farmJob = null
         currentTargetAngles = null
