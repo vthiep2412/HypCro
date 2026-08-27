@@ -67,7 +67,9 @@ object SkyBlockItemHelper {
             }
         }
 
-        // 2. Fallback: choose nearest farming tool in hotbar
+        // 2. Intentional Fallback: choose nearest farming tool in hotbar.
+        // Even if a specific crop hoe is missing, high-tier tools carry general Farming Fortune
+        // (Blessed/Bountiful reforges, Dedication, Cultivating, Gemstones) that benefit other crops.
         for (slot in slotsByProximity) {
             val stack = player.inventory.getItem(slot)
             if (isFarmingTool(stack)) {
