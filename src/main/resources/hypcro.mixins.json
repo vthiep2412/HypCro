@@ -6,6 +6,7 @@
   ],
   "client": [
     "CameraMixin",
+    "ChatComponentMixin",
     "ClientPacketListenerMixin",
     "CommandSuggestionsMixin",
     "KeyboardInputMixin",

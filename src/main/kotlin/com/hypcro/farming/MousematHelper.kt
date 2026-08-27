@@ -2,14 +2,15 @@ package com.hypcro.farming
 
 import com.hypcro.HypCroMod
 import com.hypcro.input.CommandHelper
+import com.hypcro.movement.MouseMovementEngine
 import com.hypcro.util.AngleUtils
+import com.hypcro.util.ChatHistoryTracker
 import com.hypcro.util.SkyBlockItemHelper
 import net.minecraft.client.Minecraft
 import net.minecraft.core.component.DataComponents
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.item.ItemStack
 import kotlinx.coroutines.delay
-import kotlin.math.abs
 
 object MousematHelper {
 
@@ -67,8 +68,10 @@ object MousematHelper {
             CommandHelper.sendCommandHumanized(client, "setpitch $targetPitch")
         }
 
-        // 2. Perform genuine item swing / left-click with the Squeaky Mousemat
-        for (attempt in 1..3) {
+        // 2. Perform left-click alignment attempts with chat cooldown detection
+        for (attempt in 1..5) {
+            val clickTime = System.currentTimeMillis()
+
             client.execute {
                 // Trigger genuine left-click swing animation and attack packet
                 player.swing(InteractionHand.MAIN_HAND)
@@ -78,7 +81,9 @@ object MousematHelper {
             client.execute {
                 client.options.keyAttack.setDown(false)
             }
-            delay(400) // Wait longer before checking if server snapped rotation
+
+            // 300ms response window
+            delay(300)
 
             val pYaw = player.yRot
             val pPitch = player.xRot
@@ -90,9 +95,24 @@ object MousematHelper {
                 delay(200)
                 return true
             }
-            if (attempt < 3) {
-                HypCroMod.logWarn("Mousemat alignment attempt $attempt failed, retrying in 3s...")
-                delay(3000) // Wait at least 3 seconds before next click attempt
+
+            if (attempt == 5) {
+                break
+            }
+
+            // Check fresh chat messages received strictly after clickTime
+            val recentMessages = ChatHistoryTracker.getMessagesSince(clickTime)
+            val hasCooldownMessage = recentMessages.any { entry ->
+                entry.message.contains("This ability is on cooldown for ")
+            }
+
+            if (hasCooldownMessage) {
+                HypCroMod.logWarn("Mousemat ability on cooldown. Waiting exact 3s before retrying...")
+                delay(3000)
+            } else {
+                HypCroMod.logWarn("Mousemat did not snap and not on cooldown. Rotating pitch to 80°...")
+                MouseMovementEngine.rotateTo(client, player.yRot, 80.0f)
+                delay(1200)
             }
         }
 
