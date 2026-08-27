@@ -122,8 +122,8 @@ object HypcroWatchdog {
             }
             val baselinePitch = if (recentPitches.isNotEmpty()) recentPitches.average().toFloat() else player.xRot
 
-            val yawDiff = abs((((player.yRot - baselineYaw + 180f) % 360f + 360f) % 360f) - 180f)
-            val pitchDiff = abs(player.xRot - baselinePitch)
+            val yawDiff = com.hypcro.util.AngleUtils.yawDifference(player.yRot, baselineYaw)
+            val pitchDiff = com.hypcro.util.AngleUtils.pitchDifference(player.xRot, baselinePitch)
             val maxDelta = maxOf(yawDiff, pitchDiff)
 
             if (maxDelta > 5.0f) {

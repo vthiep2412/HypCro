@@ -17,14 +17,16 @@
 HypCro is a high-performance, client-side Hypixel SkyBlock Garden farming helper mod built natively for Fabric 26.1.2 on Java 25 and Kotlin 2.4.10. HypCro replaces legacy Forge 1.8.9 reflective hacks and external background injection tools with native Fabric mixins, non-blocking coroutines, humanized kinematics, autonomous 3D flight pathfinding, in-world Gizmo vector rendering, and real-time watchdog failsafes.
 
 Key architectural highlights include:
-- **Macro Engine**: State machine automation for W/S linear farming and vertical crop layouts with automatic hoe selection and Squeaky Mousemat integration.
+- **Macro Engine**: Centralized state machine automation for W/S linear farming and vertical crop layouts with automatic hoe selection and Squeaky Mousemat integration.
 - **Humanized Kinematics**: Hardware mouse sensitivity GCD quantization, continuous delta Bezier control point generation, micro-tremor noise, precision slowdown within 15 degrees, and critically damped spring physics for flight camera tracking.
 - **Native 3D Navigation**: Three selectable 3D flight pathfinders (Theta*, smoothed 3D A*, BIT* Batch Informed Trees) with sub-step collision raycasting, altitude clearance bias, 35-degree corner braking, and stuck recomputation.
 - **Autonomous Pest Extermination**: 24-plot Garden routing, multi-tier vacuum detection (T1 to T5), radial clearance cone protection for preserved plots, scoreboard and tablist scraping, and automated return flow.
+- **Auto Bouncy Ball Automation**: Real-time ArmorStand trajectory prediction and pure keyboard strafe positioning for automated beach ball bouncing minigames.
 - **Watchdog Failsafes**: Real-time surveillance of forced server rotations with a 400ms debounce window, packet-level teleport detection with a 6.0b threshold, randomized hotbar slot checks, unfamiliar GUI popups, server restart broadcasts, and airborne stall recovery.
 - **Decoupled Camera**: 360-degree FreeLook camera with third-person raycast bypass enabling smooth zoom up to 50 blocks.
 - **Vector Rendering**: Modern debug vector rendering via Minecraft's native `net.minecraft.gizmos.Gizmos` and `net.minecraft.gizmos.GizmoStyle` APIs instead of deprecated immediate mode OpenGL.
 - **Async Configuration**: Non-blocking JSON configuration persistence using Kotlinx Serialization and dedicated IO channel actors.
+- **Shared Utilities Foundation**: Centralized utilities for SkyBlock item NBT resolution, canonical angle geometry, and Garden state reading.
 
 ---
 
@@ -37,6 +39,31 @@ Key architectural highlights include:
 ### DO NOT ATTEMPT TO REMOVE THESE
 - Correct comments, non-duplicated comments
 - Print telemetry, commented telemetry
+
+### Strict Architectural Centralization & Anti-Fragmentation Guardrails
+1. **Centralized SkyBlock Item & NBT Resolution**:
+   - All SkyBlock item identification, NBT `ExtraAttributes` ID queries, farming tool searches, vacuum tier lookups, mousemat detection, and beach ball slot lookups MUST reside in `com.hypcro.util.SkyBlockItemHelper`.
+   - Never write one-off `DataComponents.CUSTOM_DATA` parsers or duplicate hotbar scanning loops in individual engines or screens.
+
+2. **Standardized Angle Math & Kinematics**:
+   - All angle wrapping, degree difference calculations, and tolerance checks MUST use `com.hypcro.util.AngleUtils`.
+   - Never write manual modulo wrapping math like `(((yaw1 - yaw2 + 180f) % 360f + 360f) % 360f) - 180f` in feature code.
+
+3. **Centralized Tablist & Scoreboard Parsing**:
+   - All text color stripping, tablist extraction, sidebar scoreboard reading, and Garden location checks MUST use `com.hypcro.util.GardenStateReader`.
+   - Never parse scoreboard player teams or online player tab entries directly in command handlers or feature engines.
+
+4. **Master Macro Lifecycle & State Orchestration**:
+   - `com.hypcro.farming.MacroController` is the single authoritative source of truth for all bot operations.
+   - All global active checks MUST call `MacroController.isAnyMacroActive()`.
+   - All emergency stops, GUI openings, ESC menu hooks, and failsafe aborts MUST call `MacroController.stopAllMacros(reason)`.
+   - Never write cascading multi-line stop chains across different engines in mixins or input listeners.
+
+5. **Job-Specific Entrypoint Validation**:
+   - Every public automation entrypoint MUST validate necessary preconditions before spawning background coroutines.
+   - Farming macro requires Garden location, valid player/level, matching hoe, and Squeaky Mousemat. If Auto Pester is enabled, vacuum presence is also verified upfront.
+   - Pest Destroyer requires Garden location and valid vacuum on hotbar.
+   - Auto Bouncy Ball requires valid player/level and Bouncy Beach Ball on hotbar.
 
 ### Anti-Detection and Failsafe Rules
 1. **Hardware GCD Sensitivity Quantization**:
@@ -153,10 +180,10 @@ Key architectural highlights include:
 | `src/main/java/com/hypcro/mixins/ClientPacketListenerMixin.java` | Bytecode injector into `ClientPacketListener` | Intercepts `ClientboundPlayerPositionPacket` for teleport watchdog checks and blocks user chat/commands when input lock is enabled |
 | `src/main/java/com/hypcro/mixins/CommandSuggestionsMixin.java` | Bytecode injector into `CommandSuggestions` | Provides custom client-side tab completion suggestions for all `.hypcro` dot-commands |
 | `src/main/java/com/hypcro/mixins/KeyboardInputMixin.java` | Bytecode injector into `KeyboardInput` | Injects virtual movement keypresses and directional impulses from `MacroInputController` into player input calculations |
-| `src/main/java/com/hypcro/mixins/KeyboardMixin.java` | Bytecode injector into `KeyboardHandler` | Blocks physical keyboard inputs during active macros according to Input Lock configuration |
+| `src/main/java/com/hypcro/mixins/KeyboardMixin.java` | Bytecode injector into `KeyboardHandler` | Blocks physical keyboard inputs during active macros according to Input Lock configuration and routes global stops |
 | `src/main/java/com/hypcro/mixins/LocalPlayerMixin.java` | Bytecode injector into `LocalPlayer` | Overrides client-side sprint input states in `aiStep` and enforces sprinting cancellation when virtual sprint is released |
 | `src/main/java/com/hypcro/mixins/MinecraftMixin.java` | Bytecode injector and invoker for `Minecraft` | Exposes invokers for attack and item use loops, tick-syncs key states during chat screens, and triggers watchdog on unfamiliar GUI popups |
-| `src/main/java/com/hypcro/mixins/MouseMixin.java` | Bytecode injector into `MouseHandler` | Intercepts mouse scroll and cursor movement for FreeLook smooth zoom and camera lock enforcement |
+| `src/main/java/com/hypcro/mixins/MouseMixin.java` | Bytecode injector into `MouseHandler` | Intercepts mouse scroll and cursor movement for FreeLook smooth zoom and camera lock enforcement via `MacroController.isAnyMacroActive()` |
 | `src/main/java/com/hypcro/mixins/OptionsAccessor.java` | Mixin accessor interface for `Options` | Exposes getters for `invertXMouse` and `invertYMouse` option instances |
 
 #### 6. Kotlin Source Code (`src/main/kotlin/com/hypcro/`)
@@ -165,6 +192,11 @@ Key architectural highlights include:
 | File Path | Primary Function | Architectural Role |
 | :--- | :--- | :--- |
 | `src/main/kotlin/com/hypcro/HypCroMod.kt` | Mod entrypoint implementing `ClientModInitializer` | Registers keybinds (`END` for GUI, `V` for FreeLook), registers client tick listeners, routes dot-commands, and provides formatted in-game logging |
+
+##### Bouncy Beach Ball Subsystem (`com.hypcro.bouncy`)
+| File Path | Primary Function | Architectural Role |
+| :--- | :--- | :--- |
+| `src/main/kotlin/com/hypcro/bouncy/AutoBouncyBall.kt` | Autonomous beach ball bouncing minigame bot | Tracks falling ArmorStand balls, predicts landing coordinates, and drives keyboard strafe movement without rotating the player camera |
 
 ##### Camera Subsystem (`com.hypcro.camera`)
 | File Path | Primary Function | Architectural Role |
@@ -176,7 +208,7 @@ Key architectural highlights include:
 | :--- | :--- | :--- |
 | `src/main/kotlin/com/hypcro/config/ConfigManager.kt` | Thread-safe configuration manager | Handles JSON serialization/deserialization via Kotlinx Serialization and writes asynchronously to `.minecraft/config/hypcro.json` |
 | `src/main/kotlin/com/hypcro/config/CropType.kt` | Crop enumeration | Defines supported crops: `WHEAT`, `CARROT`, `POTATO`, `NETHER_WART`, `MUSHROOM` |
-| `src/main/kotlin/com/hypcro/config/FarmConfig.kt` | Configuration data structures | Defines schema for angles, mouse kinematics, visuals, QOL, anti-stuck, watchdog, input lock, pest destroyer, and mode profiles |
+| `src/main/kotlin/com/hypcro/config/FarmConfig.kt` | Configuration data structures | Defines schema for angles, mouse kinematics, visuals, QOL, anti-stuck, watchdog, input lock, pest destroyer, bouncy ball, and mode profiles |
 | `src/main/kotlin/com/hypcro/config/FarmMode.kt` | Farming mode enumeration | Defines supported macro modes: `WS` (W/S linear farming) and `VERTICAL` (Vertical farming) |
 
 ##### Failsafe Subsystem (`com.hypcro.failsafe`)
@@ -188,12 +220,13 @@ Key architectural highlights include:
 ##### Farming Macro Subsystem (`com.hypcro.farming`)
 | File Path | Primary Function | Architectural Role |
 | :--- | :--- | :--- |
-| `src/main/kotlin/com/hypcro/farming/IFarmEngine.kt` | Farm engine interface | Declares standard lifecycle methods (`startMacro`, `stopMacro`, `abortScript`, `onClientTick`) and angle status |
-| `src/main/kotlin/com/hypcro/farming/MacroController.kt` | Central macro manager | Enforces Garden area verification, resolves active engine mode, and routes client ticks to active session engine |
+| `src/main/kotlin/com/hypcro/farming/FarmEngineHelper.kt` | Farming environmental helper | Centralizes forward crop block raycasting and lower bounding box water immersion checks for all farm engines |
+| `src/main/kotlin/com/hypcro/farming/IFarmEngine.kt` | Farm engine interface | Declares standard lifecycle methods (`startMacro`, `stopMacro`, `abortScript`, `onClientTick`, `detectCrop`) and angle status |
+| `src/main/kotlin/com/hypcro/farming/MacroController.kt` | Central macro orchestrator and state coordinator | Enforces Garden area verification, manages global bot states (`isAnyMacroActive`), coordinates master stops (`stopAllMacros`), and routes client ticks |
 | `src/main/kotlin/com/hypcro/farming/MacroInputController.kt` | Virtual input coordinator | Controls virtual key states (W, S, A, D, Jump, Shift, Sprint, Attack, UseItem) and calculates movement impulse vectors for mixin injection |
 | `src/main/kotlin/com/hypcro/farming/MousematHelper.kt` | Squeaky Mousemat automation utility | Reads lore NBT on hotbar mousemat items, sends `/setyaw` and `/setpitch` commands, and performs physical left-clicks to align angles |
 | `src/main/kotlin/com/hypcro/farming/VerticalCropFarmEngine.kt` | Vertical crop farming engine stub | Placeholder engine for upcoming vertical farm mechanics |
-| `src/main/kotlin/com/hypcro/farming/WSFarmEngine.kt` | Primary W/S crop farming implementation | Raycasts crops ahead, automatically selects hoes based on ExtraAttributes IDs, aligns angles, tracks water immersion, and manages wall collision turning |
+| `src/main/kotlin/com/hypcro/farming/WSFarmEngine.kt` | Primary W/S crop farming implementation | Implements W/S movement loops, automatically selects hoes via `SkyBlockItemHelper`, aligns angles via `AngleUtils`, and manages wall collision turning |
 
 ##### User Interface Subsystem (`com.hypcro.gui` & `com.hypcro.gui.widgets`)
 | File Path | Primary Function | Architectural Role |
@@ -232,9 +265,16 @@ Key architectural highlights include:
 | :--- | :--- | :--- |
 | `src/main/kotlin/com/hypcro/pest/PestDestroyerEngine.kt` | Autonomous Garden pest extermination state machine | Controls lifecycle from `/setspawn` to Tablist/Scoreboard plot routing, high-altitude transit, vacuum firing, UUID death polling, and `/warp garden` return |
 | `src/main/kotlin/com/hypcro/pest/PestESP.kt` | In-world 3D Pest ESP visualizer | Renders red highlighted bounding boxes around detected pests through walls |
-| `src/main/kotlin/com/hypcro/pest/PestTabReader.kt` | Tablist and Scoreboard text scraper | Parses tablist player names and sidebar lines to detect Garden presence, alive pest counts, and infested plot IDs |
+| `src/main/kotlin/com/hypcro/pest/PestTabReader.kt` | Pest-specific tablist and scoreboard scanner | Parses pest counts and infested plot IDs from sidebar and tablist via `GardenStateReader` |
 | `src/main/kotlin/com/hypcro/pest/PestTargetTracker.kt` | Pest entity tracking and targeting engine | Identifies pests by name matching and UUID session memory, tracks skull markers, and calculates safe radial angles to prevent collateral kills |
 | `src/main/kotlin/com/hypcro/pest/PlotCoordinateData.kt` | Garden plot coordinate database | Static mapping of center coordinates and teleport positions for all 24 Garden plots and center barn |
+
+##### Shared Utilities Subsystem (`com.hypcro.util`)
+| File Path | Primary Function | Architectural Role |
+| :--- | :--- | :--- |
+| `src/main/kotlin/com/hypcro/util/AngleUtils.kt` | Canonical angle geometry and distance utilities | Provides normalized angle differences, pitch/yaw delta comparisons, and angular distance calculations using `Mth.wrapDegrees` |
+| `src/main/kotlin/com/hypcro/util/GardenStateReader.kt` | Centralized SkyBlock text and scoreboard scraper | Extracts clean unformatted lines from tablist and sidebar scoreboard, and validates Garden presence |
+| `src/main/kotlin/com/hypcro/util/SkyBlockItemHelper.kt` | Centralized SkyBlock item and NBT ExtraAttributes helper | Resolves ExtraAttributes IDs, locates farming hoes, determines vacuum tiers (T1-T5), and detects mousemats and beach balls |
 
 #### 7. Mod Resources & Metadata (`src/main/resources/`)
 | File Path | Primary Function | Architectural Role |
@@ -265,6 +305,9 @@ Legacy Forge 1.8.9 reference codebase containing patterns for crop handling, fai
 - `com.jelly.farmhelperv2.remote`: Discord bot integration and remote websocket command system
 - `com.jelly.farmhelperv2.util`: Math, angle, block, player, and reflection utilities
 
+##### `Learn/SkyHanni` (Forge 1.8.9 SkyHanni Mod)
+Modern SkyBlock helper mod reference containing rich text parsing, regex item filters, inventory detection, and island state tracking.
+
 ##### `Learn/aether` (Fabric 26.1.2 / 1.21.x Aether Mod)
 Modern Fabric reference codebase demonstrating modern Java 25 architectural patterns, mixin hooks, and GUI rendering:
 - `dev.aether.bootstrap`: Mod initialization, command registrar, keybind registry, and client tick events
@@ -288,60 +331,64 @@ Modern Fabric reference codebase demonstrating modern Java 25 architectural patt
                    │
    ┌───────────────┼────────────────────────┐
    ▼               ▼                        ▼
-[ GUI Dashboard ] [ HypcroWatchdog ]       [ MacroController ]
+[ GUI Dashboard ] [ HypcroWatchdog ]       [ MacroController ] ◄── [ Master Lifecycle & Stop ]
 (MainFarmingScreen) (Packet & State Checks)         │
-   │               │                        ┌───────┴───────┐
-   │               │                        ▼               ▼
-   │               │               [ WSFarmEngine ] [ PestDestroyerEngine ]
-   │               │                        │               │
-   │               │                        ▼               ▼
-   │               │          [ CentralMovementCoordinator ]
-   │               │                        │
-   │               │          ┌─────────────┼─────────────┐
-   │               │          ▼             ▼             ▼
-   │               │     [ Theta* ]    [ 3D A* ]      [ BIT* ]
-   │               │          │             │             │
-   │               │          └─────────────┼─────────────┘
-   │               │                        ▼
-   │               │            [ MouseMovementEngine ]
-   │               │            (GCD, Bezier, Spring)
-   │               │                        │
-   ▼               ▼                        ▼
-[ ConfigManager ] ◄──────────────── [ MacroInputController ]
+   │               │                        ┌───────┴───────┬───────────────────┐
+   │               │                        ▼               ▼                   ▼
+   │               │               [ WSFarmEngine ] [ PestDestroyerEngine ] [ AutoBouncyBall ]
+   │               │                        │               │                   │
+   │               │                        ▼               ▼                   │
+   │               │          [ CentralMovementCoordinator ]                    │
+   │               │                        │                                   │
+   │               │          ┌─────────────┼─────────────┐                     │
+   │               │          ▼             ▼             ▼                     │
+   │               │     [ Theta* ]    [ 3D A* ]      [ BIT* ]                  │
+   │               │          │             │             │                     │
+   │               │          └─────────────┼─────────────┘                     │
+   │               │                        ▼                                   │
+   │               │            [ MouseMovementEngine ]                         │
+   │               │            (GCD, Bezier, Spring)                           │
+   │               │                        │                                   │
+   ▼               ▼                        ▼                                   ▼
+[ ConfigManager ] ◄──────────────── [ MacroInputController ] ◄──────────────────┘
 (Async JSON IO)                             │
                                             ▼
                               [ Fabric Mixin Injections ]
                               (KeyboardInputMixin, MouseMixin,
-                               CameraMixin, MinecraftMixin)
+                               KeyboardMixin, MinecraftMixin)
                                             │
                                             ▼
                               [ Minecraft 26.1.2 Client ]
+                                            │
+                                            ▼
+                              [ Shared Utilities Foundation ]
+                              (SkyBlockItemHelper, AngleUtils, GardenStateReader)
 ```
 
 1. **User Interaction & Configuration**:
    The user presses `END` to open `MainFarmingScreen`. Modifications to settings are immediately committed to memory and asynchronously written to `.minecraft/config/hypcro.json` via `ConfigManager` without render hitching.
 
-2. **Macro Lifecycle & Farming Loop**:
-   When toggled on, `MacroController` validates the current SkyBlock location (`Garden` required). It initializes the selected engine (`WSFarmEngine`) which evaluates crops ahead, equips the appropriate tool based on NBT attributes, aligns the player's yaw and pitch, and asserts virtual inputs in `MacroInputController`.
+2. **Master Macro Lifecycle & Farming Loop**:
+   When toggled on, `MacroController` validates the current SkyBlock location (`Garden` required) and enforces required items (farming hoe, Squeaky Mousemat, and vacuum if Auto Pester is active). It initializes the selected engine (`WSFarmEngine`) which evaluates crops ahead, equips the appropriate tool using `SkyBlockItemHelper`, aligns the player's yaw and pitch via `AngleUtils`, and asserts virtual inputs in `MacroInputController`.
 
 3. **Autonomous Pest Routing & Pathfinding**:
-   When pests reach the configured threshold, `PestDestroyerEngine` takes control. It issues `/setspawn`, reads infested plot coordinates from `PestTabReader`, and requests a 3D flight trajectory from `ThetaStarPathfinder`, `AStar3DSmoothedPathfinder`, or `RRTStarPathfinder`. `CentralMovementCoordinator` executes the flight path with 35-degree corner braking and continuous look-ahead heading.
+   When pests reach the configured threshold, `PestDestroyerEngine` takes control. It validates vacuum presence via `SkyBlockItemHelper`, issues `/setspawn`, reads infested plot coordinates from `GardenStateReader`, and requests a 3D flight trajectory from `ThetaStarPathfinder`, `AStar3DSmoothedPathfinder`, or `RRTStarPathfinder`. `CentralMovementCoordinator` executes the flight path with 35-degree corner braking and continuous look-ahead heading.
 
 4. **Camera & Kinematic Steering**:
-   Angle adjustments during macroing and in-flight navigation pass through `MouseMovementEngine`, which enforces hardware GCD sensitivity quantization, cubic Bezier smoothing, human micro-tremors, and spring damping. In-world visuals are rendered via `Gizmos` (`PestESP` and `PathfindingVisualizer`).
+   Angle adjustments during macroing and in-flight navigation pass through `MouseMovementEngine`, which enforces hardware GCD sensitivity quantization, cubic Bezier smoothing, human micro-tremors, and spring damping. In-world visuals are rendered via `Gizmos` (`PestESP`, `PathfindingVisualizer`, and `AutoBouncyBall`).
 
-5. **Watchdog Protection**:
-   `HypcroWatchdog` runs continuously across all states. If an admin applies a forced rotation exceeding 5 degrees for over 400ms, or teleports the player further than 6.0 blocks, the watchdog aborts all active routines, restores physical input, and sounds an audible alarm.
+5. **Watchdog Protection & Master Stops**:
+   `HypcroWatchdog` runs continuously across all states. If an admin applies a forced rotation exceeding 5 degrees for over 400ms, or teleports the player further than 6.0 blocks, the watchdog aborts all active routines via `MacroController.stopAllMacros()`, restores physical input, and sounds an audible alarm.
 
 ---
 
 ### Code and Naming Conventions
 
 1. **Kotlin Style & Structure**:
-   - Class and Object names use `PascalCase` (e.g. `WSFarmEngine`, `MouseMovementEngine`).
-   - Function and property names use `camelCase` (e.g. `startMacro`, `quantizedDelta`).
+   - Class and Object names use `PascalCase` (e.g. `WSFarmEngine`, `MouseMovementEngine`, `SkyBlockItemHelper`).
+   - Function and property names use `camelCase` (e.g. `startMacro`, `quantizedDelta`, `isAnyMacroActive`).
    - Constant values and enum entries use `UPPER_SNAKE_CASE` (e.g. `CROP_WHEAT`, `CORNER_BRAKE_ANGLE`).
-   - Package names use lowercase letters without underscores (e.g. `com.hypcro.pathfinding`).
+   - Package names use lowercase letters without underscores (e.g. `com.hypcro.util`, `com.hypcro.bouncy`).
 
 2. **Concurrency & Threading**:
    - Singletons and long-lived services are declared as Kotlin `object` instances.
@@ -350,7 +397,7 @@ Modern Fabric reference codebase demonstrating modern Java 25 architectural patt
 3. **Mixin Design**:
    - Mixin classes reside in `com.hypcro.mixins` and target compatibility level `JAVA_25`.
    - Never generate synthetic OS key events. Always inject virtual state into `ClientInput.keyPresses` and `ClientInput.moveVector`.
-   - Keep mixin injection methods lean, delegating complex logic to appropriate Kotlin engine singletons.
+   - Keep mixin injection methods lean, delegating complex logic to `MacroController` or appropriate Kotlin singletons.
 
 4. **Formatting Rules**:
    - Do not use semicolons anywhere in Kotlin code, comments, or documentation text.

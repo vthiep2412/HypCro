@@ -32,7 +32,7 @@ public class MouseMixin {
             return;
         }
 
-        if (MacroController.INSTANCE.isRunning() || com.hypcro.pest.PestDestroyerEngine.INSTANCE.isRunning() || com.hypcro.movement.CentralMovementCoordinator.INSTANCE.isNavigating() || com.hypcro.bouncy.AutoBouncyBall.INSTANCE.isRunning()) {
+        if (MacroController.isAnyMacroActive()) {
             // Block scrolling during macro / navigation
             ci.cancel();
         }
@@ -57,7 +57,7 @@ public class MouseMixin {
             return;
         }
 
-        boolean isAutomated = MacroController.INSTANCE.isRunning() || com.hypcro.pest.PestDestroyerEngine.INSTANCE.isRunning() || com.hypcro.movement.CentralMovementCoordinator.INSTANCE.isNavigating() || com.hypcro.bouncy.AutoBouncyBall.INSTANCE.isRunning();
+        boolean isAutomated = MacroController.isAnyMacroActive();
         if (isAutomated) {
             boolean lockMouse = com.hypcro.config.ConfigManager.INSTANCE.getConfig().getGeneralConfig().getInputLock().getLockMouse();
             if (lockMouse) {

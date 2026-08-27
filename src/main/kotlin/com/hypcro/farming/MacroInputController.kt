@@ -233,11 +233,11 @@ object MacroInputController {
 
     @JvmStatic
     fun isAnyMacroRunning(): Boolean {
-        return MacroController.isRunning || com.hypcro.pest.PestDestroyerEngine.isRunning || com.hypcro.bouncy.AutoBouncyBall.isRunning
+        return MacroController.isAnyMacroActive()
     }
 
     fun isInputAllowed(): Boolean {
-        return (isAnyMacroRunning() || com.hypcro.movement.CentralMovementCoordinator.isNavigating) && canPenetrateScreen()
+        return MacroController.isAnyMacroActive() && canPenetrateScreen()
     }
 
     fun createInput(): Input {

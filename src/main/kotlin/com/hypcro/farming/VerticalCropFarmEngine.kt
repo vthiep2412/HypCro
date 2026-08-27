@@ -1,6 +1,7 @@
 package com.hypcro.farming
 
 import com.hypcro.HypCroMod
+import com.hypcro.config.CropType
 import net.minecraft.client.Minecraft
 
 object VerticalCropFarmEngine : IFarmEngine {
@@ -11,6 +12,11 @@ object VerticalCropFarmEngine : IFarmEngine {
         private set
     override var currentTargetAngles: Pair<Float, Float>? = null
         private set
+
+    override fun detectCrop(client: Minecraft): CropType? {
+        // Vertical layout crop detection placeholder
+        return null
+    }
 
     override fun startMacro(): Boolean {
         HypCroMod.logWarn("Farm mode not supported... Yet >:D ")

@@ -10,6 +10,7 @@ import com.hypcro.input.CommandHelper
 import com.hypcro.movement.CentralMovementCoordinator
 import com.hypcro.movement.MouseMovementEngine
 import com.hypcro.pathfinding.ThetaStarPathfinder
+import com.hypcro.util.VacuumTierInfo
 import kotlinx.coroutines.*
 import net.minecraft.client.Minecraft
 import net.minecraft.core.component.DataComponents
@@ -77,24 +78,7 @@ object PestDestroyerEngine {
     }
 
     fun findVacuumSlot(client: Minecraft): Int? {
-        val player = client.player ?: return null
-        for (slot in 0..8) {
-            val stack = player.inventory.getItem(slot)
-            if (stack.isEmpty) continue
-            val customData = stack.get(DataComponents.CUSTOM_DATA)
-            if (customData != null) {
-                val nbt = customData.copyTag()
-                if (nbt.contains("ExtraAttributes")) {
-                    val ea = nbt.getCompound("ExtraAttributes").orElse(null)
-                    val id = ea?.getString("id")?.orElse("") ?: ""
-                    if (id.contains("VACUUM", ignoreCase = true)) return slot
-                }
-            }
-            if (stack.hoverName.string.contains("Vacuum", ignoreCase = true)) {
-                return slot
-            }
-        }
-        return null
+        return com.hypcro.util.SkyBlockItemHelper.findVacuumSlot(client)
     }
 
     fun startPestDestroyer(
@@ -103,7 +87,19 @@ object PestDestroyerEngine {
     ): Boolean {
         if (isRunning) return false
         val client = Minecraft.getInstance()
-        if (client.player == null) return false
+        val player = client.player ?: return false
+        val level = client.level ?: return false
+
+        if (!com.hypcro.util.GardenStateReader.isInGarden(client)) {
+            HypCroMod.logWarn("Pest Destroyer halted: Player is not in Area: Garden.")
+            return false
+        }
+
+        val vacuumSlot = com.hypcro.util.SkyBlockItemHelper.findVacuumSlot(client)
+        if (vacuumSlot == null) {
+            HypCroMod.logWarn("Cannot start Pest Destroyer: No Vacuum found on hotbar (0-8)!")
+            return false
+        }
 
         CentralMovementCoordinator.isAbortRequested = false
         CentralMovementCoordinator.lastAbortTimestamp = 0L
@@ -138,38 +134,8 @@ object PestDestroyerEngine {
         MacroInputController.releaseAll()
     }
 
-    data class VacuumTierInfo(
-        val tier: Int,
-        val name: String,
-        val baseDurationMs: Long,
-        val attackRange: Double
-    )
-
-    fun getVacuumTierInfo(client: Minecraft, slot: Int): VacuumTierInfo {
-        val player = client.player ?: return VacuumTierInfo(1, "Basic Vacuum", 8000L, 3.0)
-        val stack = player.inventory.getItem(slot)
-        val customData = stack.get(DataComponents.CUSTOM_DATA)
-        var itemId = ""
-        if (customData != null) {
-            val nbt = customData.copyTag()
-            if (nbt.contains("ExtraAttributes")) {
-                val ea = nbt.getCompound("ExtraAttributes").orElse(null)
-                itemId = ea?.getString("id")?.orElse("")?.uppercase() ?: ""
-            }
-        }
-
-        return when {
-            itemId.contains("INFINI_VACUUM_HOOVERIUS") || itemId.contains("HOOVERIUS") ->
-                VacuumTierInfo(5, "InfiniVacuum™ Hooverius", 4000L, 7.0)
-            itemId.contains("INFINI_VACUUM") || itemId.contains("INFINIVACUUM") ->
-                VacuumTierInfo(4, "InfiniVacuum™", 5000L, 6.0)
-            itemId.contains("SKYMART_HYPER_VACUUM") || itemId.contains("HYPER_VACUUM") ->
-                VacuumTierInfo(3, "SkyMart Hyper Vacuum", 6000L, 5.0)
-            itemId.contains("SKYMART_TURBO_VACUUM") || itemId.contains("TURBO_VACUUM") ->
-                VacuumTierInfo(2, "SkyMart Turbo Vacuum", 7000L, 4.0)
-            else ->
-                VacuumTierInfo(1, "SkyMart Vacuum", 8000L, 3.0)
-        }
+    fun getVacuumTierInfo(client: Minecraft, slot: Int): com.hypcro.util.VacuumTierInfo {
+        return com.hypcro.util.SkyBlockItemHelper.getVacuumTierInfo(client, slot)
     }
 
     private suspend fun executePestCycle(client: Minecraft) {
@@ -203,24 +169,40 @@ object PestDestroyerEngine {
             return
         }
 
-        val initialScoreboardInfo = PestTabReader.scanScoreboardPests(client)
-        val tabInfo = PestTabReader.scanPests(client)
-        val totalAlive = max(initialScoreboardInfo.aliveCount, tabInfo.aliveCount)
+        var totalAlive = 0
+        val initialInfestedPlots = mutableSetOf<Int>()
 
-        if (totalAlive <= 0) {
-            HypCroMod.log("No pests detected on scoreboard/tablist (Pest count: 0). Halting.")
-            return
-        }
+        for (attempt in 1..5) {
+            if (!isRunning) return
 
-        // Read infested plots from Tablist with Scoreboard fallback
-        val initialInfestedPlots = if (tabInfo.infestedPlots.isNotEmpty()) {
-            tabInfo.infestedPlots.toMutableSet()
-        } else {
-            initialScoreboardInfo.infestedPlots.toMutableSet()
+            val scoreboardInfo = PestTabReader.scanScoreboardPests(client)
+            val tabInfo = PestTabReader.scanPests(client)
+            totalAlive = max(scoreboardInfo.aliveCount, tabInfo.aliveCount)
+
+            val detectedPlots = if (tabInfo.infestedPlots.isNotEmpty()) {
+                tabInfo.infestedPlots
+            } else {
+                scoreboardInfo.infestedPlots
+            }
+
+            if (detectedPlots.isNotEmpty()) {
+                initialInfestedPlots.addAll(detectedPlots)
+                break
+            }
+
+            if (totalAlive <= 0) {
+                HypCroMod.log("No pests detected on scoreboard/tablist (Pest count: 0). Halting.")
+                return
+            }
+
+            if (attempt < 5) {
+                HypCroMod.log("Scoreboard reported $totalAlive pests, but infested plot list is not ready yet. Retrying in 2s (attempt $attempt/5)...")
+                delay(2000L)
+            }
         }
 
         if (initialInfestedPlots.isEmpty()) {
-            HypCroMod.logWarn("Scoreboard reported pests, but no specific infested plot was found in Tablist/Scoreboard.")
+            HypCroMod.logWarn("Scoreboard reported pests, but no specific infested plot was found in Tablist/Scoreboard after 5 attempts (10s).")
             return
         }
 

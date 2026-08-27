@@ -50,14 +50,14 @@ object WSFarmEngine : IFarmEngine {
         val player = client.player ?: return false
 
         // 1. Raycast horizontal forward blocks based on player yaw
-        val detectedCrop = detectFrontCrop(client)
+        val detectedCrop = detectCrop(client)
         if (detectedCrop == null) {
             HypCroMod.logWarn("No valid crop detected in front of player!")
             return false
         }
 
         // 2. Validate and identify farming tool upfront (without switching yet)
-        val toolSlot = findBestToolSlot(client, detectedCrop)
+        val toolSlot = com.hypcro.util.SkyBlockItemHelper.findToolSlot(client, detectedCrop)
         if (toolSlot == null) {
             HypCroMod.logWarn("Missing farming tool for ${detectedCrop.displayName} on hotbar!")
             return false
@@ -95,10 +95,9 @@ object WSFarmEngine : IFarmEngine {
                 delay(50)
                 if (!isRunning) return@launch
 
-                val yawDelta = abs((((currentYaw - targetAngles.first + 180f) % 360f + 360f) % 360f) - 180f)
-                val pitchDelta = abs(currentPitch - targetAngles.second)
-                // Intended: Strict 0.1 degree precision check before allowing farming loop to proceed
-                val anglesMatched = yawDelta < 0.1f && pitchDelta < 0.1f
+                val anglesMatched = com.hypcro.util.AngleUtils.areAnglesClose(
+                    currentYaw, currentPitch, targetAngles.first, targetAngles.second, tolerance = 0.1f
+                )
 
                 if (!anglesMatched) {
                     HypCroMod.log("Aligning angles to Yaw: ${targetAngles.first}, Pitch: ${targetAngles.second} via Squeaky Mousemat...")
@@ -274,112 +273,14 @@ object WSFarmEngine : IFarmEngine {
     }
 
     fun isPlayerFeetInWater(client: Minecraft): Boolean {
-        val player = client.player ?: return false
-        val level = client.level ?: return false
-
-        if (player.isInWater || player.isUnderWater) return true
-        if (player.isEyeInFluid(FluidTags.WATER)) return true
-
-        // Check entity bounding box lower half (feet/legs) for water fluid or water block
-        val bb = player.boundingBox
-        val minX = kotlin.math.floor(bb.minX).toInt()
-        val maxX = kotlin.math.floor(bb.maxX).toInt()
-        val minY = kotlin.math.floor(bb.minY).toInt()
-        val maxY = kotlin.math.floor(bb.minY + 0.6).toInt()
-        val minZ = kotlin.math.floor(bb.minZ).toInt()
-        val maxZ = kotlin.math.floor(bb.maxZ).toInt()
-
-        val mutablePos = BlockPos.MutableBlockPos()
-        for (x in minX..maxX) {
-            for (y in minY..maxY) {
-                for (z in minZ..maxZ) {
-                    mutablePos.set(x, y, z)
-                    val fluid = level.getFluidState(mutablePos)
-                    if (fluid.`is`(FluidTags.WATER) && !fluid.isEmpty) {
-                        return true
-                    }
-                    val blockState = level.getBlockState(mutablePos)
-                    if (blockState.block == Blocks.WATER || blockState.block == Blocks.BUBBLE_COLUMN) {
-                        return true
-                    }
-                }
-            }
-        }
-        return false
+        return FarmEngineHelper.isPlayerFeetInWater(client)
     }
 
-    private fun detectFrontCrop(client: Minecraft): CropType? {
-        val player = client.player ?: return null
-        val level = client.level ?: return null
-
-        val yawRad = Math.toRadians(player.yRot.toDouble())
-        val forwardDir = Vec3(-sin(yawRad), 0.0, cos(yawRad)).normalize()
-        val footPos = player.position()
-
-        val mutablePos = BlockPos.MutableBlockPos()
-        // Scan 1 to 3 blocks forward in horizontal yaw direction
-        for (i in 1..3) {
-            val checkX = footPos.x + forwardDir.x * i
-            val checkY = footPos.y
-            val checkZ = footPos.z + forwardDir.z * i
-
-            val blockX = kotlin.math.floor(checkX).toInt()
-            val blockY = kotlin.math.floor(checkY).toInt()
-            val blockZ = kotlin.math.floor(checkZ).toInt()
-
-            for (dy in -1..1) {
-                mutablePos.set(blockX, blockY + dy, blockZ)
-                val block = level.getBlockState(mutablePos).block
-
-                when (block) {
-                    is CropBlock -> {
-                        if (block == Blocks.WHEAT) return CropType.WHEAT
-                        if (block == Blocks.CARROTS) return CropType.CARROT
-                        if (block == Blocks.POTATOES) return CropType.POTATO
-                    }
-                    is NetherWartBlock -> return CropType.NETHER_WART
-                    is MushroomBlock -> return CropType.MUSHROOM
-                }
-            }
-        }
-        return null
+    override fun detectCrop(client: Minecraft): CropType? {
+        return FarmEngineHelper.detectFrontCrop(client)
     }
 
-    private fun findBestToolSlot(client: Minecraft, crop: CropType): Int? {
-        val player = client.player ?: return null
-        val prefix = when (crop) {
-            CropType.WHEAT -> "THEORETICAL_HOE_WHEAT"
-            CropType.CARROT -> "THEORETICAL_HOE_CARROT"
-            CropType.POTATO -> "THEORETICAL_HOE_POTATO"
-            CropType.NETHER_WART -> "THEORETICAL_HOE_WARTS"
-            CropType.MUSHROOM -> "FUNGI_CUTTER"
-        }
 
-        for (slot in 0..8) {
-            val stack = player.inventory.getItem(slot)
-            if (hasExtraAttrId(stack, prefix)) return slot
-        }
-
-        // Fallback: any hoe
-        for (slot in 0..8) {
-            val stack = player.inventory.getItem(slot)
-            if (stack.item.toString().contains("hoe", ignoreCase = true)) return slot
-        }
-        return null
-    }
-
-    private fun hasExtraAttrId(stack: ItemStack, prefix: String): Boolean {
-        val customData = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA)
-        if (customData != null) {
-            val nbt = customData.copyTag()
-            if (nbt.contains("ExtraAttributes")) {
-                val ea = nbt.getCompound("ExtraAttributes").orElse(null)
-                val id = ea?.getString("id")?.orElse("") ?: ""
-                if (id.startsWith(prefix, ignoreCase = true)) return true
-            }
-        }
-        return false
-    }
 
     private fun getTargetAngles(crop: CropType): Pair<Float, Float> {
         val ws = ConfigManager.config.wsConfig

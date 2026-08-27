@@ -43,6 +43,20 @@ object AutoBouncyBall {
 
     fun start() {
         if (isRunning) return
+        val client = Minecraft.getInstance()
+        val player = client.player
+        val level = client.level
+        if (player == null || level == null) {
+            HypCroMod.logWarn("Auto Bouncy Ball halted: Player or world not loaded.")
+            return
+        }
+
+        val ballSlot = com.hypcro.util.SkyBlockItemHelper.findBeachBallSlot(client)
+        if (ballSlot == null) {
+            HypCroMod.logWarn("Cannot start Auto Bouncy Ball: No Bouncy Beach Ball found on hotbar (0-8)!")
+            return
+        }
+
         isRunning = true
         bounceCount = 0
         currentStatusText = "Initializing..."
@@ -50,8 +64,7 @@ object AutoBouncyBall {
         activePredictor = null
         activeBallEntityId = null
         lastBallSeenMs = System.currentTimeMillis()
-        val client = Minecraft.getInstance()
-        initialStartingPos = client.player?.position()
+        initialStartingPos = player.position()
 
         // Capture previous auto-jump preference and enable native auto-jump
         if (previousAutoJump == null) {
@@ -411,28 +424,7 @@ object AutoBouncyBall {
     }
 
     private fun findBeachBallSlot(client: Minecraft): Int? {
-        val player = client.player ?: return null
-        for (slot in 0..8) {
-            val stack = player.inventory.getItem(slot)
-            if (stack.isEmpty) continue
-
-            val customData = stack.get(DataComponents.CUSTOM_DATA)
-            if (customData != null) {
-                val nbt = customData.copyTag()
-                if (nbt.contains("ExtraAttributes")) {
-                    val ea = nbt.getCompound("ExtraAttributes").orElse(null)
-                    val id = ea?.getString("id")?.orElse("")?.uppercase() ?: ""
-                    if (id == "BOUNCY_BEACH_BALL") {
-                        return slot
-                    }
-                }
-            }
-            val name = stack.hoverName.string.uppercase()
-            if (name.contains("BOUNCY BEACH BALL")) {
-                return slot
-            }
-        }
-        return null
+        return com.hypcro.util.SkyBlockItemHelper.findBeachBallSlot(client)
     }
 
     private fun findActiveBeachBall(client: Minecraft, expectedTexture: String?): ArmorStand? {

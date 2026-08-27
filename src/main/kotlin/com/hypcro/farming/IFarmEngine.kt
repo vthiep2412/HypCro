@@ -1,5 +1,6 @@
 package com.hypcro.farming
 
+import com.hypcro.config.CropType
 import net.minecraft.client.Minecraft
 
 interface IFarmEngine {
@@ -8,6 +9,7 @@ interface IFarmEngine {
     val isFarmingActive: Boolean
     val currentTargetAngles: Pair<Float, Float>?
 
+    fun detectCrop(client: Minecraft): CropType?
     fun startMacro(): Boolean
     fun stopMacro(reason: String = "Manual")
     fun abortScript(message: String)

@@ -143,34 +143,13 @@ object HypCroMod : ClientModInitializer {
                 return false
             }
             ".hypcrogetscoreboard" -> {
-                val level = client.level
-                if (level == null) {
-                    logWarn("Level not loaded.")
-                    return false
-                }
-                val scoreboard = level.scoreboard
-                val objective = scoreboard.getDisplayObjective(net.minecraft.world.scores.DisplaySlot.SIDEBAR)
-                if (objective == null) {
-                    logWarn("No active sidebar scoreboard found.")
-                    return false
-                }
-                val title = com.hypcro.pest.PestTabReader.stripColor(objective.displayName.string)
-                log("=== Scoreboard: $title ===")
-                val entries = scoreboard.listPlayerScores(objective)
-                    .sortedByDescending { it.value() }
-                if (entries.isEmpty()) {
-                    log("Scoreboard is empty.")
+                val lines = com.hypcro.util.GardenStateReader.readScoreboardLines(client)
+                log("=== Scoreboard (${lines.size} lines) ===")
+                if (lines.isEmpty()) {
+                    log("Scoreboard is empty or not loaded.")
                 } else {
-                    for (entry in entries) {
-                        if (entry.isHidden) continue
-                        val team = scoreboard.getPlayersTeam(entry.owner())
-                        val fullComponent = if (team != null) {
-                            team.playerPrefix.copy().append(entry.display() ?: net.minecraft.network.chat.Component.empty()).append(team.playerSuffix)
-                        } else {
-                            entry.display() ?: entry.ownerName()
-                        }
-                        val cleanText = com.hypcro.pest.PestTabReader.stripColor(fullComponent.string)
-                        log("[${entry.value()}] $cleanText")
+                    for ((idx, line) in lines.withIndex()) {
+                        log("[$idx] $line")
                     }
                 }
                 return false
@@ -349,41 +328,13 @@ object HypCroMod : ClientModInitializer {
 
     private fun handleOpenGuiOrStop() {
         val client = Minecraft.getInstance()
-        if (com.hypcro.failsafe.HypcroWatchdog.isAlarmActive) {
-            com.hypcro.failsafe.HypcroWatchdog.silenceAlarm()
-            com.hypcro.farming.MacroController.stopMacro(reason = "Watchdog Alarm")
-            log("Watchdog alarm silenced. Press key or type .hypcro again to open GUI.")
-            return
-        }
         val now = System.currentTimeMillis()
         if (now - com.hypcro.movement.CentralMovementCoordinator.lastAbortTimestamp < 600L) {
             return
         }
-        var stoppedAny = false
-        if (com.hypcro.movement.CentralMovementCoordinator.isNavigating || com.hypcro.movement.CentralMovementCoordinator.isPathfinding || hasActiveTest()) {
-            stopAllTests()
-            com.hypcro.farming.MacroInputController.releaseAllMovement()
-            logWarn("Pathfinding and movement aborted by user!")
-            stoppedAny = true
-        }
-        if (com.hypcro.pest.PestDestroyerEngine.isRunning) {
-            com.hypcro.movement.CentralMovementCoordinator.lastAbortTimestamp = now
-            com.hypcro.pest.PestDestroyerEngine.stop()
-            logWarn("Pest destroyer stopped by user!")
-            stoppedAny = true
-        }
-        if (com.hypcro.bouncy.AutoBouncyBall.isRunning) {
-            com.hypcro.movement.CentralMovementCoordinator.lastAbortTimestamp = now
-            com.hypcro.bouncy.AutoBouncyBall.stop()
-            logWarn("Auto Bouncy Ball stopped by user!")
-            stoppedAny = true
-        }
-        if (com.hypcro.farming.MacroController.isRunning) {
-            com.hypcro.movement.CentralMovementCoordinator.lastAbortTimestamp = now
-            com.hypcro.farming.MacroController.stopMacro(reason = "User Request")
-            stoppedAny = true
-        }
+        val stoppedAny = com.hypcro.farming.MacroController.stopAllMacros(reason = "User Request")
         if (stoppedAny) {
+            logWarn("Macro stopped by user!")
             return
         }
         if (client.screen == null) {

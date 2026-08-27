@@ -4,7 +4,25 @@
 - [ ] Add humanization for W/S movement. Every 1–2 minutes, delay a reaction or direction switch by up to 1.2 s. Otherwise, choose a random delay from 0 to 800 ms.
 - [ ] Add a persistent on-screen HUD while the macro is running.
     - Stats to show: Elapsed time (uptime), average crops/second, current crop being farmed, current movement direction (W or S), and failsafe status.
+- [ ] Add smart mode and remake the type for Bouncy balls in misc
+    - Change to Mode: [Aggresive | Calm | Smart]
+    - In smart it will try to go overshoot in the best angle and position 
+      to basicaly move the ball back to where the player start, to keep it in the center and bounce much longer
+- [ ] Revamp Settings area, add more horizontal tabs to clear misunderstanding
+    - And more sidebar (list below)
+- [ ] Add freecam right after freelook
+    - In settings control key minecraft
+    - Speed, and allow to use sprint key to increase speed by 1.2x
+- [ ] Add auto sprint as QOL (download odin and skyblocker and nofrills to learn, learn odin sprint)
+- [ ] Add white gift waypoint/esp for specificaly jerry workshop (as QOL)
+- [ ] Add more ESP settings tab above Settings tab and in the second group which bound down
+    - ESP player (party color), ESP bats and Important Entites in Dungeon (learn dungeon bats glow to add the esp to that bat)
+    - Add color selection, typical right next to the On oFF
+    - Add the pest back to that esp, and it will sync with the pest esp in pest
 
+- [ ] Add watchdog bps check
+
+- [ ] raycast path? hmm still thinking
 ---
 
 ## GUI & General Config
@@ -20,15 +38,15 @@
 triggered but the admin rotated you back. DO NOT REACT")
     - maybe we have to delay the check a little bit.
 - [x] If player is floating while farming repeat sneak, and if can't fix it, we call staff as "Antistuck failed" and stop the macro.
-- [ ] Fix by adding try catch when got tp out during macro. (not-enough-crash mod save me once, but not many times more, I have to act on my own!)
+- [~] Fix by adding try catch when got tp out during macro. (not-enough-crash mod save me once, but not many times more, I have to act on my own!)
 
 ---
 
 ## Advanced Automation & Pathfinding
-- [ ] Implement realistic human mouse movement simulation (GCD sensitivity math + smooth Bezier curves):
+- [x] Implement realistic human mouse movement simulation (GCD sensitivity math + smooth Bezier curves):
     - Micro-nudge / camera jitter to unstick Squeaky Mousemat interactions when swings fail to register.
     - Natural, curved aiming and entity tracking for pest killing instead of robotic angular snaps.
-- [ ] Implement 3D flying pathfinding to allow us to kill pests!
+- [x] Implement 3D flying pathfinding to allow us to kill pests!
     - Need to implement a plot handler to view and teleport between plots correctly!
 
 ---

@@ -28,9 +28,7 @@ public class KeyboardMixin {
         // Always allow ESC (Menu) and our toggle key to pass through
         if (key == GLFW.GLFW_KEY_ESCAPE) {
             if (action == GLFW.GLFW_PRESS) {
-                com.hypcro.farming.MacroController.INSTANCE.stopMacro("Opened Pause Menu");
-                com.hypcro.pest.PestDestroyerEngine.INSTANCE.stop();
-                com.hypcro.bouncy.AutoBouncyBall.INSTANCE.stop();
+                com.hypcro.farming.MacroController.INSTANCE.stopAllMacros("Opened Pause Menu");
             }
             return;
         }
@@ -52,7 +50,7 @@ public class KeyboardMixin {
         if (client.options.keyInventory.matches(event)) {
             // We only want to process the press down, not the release
             if (action == GLFW.GLFW_PRESS) {
-                com.hypcro.farming.MacroController.INSTANCE.stopMacro("Open inventory");
+                com.hypcro.farming.MacroController.INSTANCE.stopAllMacros("Open inventory");
             }
             // We allow the key through so the inventory actually opens after stopping the macro
             return;

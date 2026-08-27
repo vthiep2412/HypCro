@@ -1,5 +1,6 @@
 package com.hypcro.pest
 
+import com.hypcro.util.GardenStateReader
 import net.minecraft.client.Minecraft
 import java.util.regex.Pattern
 
@@ -10,38 +11,19 @@ data class PestTabInfo(
 
 object PestTabReader {
 
-    private val STRIP_COLOR = Pattern.compile("(?i)§.")
     private val PESTS_ALIVE_PATTERN = Pattern.compile("(?i)(?:Pests|Alive):?\\s*\\(?(\\d+)\\)?")
     private val INFESTED_PLOTS_PATTERN = Pattern.compile("(?i)Plots?:\\s*(.+)")
 
     private val GARDEN_PEST_COUNT_PATTERN = Pattern.compile("(?i)The\\s*Garden.*?x(\\d+)")
     private val SCOREBOARD_PLOT_PATTERN = Pattern.compile("(?i)Plot\\s*-\\s*(\\d+).*?x(\\d+)")
 
-    fun stripColor(input: String): String {
-        return STRIP_COLOR.matcher(input).replaceAll("").replace("§", "").replace('\u00A0', ' ').trim()
-    }
+    fun stripColor(input: String): String = GardenStateReader.stripColor(input)
 
-    fun readScoreboardLines(client: Minecraft): List<String> {
-        val level = client.level ?: return emptyList()
-        val scoreboard = level.scoreboard
-        val objective = scoreboard.getDisplayObjective(net.minecraft.world.scores.DisplaySlot.SIDEBAR) ?: return emptyList()
-        val entries = scoreboard.listPlayerScores(objective).sortedByDescending { it.value() }
-        val lines = mutableListOf<String>()
-        for (entry in entries) {
-            if (entry.isHidden) continue
-            val team = scoreboard.getPlayersTeam(entry.owner())
-            val fullComponent = if (team != null) {
-                team.playerPrefix.copy().append(entry.display() ?: net.minecraft.network.chat.Component.empty()).append(team.playerSuffix)
-            } else {
-                entry.display() ?: entry.ownerName()
-            }
-            val cleanText = stripColor(fullComponent.string)
-            if (cleanText.isNotBlank()) {
-                lines.add(cleanText)
-            }
-        }
-        return lines
-    }
+    fun readScoreboardLines(client: Minecraft): List<String> = GardenStateReader.readScoreboardLines(client)
+
+    fun readTabList(client: Minecraft): List<String> = GardenStateReader.readTabList(client)
+
+    fun isInGarden(client: Minecraft): Boolean = GardenStateReader.isInGarden(client)
 
     fun getScoreboardPlotPestCount(client: Minecraft, targetPlotId: Int): Int? {
         val lines = readScoreboardLines(client)
@@ -79,24 +61,6 @@ object PestTabReader {
         }
 
         return PestTabInfo(totalGardenPests, plots)
-    }
-
-    fun readTabList(client: Minecraft): List<String> {
-        val connection = client.connection ?: return emptyList()
-        val lines = mutableListOf<String>()
-        for (info in connection.listedOnlinePlayers) {
-            val displayName = info.tabListDisplayName?.string ?: info.profile.name
-            val clean = stripColor(displayName)
-            if (clean.isNotBlank()) {
-                lines.add(clean)
-            }
-        }
-        return lines
-    }
-
-    fun isInGarden(client: Minecraft): Boolean {
-        val lines = readTabList(client)
-        return lines.any { it.contains("Area: Garden", ignoreCase = true) }
     }
 
     fun scanPests(client: Minecraft): PestTabInfo {
