@@ -11,14 +11,16 @@
     - Change to Mode: [Aggresive | Calm | Smart]
     - In smart it will try to go overshoot in the best angle and position 
       to basicaly move the ball back to where the player start, to keep it in the center and bounce much longer
-- [ ] Revamp Settings area, add more horizontal tabs to clear misunderstanding
-    - And more sidebar (list below)
+- [x] Revamp Settings area, add more horizontal tabs to clear misunderstanding
+    - Movement: Mouse movement, Pathfinding & Flying (with integrated visualizer toggles)
+    - Failsafe: WatchDog, Key and Mouse Lock
+    - QOL: Free Look
 - [ ] Add freecam right after freelook
-    - In settings control key minecraft
+    - In settings control key minecraft (set default U)
     - Speed, and allow to use sprint key to increase speed by 1.2x
 - [ ] Add auto sprint as QOL (download odin and skyblocker and nofrills to learn, learn odin sprint)
 - [ ] Add white gift waypoint/esp for specificaly jerry workshop (as QOL)
-- [ ] Add more ESP settings tab above Settings tab and in the second group which bound down
+- [~] Add more ESP settings tab above Settings tab and in the second group which bound down
     - ESP player (party color), ESP bats and Important Entites in Dungeon (learn dungeon bats glow to add the esp to that bat)
     - Add color selection, typical right next to the On oFF
     - Add the pest back to that esp, and it will sync with the pest esp in pest

@@ -60,10 +60,11 @@ object PestESP {
 
         if (!cachedIsInGarden || cachedPests.isEmpty()) return
 
+        val (r, g, b) = parseRgb(ConfigManager.config.pestDestroyer.pestEspColor)
         val espStyle = GizmoStyle.strokeAndFill(
-            ARGB.color(255, 239, 68, 68),  // Bright red stroke
+            ARGB.color(255, r, g, b),  // Dynamic stroke
             2.5f,
-            ARGB.color(70, 239, 68, 68)    // Translucent red fill
+            ARGB.color(70, r, g, b)    // Translucent fill
         )
 
         for (pest in cachedPests) {
@@ -75,6 +76,19 @@ object PestESP {
                 pos.x + 0.8, pos.y + 1.4, pos.z + 0.8
             )
             Gizmos.cuboid(box, espStyle).setAlwaysOnTop()
+        }
+    }
+
+    fun parseRgb(hex: String): Triple<Int, Int, Int> {
+        val clean = hex.removePrefix("#").trim()
+        return try {
+            val num = clean.toInt(16)
+            val r = (num shr 16) and 0xFF
+            val g = (num shr 8) and 0xFF
+            val b = num and 0xFF
+            Triple(r, g, b)
+        } catch (_: Exception) {
+            Triple(239, 68, 68)
         }
     }
 }

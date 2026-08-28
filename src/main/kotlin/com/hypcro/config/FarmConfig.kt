@@ -91,6 +91,7 @@ data class GeneralConfig(
 @Serializable
 data class PestDestroyerConfig(
     var pestEsp: Boolean = true,
+    var pestEspColor: String = "#EF4444",
     var flightEngineVersion: String = "V2", // "V2" (Decoupled BetterBot), "CLASSIC" (Legacy)
     var pathfindingAlgorithm: String = "Theta*", // "Theta*", "3D A* with Smoothing", "BIT*"
     var bitStarTimeSeconds: Double = 1.0, // Computation time budget in seconds for BIT*
@@ -113,7 +114,7 @@ enum class BouncyBallMode {
 data class BouncyBallConfig(
     var autoMove: Boolean = true,
     var mode: BouncyBallMode = BouncyBallMode.CALM,
-    var smartOffset: Double = 0.12,
+    var smartOffset: Double = 0.06,
     var targetBounces: Int = 40,
     var goBackToStart: Boolean = true,
     var visualizeTrajectory: Boolean = true,

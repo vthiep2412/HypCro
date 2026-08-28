@@ -16,6 +16,7 @@ import com.hypcro.gui.widgets.PillToggleWidget
 import com.hypcro.gui.widgets.PlotGridModal
 import com.hypcro.gui.widgets.SingleSliderWidget
 import com.hypcro.pest.PestDestroyerEngine
+import com.hypcro.pest.PestESP
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.components.Button
 import net.minecraft.client.gui.screens.Screen
@@ -23,6 +24,7 @@ import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.Identifier
+import net.minecraft.util.ARGB
 import org.lwjgl.glfw.GLFW
 
 import net.minecraft.world.item.ItemStack
@@ -41,10 +43,8 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
 
         private const val SEC_MOUSE_H = 104
         private const val SEC_MOUSE_GAP = 110
-        private const val SEC_PATHFINDING_H = 64
-        private const val SEC_PATHFINDING_GAP = 70
-        private const val SEC_VISUALS_H = 64
-        private const val SEC_VISUALS_GAP = 70
+        private const val SEC_PATHFINDING_H = 104
+        private const val SEC_PATHFINDING_GAP = 110
         private const val SEC_FREELOOK_H = 104
         private const val SEC_FREELOOK_GAP = 110
         private const val SEC_WATCHDOG_H = 164
@@ -56,13 +56,15 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         private const val SEC_PEST_CONF_GAP = 156
         private const val SEC_MISC_CONF_GAP = 88
         private const val SEC_HUD_H = 88
+        private const val SEC_OTHER_ESP_H = 46
     }
 
     private val sidebarWidth = 110
-    private var selectedTab = "Farming" // "Farming", "Pester", "Misc", "HUD", or "Settings"
+    private var selectedTab = "Farming" // "Farming", "Pester", "Misc", "ESP", "HUD", or "Settings"
     private var farmingSubTab = 0 // 0 = "Macro", 1 = "General Config"
     private var pesterSubTab = 0  // 0 = "Macro", 1 = "General Config"
     private var miscSubTab = 0    // 0 = "Macro", 1 = "General Config"
+    private var settingsSubTab = 0 // 0 = "Movement", 1 = "Failsafe", 2 = "QOL"
 
     private val headerLineY = 32
     private var scrollOffset = 0
@@ -84,6 +86,10 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
     private lateinit var farmingSubTabPill: PillToggleWidget
     private lateinit var pesterSubTabPill: PillToggleWidget
     private lateinit var miscSubTabPill: PillToggleWidget
+    private lateinit var settingsSubTabPill: PillToggleWidget
+
+    // ESP View Widgets
+    private lateinit var espTabPestPill: PillToggleWidget
 
     // Settings - Mouse Movement
     private lateinit var mouseMovementTypePill: PillToggleWidget
@@ -192,6 +198,16 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         }
         addRenderableWidget(miscSubTabPill)
 
+        settingsSubTabPill = PillToggleWidget(
+            cardX, 5, 230, 18,
+            listOf("Movement", "Failsafe", "QOL"), settingsSubTab
+        ) { idx ->
+            settingsSubTab = idx
+            scrollOffset = 0
+            updateWidgetVisibility()
+        }
+        addRenderableWidget(settingsSubTabPill)
+
         // 1. Farming Mode Selector Dropdown Button
         modeDropdownBtn = Button.builder(Component.literal("Mode: ${modeOptions[currentModeIndex]} ▼")) {
             isModeDropdownOpen = !isModeDropdownOpen
@@ -204,7 +220,7 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         }.bounds(cardX + cardW - 130, cardY + 50, 118, 20).build()
         addRenderableWidget(settingsBtn)
 
-        // 3. Settings View - Mouse Movement
+        // 3. Settings View - Movement Sub-Tab: Mouse Movement
         val mouseCfg = ConfigManager.config.generalConfig.mouseMovement
         val mmY = cardY
         val mmTypeIdx = when (mouseCfg.movementType.uppercase()) {
@@ -259,9 +275,9 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         }
         addRenderableWidget(mouseDpiSlider)
 
-        // 4. Settings View - Pathfinding & Flying
+        // 4. Settings View - Movement Sub-Tab: Pathfinding & Flying (with integrated Visuals)
         val pestDestroyerCfg = ConfigManager.config.pestDestroyer
-        val pfY = mmY + 110
+        val pfY = mmY + SEC_MOUSE_GAP
         val algoIdx = when (pestDestroyerCfg.pathfindingAlgorithm.uppercase()) {
             "3D A* WITH SMOOTHING", "3D A*" -> 1
             "BIT*", "BIT", "RRT*" -> 2
@@ -292,14 +308,11 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         stopAfterDestInfo = InfoIconWidget(cardX + 12 + font.width(Component.literal("Brake after reaching destination:")) + 6, pfY + 42, "§eUses S to brake and cancel player glide forward")
         addRenderableWidget(stopAfterDestInfo)
 
-        // 5. Settings View - Visuals
         val visCfg = ConfigManager.config.generalConfig.visuals
-        val visY = pfY + 70
-
         val isVisActive = visCfg.pathfindingVisualizer
         val isVerboseSaved = visCfg.verbosePathfindingVisual
         pathfindingVisualizerPill = PillToggleWidget(
-            cardX + 220, visY + 20, 100, 16,
+            cardX + 220, pfY + 60, 100, 16,
             listOf("OFF", "ON"), if (isVisActive) 1 else 0
         ) { idx ->
             val active = (idx == 1)
@@ -314,7 +327,7 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         addRenderableWidget(pathfindingVisualizerPill)
 
         verboseVisualizerPill = PillToggleWidget(
-            cardX + 220, visY + 40, 100, 16,
+            cardX + 220, pfY + 80, 100, 16,
             listOf("OFF", "ON"), if (isVisActive && isVerboseSaved) 1 else 0
         ) { idx ->
             val active = (idx == 1)
@@ -324,10 +337,10 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         verboseVisualizerPill.active = isVisActive
         addRenderableWidget(verboseVisualizerPill)
 
-        // 6. Settings View - Free Look
+        // 5. Settings View - QOL Sub-Tab: Free Look
         val curMode = ConfigManager.config.qolConfig.freeLookMode
         val curModeIdx = if (curMode.equals("TOGGLE", ignoreCase = true)) 1 else 0
-        val flY = visY + 70
+        val flY = cardY
 
         freeLookModePill = PillToggleWidget(
             cardX + 220, flY + 20, 100, 16,
@@ -378,9 +391,9 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         respectInvertInfo = InfoIconWidget(cardX + 12 + font.width(Component.literal("Respect Invert Mouse:")) + 6, flY + 82, "§eRespect Minecraft Invert Mouse Settings")
         addRenderableWidget(respectInvertInfo)
 
-        // 6. Settings View - WatchDog
+        // 6. Settings View - Failsafe Sub-Tab: WatchDog
         val genCfg = ConfigManager.config.generalConfig
-        val wdY = flY + 110
+        val wdY = cardY
         checkRotationPill = PillToggleWidget(
             cardX + 220, wdY + 20, 100, 16,
             listOf("OFF", "ON"), if (genCfg.watchdog.checkRotation) 1 else 0
@@ -458,8 +471,8 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         }
         addRenderableWidget(checkUnfamiliarGuiPill)
 
-        // 7. Settings View - Key and Mouse Lock
-        val lockCardY = wdY + 150
+        // 7. Settings View - Failsafe Sub-Tab: Key and Mouse Lock
+        val lockCardY = wdY + SEC_WATCHDOG_GAP
 
         keyMouseLockHeaderInfo = InfoIconWidget(cardX + 10 + font.width(Component.literal("§b§lKey and Mouse Lock")) + 6, lockCardY + 5, "§eInput Lock")
         addRenderableWidget(keyMouseLockHeaderInfo)
@@ -577,10 +590,28 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
             cardX + 220, pdY + 20, 100, 16,
             listOf("OFF", "ON"), if (pestDestroyerCfg.pestEsp) 1 else 0
         ) { idx ->
-            ConfigManager.config.pestDestroyer.pestEsp = (idx == 1)
+            val active = (idx == 1)
+            ConfigManager.config.pestDestroyer.pestEsp = active
+            if (::espTabPestPill.isInitialized) {
+                espTabPestPill.selectedIndex = idx
+            }
             ConfigManager.save()
         }
         addRenderableWidget(pestEspPill)
+
+        // 8b. ESP Tab Widgets
+        espTabPestPill = PillToggleWidget(
+            cardX + 220, cardY + 20, 100, 16,
+            listOf("OFF", "ON"), if (pestDestroyerCfg.pestEsp) 1 else 0
+        ) { idx ->
+            val active = (idx == 1)
+            ConfigManager.config.pestDestroyer.pestEsp = active
+            if (::pestEspPill.isInitialized) {
+                pestEspPill.selectedIndex = idx
+            }
+            ConfigManager.save()
+        }
+        addRenderableWidget(espTabPestPill)
 
         pestRooftopPill = PillToggleWidget(
             cardX + 220, pdY + 42, 100, 16,
@@ -745,10 +776,16 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
     private fun calculateMaxScroll(): Int {
         val viewH = height - headerLineY - 14
         val contentH = when (selectedTab) {
-            "Settings" -> (SEC_MOUSE_GAP + SEC_PATHFINDING_GAP + SEC_VISUALS_GAP + SEC_FREELOOK_GAP + SEC_WATCHDOG_GAP + SEC_LOCK_H) + 20
+            "Settings" -> when (settingsSubTab) {
+                0 -> SEC_MOUSE_GAP + SEC_PATHFINDING_H + 20
+                1 -> SEC_WATCHDOG_GAP + SEC_LOCK_H + 20
+                2 -> SEC_FREELOOK_H + 20
+                else -> 100
+            }
             "Farming" -> if (farmingSubTab == 1) SEC_FARM_FLY_GAP + SEC_FARM_PEST_GAP + 20 else cardH + 20
             "Pester" -> if (pesterSubTab == 1) SEC_PEST_CONF_GAP + 20 else cardH + 20
             "Misc" -> if (miscSubTab == 1) SEC_MISC_CONF_GAP + 20 else cardH + 20
+            "ESP" -> SEC_OTHER_ESP_H + 20
             "HUD" -> SEC_HUD_H + 20
             else -> 100
         }
@@ -758,7 +795,7 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
     private fun updateWidgetPositions() {
         val effectiveCardY = cardY - scrollOffset
 
-        // Settings View Widgets
+        // Settings View - Sub-Tab 0: Movement
         val mmY = effectiveCardY
         mouseMovementTypePill.y = mmY + 20
         mouseHumanizePill.y = mmY + 40
@@ -769,19 +806,11 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         pathfindingAlgoPill.y = pfY + 20
         stopAfterDestPill.y = pfY + 40
         stopAfterDestInfo.y = pfY + 42
+        pathfindingVisualizerPill.y = pfY + 60
+        verboseVisualizerPill.y = pfY + 80
 
-        val visY = pfY + SEC_PATHFINDING_GAP
-        pathfindingVisualizerPill.y = visY + 20
-        verboseVisualizerPill.y = visY + 40
-
-        val flY = visY + SEC_VISUALS_GAP
-        freeLookModePill.y = flY + 20
-        invertZoomPill.y = flY + 40
-        rememberZoomPill.y = flY + 60
-        respectInvertPill.y = flY + 80
-        respectInvertInfo.y = flY + 82
-
-        val wdY = flY + SEC_FREELOOK_GAP
+        // Settings View - Sub-Tab 1: Failsafe
+        val wdY = effectiveCardY
         checkRotationPill.y = wdY + 20
         debounceRotationInfo.y = wdY + 42
         debounceRotationPill.y = wdY + 40
@@ -803,6 +832,17 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         lockMousePill.y = lockCardY + 80
         blockChatAndCommandsPill.y = lockCardY + 100
         blockChatAndCommandsInfo.y = lockCardY + 102
+
+        // Settings View - Sub-Tab 2: QOL
+        val flY = effectiveCardY
+        freeLookModePill.y = flY + 20
+        invertZoomPill.y = flY + 40
+        rememberZoomPill.y = flY + 60
+        respectInvertPill.y = flY + 80
+        respectInvertInfo.y = flY + 82
+
+        // ESP Tab Widgets
+        espTabPestPill.y = effectiveCardY + 20
 
         // Farming Config Widgets
         val farmSec1Y = effectiveCardY
@@ -841,6 +881,7 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         val isFarming = selectedTab == "Farming"
         val isPester = selectedTab == "Pester"
         val isMisc = selectedTab == "Misc"
+        val isEsp = selectedTab == "ESP"
         val isSettings = selectedTab == "Settings"
 
         val isFarmingMacro = isFarming && farmingSubTab == 0
@@ -852,26 +893,29 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         val isMiscMacro = isMisc && miscSubTab == 0
         val isMiscConfig = isMisc && miscSubTab == 1
 
+        val isSettingsMovement = isSettings && settingsSubTab == 0
+        val isSettingsFailsafe = isSettings && settingsSubTab == 1
+        val isSettingsQol = isSettings && settingsSubTab == 2
+
         farmingSubTabPill.visible = isFarming
         pesterSubTabPill.visible = isPester
         miscSubTabPill.visible = isMisc
+        settingsSubTabPill.visible = isSettings
 
         modeDropdownBtn.visible = isFarmingMacro
         settingsBtn.visible = isFarmingMacro
         if (!isFarmingMacro) isModeDropdownOpen = false
 
-        // Settings - Mouse Movement
-        mouseMovementTypePill.visible = isSettings
-        mouseHumanizePill.visible = isSettings
-        mouseOvershootPill.visible = isSettings
-        mouseDpiSlider.visible = isSettings
+        // Settings - Movement
+        mouseMovementTypePill.visible = isSettingsMovement
+        mouseHumanizePill.visible = isSettingsMovement
+        mouseOvershootPill.visible = isSettingsMovement
+        mouseDpiSlider.visible = isSettingsMovement
 
-        // Settings - Pathfinding & Visuals
-        pathfindingAlgoPill.visible = isSettings
-        stopAfterDestPill.visible = isSettings
-        stopAfterDestInfo.visible = isSettings
-        pestEspPill.visible = isPesterConfig
-        pathfindingVisualizerPill.visible = isSettings
+        pathfindingAlgoPill.visible = isSettingsMovement
+        stopAfterDestPill.visible = isSettingsMovement
+        stopAfterDestInfo.visible = isSettingsMovement
+        pathfindingVisualizerPill.visible = isSettingsMovement
         val isVisOn = ConfigManager.config.generalConfig.visuals.pathfindingVisualizer
         verboseVisualizerPill.active = isVisOn
         if (!isVisOn && ConfigManager.config.generalConfig.visuals.verbosePathfindingVisual) {
@@ -881,17 +925,10 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         } else if (!isVisOn) {
             verboseVisualizerPill.selectedIndex = 0
         }
-        verboseVisualizerPill.visible = isSettings
+        verboseVisualizerPill.visible = isSettingsMovement
 
-        // Settings - Free Look
-        freeLookModePill.visible = isSettings
-        invertZoomPill.visible = isSettings
-        rememberZoomPill.visible = isSettings
-        respectInvertPill.visible = isSettings
-        respectInvertInfo.visible = isSettings
-
-        // Settings - WatchDog
-        checkRotationPill.visible = isSettings
+        // Settings - Failsafe: WatchDog
+        checkRotationPill.visible = isSettingsFailsafe
         val canDebounce = ConfigManager.config.generalConfig.watchdog.checkRotation
         debounceRotationPill.active = canDebounce
         if (!canDebounce && ConfigManager.config.generalConfig.watchdog.debounceRotation) {
@@ -899,12 +936,12 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
             debounceRotationPill.selectedIndex = 0
             ConfigManager.save()
         }
-        debounceRotationPill.visible = isSettings
-        debounceRotationInfo.visible = isSettings
-        checkTeleportPill.visible = isSettings
-        checkHotbarSlotPill.visible = isSettings
-        checkFarmingInterruptionPill.visible = isSettings
-        checkFarmingInterruptionInfo.visible = isSettings
+        debounceRotationPill.visible = isSettingsFailsafe
+        debounceRotationInfo.visible = isSettingsFailsafe
+        checkTeleportPill.visible = isSettingsFailsafe
+        checkHotbarSlotPill.visible = isSettingsFailsafe
+        checkFarmingInterruptionPill.visible = isSettingsFailsafe
+        checkFarmingInterruptionInfo.visible = isSettingsFailsafe
         val canBpsDrop = ConfigManager.config.generalConfig.watchdog.checkFarmingInterruption
         checkBpsDropPill.active = canBpsDrop
         if (!canBpsDrop && ConfigManager.config.generalConfig.watchdog.checkBpsDrop) {
@@ -912,15 +949,15 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
             checkBpsDropPill.selectedIndex = 0
             ConfigManager.save()
         }
-        checkBpsDropPill.visible = isSettings
-        checkBpsDropInfo.visible = isSettings
-        checkUnfamiliarGuiPill.visible = isSettings
-        checkUnfamiliarGuiInfo.visible = isSettings
+        checkBpsDropPill.visible = isSettingsFailsafe
+        checkBpsDropInfo.visible = isSettingsFailsafe
+        checkUnfamiliarGuiPill.visible = isSettingsFailsafe
+        checkUnfamiliarGuiInfo.visible = isSettingsFailsafe
 
-        // Settings - Key and Mouse Lock
-        keyMouseLockHeaderInfo.visible = isSettings
-        lockHotbarPill.visible = isSettings
-        lockMovementPill.visible = isSettings
+        // Settings - Failsafe: Key and Mouse Lock
+        keyMouseLockHeaderInfo.visible = isSettingsFailsafe
+        lockHotbarPill.visible = isSettingsFailsafe
+        lockMovementPill.visible = isSettingsFailsafe
         val canLockOther = ConfigManager.config.generalConfig.inputLock.lockHotbar && ConfigManager.config.generalConfig.inputLock.lockMovement
         lockAllOtherKeybindsPill.active = canLockOther
         if (!canLockOther && ConfigManager.config.generalConfig.inputLock.lockAllOtherKeybinds) {
@@ -928,11 +965,21 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
             lockAllOtherKeybindsPill.selectedIndex = 0
             ConfigManager.save()
         }
-        lockAllOtherKeybindsPill.visible = isSettings
-        lockAllOtherKeybindsInfo.visible = isSettings
-        lockMousePill.visible = isSettings
-        blockChatAndCommandsPill.visible = isSettings
-        blockChatAndCommandsInfo.visible = isSettings
+        lockAllOtherKeybindsPill.visible = isSettingsFailsafe
+        lockAllOtherKeybindsInfo.visible = isSettingsFailsafe
+        lockMousePill.visible = isSettingsFailsafe
+        blockChatAndCommandsPill.visible = isSettingsFailsafe
+        blockChatAndCommandsInfo.visible = isSettingsFailsafe
+
+        // Settings - QOL: Free Look
+        freeLookModePill.visible = isSettingsQol
+        invertZoomPill.visible = isSettingsQol
+        rememberZoomPill.visible = isSettingsQol
+        respectInvertPill.visible = isSettingsQol
+        respectInvertInfo.visible = isSettingsQol
+
+        // ESP Tab
+        espTabPestPill.visible = isEsp
 
         // Farming - General Config
         checkFlyingPill.visible = isFarmingConfig
@@ -940,6 +987,7 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         pestCountSlider.visible = isFarmingConfig
 
         // Pester - General Config
+        pestEspPill.visible = isPesterConfig
         pestRooftopPill.visible = isPesterConfig
         teleportablePlotsBtn.visible = isPesterConfig
         keepPestPill.visible = isPesterConfig
@@ -1045,11 +1093,29 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
             graphics.text(font, "  Misc", 14, miscBoxY + 8, if (miscHovered) 0xFF38BDF8.toInt() else 0xFF94A3B8.toInt())
         }
 
-        // 4. Sidebar Item: HUD (Above Settings)
+        // 4. Sidebar Item: ESP (Above HUD)
         val settingsBoxH = 24
         val settingsBoxY = height - settingsBoxH - 12
         val hudBoxH = 24
         val hudBoxY = settingsBoxY - hudBoxH - 4
+        val espBoxH = 24
+        val espBoxY = hudBoxY - espBoxH - 4
+        val espHovered = mouseX in 6 until (sidebarWidth - 6) && mouseY in espBoxY until (espBoxY + espBoxH)
+        val isEspActive = selectedTab == "ESP"
+
+        val espBorderColor = if (isEspActive) 0xFF38BDF8.toInt() else if (espHovered) 0xFF475569.toInt() else 0xFF1E293B.toInt()
+        graphics.fill(6, espBoxY - 1, sidebarWidth - 6, espBoxY, espBorderColor)
+        graphics.fill(6, espBoxY + espBoxH, sidebarWidth - 6, espBoxY + espBoxH + 1, espBorderColor)
+
+        if (isEspActive) {
+            graphics.fill(6, espBoxY, sidebarWidth - 6, espBoxY + espBoxH, 0x3338BDF8)
+            graphics.text(font, "> ESP", 14, espBoxY + 8, 0xFFFFFFFF.toInt())
+        } else {
+            if (espHovered) graphics.fill(6, espBoxY, sidebarWidth - 6, espBoxY + espBoxH, 0x1A38BDF8)
+            graphics.text(font, "  ESP", 14, espBoxY + 8, if (espHovered) 0xFF38BDF8.toInt() else 0xFF94A3B8.toInt())
+        }
+
+        // 5. Sidebar Item: HUD (Above Settings)
         val hudHovered = mouseX in 6 until (sidebarWidth - 6) && mouseY in hudBoxY until (hudBoxY + hudBoxH)
         val isHudActive = selectedTab == "HUD"
 
@@ -1065,7 +1131,7 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
             graphics.text(font, "  HUD", 14, hudBoxY + 8, if (hudHovered) 0xFF38BDF8.toInt() else 0xFF94A3B8.toInt())
         }
 
-        // 5. Sidebar Item: Settings (Bottom)
+        // 6. Sidebar Item: Settings (Bottom)
         val settingsHovered = mouseX in 6 until (sidebarWidth - 6) && mouseY in settingsBoxY until (settingsBoxY + settingsBoxH)
         val isSettingsActive = selectedTab == "Settings"
 
@@ -1103,6 +1169,9 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
                 } else {
                     renderMiscConfig(graphics, mouseX, mouseY)
                 }
+            }
+            "ESP" -> {
+                renderEspView(graphics, mouseX, mouseY)
             }
             "HUD" -> {
                 renderHudView(graphics, mouseX, mouseY)
@@ -1244,6 +1313,28 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         graphics.text(font, "HUD Edit:", cardX + 12, secY + 69, 0xFF94A3B8.toInt())
     }
 
+    private fun renderEspView(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
+        val espY = cardY - scrollOffset
+        val espH = SEC_OTHER_ESP_H
+        graphics.fill(cardX - 1, espY - 1, cardX + cardW + 1, espY + espH + 1, 0xFF334155.toInt())
+        graphics.fill(cardX, espY, cardX + cardW, espY + espH, 0xFF1E293B.toInt())
+        graphics.fill(cardX, espY, cardX + cardW, espY + 18, 0xFF334155.toInt())
+        graphics.text(font, "§b§lOther ESP", cardX + 10, espY + 5, 0xFF38BDF8.toInt())
+
+        graphics.text(font, "Pest ESP:", cardX + 12, espY + 25, 0xFF94A3B8.toInt())
+
+        // Pest ESP Color Swatch (on the right of toggle pill)
+        val swatchX = cardX + 326
+        val swatchY = espY + 20
+        val swatchW = 20
+        val swatchH = 16
+        val (r, g, b) = PestESP.parseRgb(ConfigManager.config.pestDestroyer.pestEspColor)
+        val isSwatchHovered = mouseX in swatchX until (swatchX + swatchW) && mouseY in swatchY until (swatchY + swatchH)
+        val swatchBorder = if (isSwatchHovered) 0xFF38BDF8.toInt() else 0xFF475569.toInt()
+        graphics.fill(swatchX - 1, swatchY - 1, swatchX + swatchW + 1, swatchY + swatchH + 1, swatchBorder)
+        graphics.fill(swatchX, swatchY, swatchX + swatchW, swatchY + swatchH, ARGB.color(255, r, g, b))
+    }
+
     private fun renderFarmingConfig(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
         val sec1Y = cardY - scrollOffset
         val sec1H = 42
@@ -1272,6 +1363,18 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         graphics.text(font, "§b§lPest Destroyer Config", cardX + 10, pdY + 5, 0xFF38BDF8.toInt())
 
         graphics.text(font, "Pest ESP:", cardX + 12, pdY + 25, 0xFF94A3B8.toInt())
+
+        // Pest ESP Color Swatch (on the right of toggle pill)
+        val swatchX = cardX + 326
+        val swatchY = pdY + 20
+        val swatchW = 20
+        val swatchH = 16
+        val (r, g, b) = PestESP.parseRgb(ConfigManager.config.pestDestroyer.pestEspColor)
+        val isSwatchHovered = mouseX in swatchX until (swatchX + swatchW) && mouseY in swatchY until (swatchY + swatchH)
+        val swatchBorder = if (isSwatchHovered) 0xFF38BDF8.toInt() else 0xFF475569.toInt()
+        graphics.fill(swatchX - 1, swatchY - 1, swatchX + swatchW + 1, swatchY + swatchH + 1, swatchBorder)
+        graphics.fill(swatchX, swatchY, swatchX + swatchW, swatchY + swatchH, ARGB.color(255, r, g, b))
+
         graphics.text(font, "Get On Rooftop:", cardX + 12, pdY + 47, 0xFF94A3B8.toInt())
         graphics.text(font, "Teleportable plots:", cardX + 12, pdY + 69, 0xFF94A3B8.toInt())
         graphics.text(font, "Keep pest:", cardX + 12, pdY + 93, 0xFF94A3B8.toInt())
@@ -1280,77 +1383,78 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
     }
 
     private fun renderSettingsView(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
-        val mmY = cardY - scrollOffset
-        val mmH = SEC_MOUSE_H
-        graphics.fill(cardX - 1, mmY - 1, cardX + cardW + 1, mmY + mmH + 1, 0xFF334155.toInt())
-        graphics.fill(cardX, mmY, cardX + cardW, mmY + mmH, 0xFF1E293B.toInt())
-        graphics.fill(cardX, mmY, cardX + cardW, mmY + 18, 0xFF334155.toInt())
-        graphics.text(font, "§b§lMouse Movement", cardX + 10, mmY + 5, 0xFF38BDF8.toInt())
-        graphics.text(font, "Movement Type:", cardX + 12, mmY + 25, 0xFF94A3B8.toInt())
-        graphics.text(font, "Humanize:", cardX + 12, mmY + 45, 0xFF94A3B8.toInt())
-        graphics.text(font, "Overshoot:", cardX + 12, mmY + 65, 0xFF94A3B8.toInt())
-        graphics.text(font, "DPI Speed:", cardX + 12, mmY + 85, 0xFF94A3B8.toInt())
+        when (settingsSubTab) {
+            0 -> {
+                // Movement Sub-Tab: Mouse Movement + Pathfinding & Flying
+                val mmY = cardY - scrollOffset
+                val mmH = SEC_MOUSE_H
+                graphics.fill(cardX - 1, mmY - 1, cardX + cardW + 1, mmY + mmH + 1, 0xFF334155.toInt())
+                graphics.fill(cardX, mmY, cardX + cardW, mmY + mmH, 0xFF1E293B.toInt())
+                graphics.fill(cardX, mmY, cardX + cardW, mmY + 18, 0xFF334155.toInt())
+                graphics.text(font, "§b§lMouse Movement", cardX + 10, mmY + 5, 0xFF38BDF8.toInt())
+                graphics.text(font, "Movement Type:", cardX + 12, mmY + 25, 0xFF94A3B8.toInt())
+                graphics.text(font, "Humanize:", cardX + 12, mmY + 45, 0xFF94A3B8.toInt())
+                graphics.text(font, "Overshoot:", cardX + 12, mmY + 65, 0xFF94A3B8.toInt())
+                graphics.text(font, "DPI Speed:", cardX + 12, mmY + 85, 0xFF94A3B8.toInt())
 
-        val pfY = mmY + SEC_MOUSE_GAP
-        val pfH = SEC_PATHFINDING_H
-        graphics.fill(cardX - 1, pfY - 1, cardX + cardW + 1, pfY + pfH + 1, 0xFF334155.toInt())
-        graphics.fill(cardX, pfY, cardX + cardW, pfY + pfH, 0xFF1E293B.toInt())
-        graphics.fill(cardX, pfY, cardX + cardW, pfY + 18, 0xFF334155.toInt())
-        graphics.text(font, "§b§lPathfinding & Flying", cardX + 10, pfY + 5, 0xFF38BDF8.toInt())
-        graphics.text(font, "Pathfinding Algorithm:", cardX + 12, pfY + 25, 0xFF94A3B8.toInt())
-        graphics.text(font, "Brake after reaching destination:", cardX + 12, pfY + 45, 0xFF94A3B8.toInt())
+                val pfY = mmY + SEC_MOUSE_GAP
+                val pfH = SEC_PATHFINDING_H
+                graphics.fill(cardX - 1, pfY - 1, cardX + cardW + 1, pfY + pfH + 1, 0xFF334155.toInt())
+                graphics.fill(cardX, pfY, cardX + cardW, pfY + pfH, 0xFF1E293B.toInt())
+                graphics.fill(cardX, pfY, cardX + cardW, pfY + 18, 0xFF334155.toInt())
+                graphics.text(font, "§b§lPathfinding & Flying", cardX + 10, pfY + 5, 0xFF38BDF8.toInt())
+                graphics.text(font, "Pathfinding Algorithm:", cardX + 12, pfY + 25, 0xFF94A3B8.toInt())
+                graphics.text(font, "Brake after reaching destination:", cardX + 12, pfY + 45, 0xFF94A3B8.toInt())
+                graphics.text(font, "Pathfinding Visualizer:", cardX + 12, pfY + 65, 0xFF94A3B8.toInt())
+                val verboseColor = if (verboseVisualizerPill.active) 0xFF94A3B8.toInt() else 0xFF475569.toInt()
+                graphics.text(font, "§8└─ §rVerbose Visualizer:", cardX + 18, pfY + 85, verboseColor)
+            }
+            1 -> {
+                // Failsafe Sub-Tab: WatchDog + Key and Mouse Lock
+                val wdY = cardY - scrollOffset
+                val wdH = SEC_WATCHDOG_H
+                graphics.fill(cardX - 1, wdY - 1, cardX + cardW + 1, wdY + wdH + 1, 0xFF334155.toInt())
+                graphics.fill(cardX, wdY, cardX + cardW, wdY + wdH, 0xFF1E293B.toInt())
+                graphics.fill(cardX, wdY, cardX + cardW, wdY + 18, 0xFF334155.toInt())
+                graphics.text(font, "§b§lWatchDog", cardX + 10, wdY + 5, 0xFF38BDF8.toInt())
 
-        val visY = pfY + SEC_PATHFINDING_GAP
-        val visH = SEC_VISUALS_H
-        graphics.fill(cardX - 1, visY - 1, cardX + cardW + 1, visY + visH + 1, 0xFF334155.toInt())
-        graphics.fill(cardX, visY, cardX + cardW, visY + visH, 0xFF1E293B.toInt())
-        graphics.fill(cardX, visY, cardX + cardW, visY + 18, 0xFF334155.toInt())
-        graphics.text(font, "§b§lVisuals", cardX + 10, visY + 5, 0xFF38BDF8.toInt())
-        graphics.text(font, "Pathfinding Visualizer:", cardX + 12, visY + 25, 0xFF94A3B8.toInt())
+                graphics.text(font, "Check Rotation:", cardX + 12, wdY + 25, 0xFF94A3B8.toInt())
+                val debounceColor = if (debounceRotationPill.active) 0xFF94A3B8.toInt() else 0xFF475569.toInt()
+                graphics.text(font, "  └ Admin Snapback Grace:", cardX + 12, wdY + 45, debounceColor)
+                graphics.text(font, "Check Teleport:", cardX + 12, wdY + 65, 0xFF94A3B8.toInt())
+                graphics.text(font, "Check Hotbar Slot:", cardX + 12, wdY + 85, 0xFF94A3B8.toInt())
+                graphics.text(font, "Farming Interruption failsafe:", cardX + 12, wdY + 105, 0xFF94A3B8.toInt())
+                val bpsDropColor = if (checkBpsDropPill.active) 0xFF94A3B8.toInt() else 0xFF475569.toInt()
+                graphics.text(font, "  └ BPS Drop Protection:", cardX + 12, wdY + 125, bpsDropColor)
+                graphics.text(font, "Unfamiliar GUI failsafe:", cardX + 12, wdY + 145, 0xFF94A3B8.toInt())
 
-        val verboseColor = if (verboseVisualizerPill.active) 0xFF94A3B8.toInt() else 0xFF475569.toInt()
-        graphics.text(font, "§8└─ §rVerbose Visualizer:", cardX + 18, visY + 45, verboseColor)
-
-        val flY = visY + SEC_VISUALS_GAP
-        val flH = SEC_FREELOOK_H
-        graphics.fill(cardX - 1, flY - 1, cardX + cardW + 1, flY + flH + 1, 0xFF334155.toInt())
-        graphics.fill(cardX, flY, cardX + cardW, flY + flH, 0xFF1E293B.toInt())
-        graphics.fill(cardX, flY, cardX + cardW, flY + 18, 0xFF334155.toInt())
-        graphics.text(font, "§b§lFree Look", cardX + 10, flY + 5, 0xFF38BDF8.toInt())
-        graphics.text(font, "Activation Mode:", cardX + 12, flY + 25, 0xFF94A3B8.toInt())
-        graphics.text(font, "Invert Zoom:", cardX + 12, flY + 45, 0xFF94A3B8.toInt())
-        graphics.text(font, "Remember Zoom (Max 25b):", cardX + 12, flY + 65, 0xFF94A3B8.toInt())
-        graphics.text(font, "Respect Invert Mouse:", cardX + 12, flY + 85, 0xFF94A3B8.toInt())
-
-        val wdY = flY + SEC_FREELOOK_GAP
-        val wdH = SEC_WATCHDOG_H
-        graphics.fill(cardX - 1, wdY - 1, cardX + cardW + 1, wdY + wdH + 1, 0xFF334155.toInt())
-        graphics.fill(cardX, wdY, cardX + cardW, wdY + wdH, 0xFF1E293B.toInt())
-        graphics.fill(cardX, wdY, cardX + cardW, wdY + 18, 0xFF334155.toInt())
-        graphics.text(font, "§b§lWatchDog", cardX + 10, wdY + 5, 0xFF38BDF8.toInt())
-
-        graphics.text(font, "Check Rotation:", cardX + 12, wdY + 25, 0xFF94A3B8.toInt())
-        val debounceColor = if (debounceRotationPill.active) 0xFF94A3B8.toInt() else 0xFF475569.toInt()
-        graphics.text(font, "  └ Admin Snapback Grace:", cardX + 12, wdY + 45, debounceColor)
-        graphics.text(font, "Check Teleport:", cardX + 12, wdY + 65, 0xFF94A3B8.toInt())
-        graphics.text(font, "Check Hotbar Slot:", cardX + 12, wdY + 85, 0xFF94A3B8.toInt())
-        graphics.text(font, "Farming Interruption failsafe:", cardX + 12, wdY + 105, 0xFF94A3B8.toInt())
-        val bpsDropColor = if (checkBpsDropPill.active) 0xFF94A3B8.toInt() else 0xFF475569.toInt()
-        graphics.text(font, "  └ BPS Drop Protection:", cardX + 12, wdY + 125, bpsDropColor)
-        graphics.text(font, "Unfamiliar GUI failsafe:", cardX + 12, wdY + 145, 0xFF94A3B8.toInt())
-
-        val lockY = wdY + SEC_WATCHDOG_GAP
-        val lockH = SEC_LOCK_H
-        graphics.fill(cardX - 1, lockY - 1, cardX + cardW + 1, lockY + lockH + 1, 0xFF334155.toInt())
-        graphics.fill(cardX, lockY, cardX + cardW, lockY + lockH, 0xFF1E293B.toInt())
-        graphics.fill(cardX, lockY, cardX + cardW, lockY + 18, 0xFF334155.toInt())
-        graphics.text(font, "§b§lKey and Mouse Lock", cardX + 10, lockY + 5, 0xFF38BDF8.toInt())
-        graphics.text(font, "Lock Hotbar Keys:", cardX + 12, lockY + 25, 0xFF94A3B8.toInt())
-        graphics.text(font, "Lock Movement Keys:", cardX + 12, lockY + 45, 0xFF94A3B8.toInt())
-        val lockOtherLabelColor = if (lockAllOtherKeybindsPill.active) 0xFF94A3B8.toInt() else 0xFF475569.toInt()
-        graphics.text(font, "Lock All Other Keybinds:", cardX + 12, lockY + 65, lockOtherLabelColor)
-        graphics.text(font, "Lock Mouse Movement:", cardX + 12, lockY + 85, 0xFF94A3B8.toInt())
-        graphics.text(font, "Block Chat and Command:", cardX + 12, lockY + 105, 0xFF94A3B8.toInt())
+                val lockY = wdY + SEC_WATCHDOG_GAP
+                val lockH = SEC_LOCK_H
+                graphics.fill(cardX - 1, lockY - 1, cardX + cardW + 1, lockY + lockH + 1, 0xFF334155.toInt())
+                graphics.fill(cardX, lockY, cardX + cardW, lockY + lockH, 0xFF1E293B.toInt())
+                graphics.fill(cardX, lockY, cardX + cardW, lockY + 18, 0xFF334155.toInt())
+                graphics.text(font, "§b§lKey and Mouse Lock", cardX + 10, lockY + 5, 0xFF38BDF8.toInt())
+                graphics.text(font, "Lock Hotbar Keys:", cardX + 12, lockY + 25, 0xFF94A3B8.toInt())
+                graphics.text(font, "Lock Movement Keys:", cardX + 12, lockY + 45, 0xFF94A3B8.toInt())
+                val lockOtherLabelColor = if (lockAllOtherKeybindsPill.active) 0xFF94A3B8.toInt() else 0xFF475569.toInt()
+                graphics.text(font, "Lock All Other Keybinds:", cardX + 12, lockY + 65, lockOtherLabelColor)
+                graphics.text(font, "Lock Mouse Movement:", cardX + 12, lockY + 85, 0xFF94A3B8.toInt())
+                graphics.text(font, "Block Chat and Command:", cardX + 12, lockY + 105, 0xFF94A3B8.toInt())
+            }
+            2 -> {
+                // QOL Sub-Tab: Free Look
+                val flY = cardY - scrollOffset
+                val flH = SEC_FREELOOK_H
+                graphics.fill(cardX - 1, flY - 1, cardX + cardW + 1, flY + flH + 1, 0xFF334155.toInt())
+                graphics.fill(cardX, flY, cardX + cardW, flY + flH, 0xFF1E293B.toInt())
+                graphics.fill(cardX, flY, cardX + cardW, flY + 18, 0xFF334155.toInt())
+                graphics.text(font, "§b§lFree Look", cardX + 10, flY + 5, 0xFF38BDF8.toInt())
+                graphics.text(font, "Activation Mode:", cardX + 12, flY + 25, 0xFF94A3B8.toInt())
+                graphics.text(font, "Invert Zoom:", cardX + 12, flY + 45, 0xFF94A3B8.toInt())
+                graphics.text(font, "Remember Zoom (Max 25b):", cardX + 12, flY + 65, 0xFF94A3B8.toInt())
+                graphics.text(font, "Respect Invert Mouse:", cardX + 12, flY + 85, 0xFF94A3B8.toInt())
+            }
+        }
     }
 
     override fun mouseClicked(event: MouseButtonEvent, doubleClick: Boolean): Boolean {
@@ -1395,6 +1499,16 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
                 val settingsBoxY = height - settingsBoxH - 12
                 val hudBoxH = 24
                 val hudBoxY = settingsBoxY - hudBoxH - 4
+                val espBoxH = 24
+                val espBoxY = hudBoxY - espBoxH - 4
+
+                if (mouseY in espBoxY until (espBoxY + espBoxH)) {
+                    selectedTab = "ESP"
+                    isModeDropdownOpen = false
+                    scrollOffset = 0
+                    updateWidgetVisibility()
+                    return true
+                }
 
                 if (mouseY in hudBoxY until (hudBoxY + hudBoxH)) {
                     selectedTab = "HUD"
@@ -1443,6 +1557,24 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
                     com.hypcro.bouncy.AutoBouncyBall.start()
                 }
                 onClose()
+                return true
+            }
+
+            // ESP Tab Color Swatch Click
+            if (selectedTab == "ESP" && mouseX in (cardX + 326) until (cardX + 346) && mouseY in (effY + 20) until (effY + 36)) {
+                minecraft.setScreen(ColorPickerModal(this, ConfigManager.config.pestDestroyer.pestEspColor) { newHex ->
+                    ConfigManager.config.pestDestroyer.pestEspColor = newHex
+                    ConfigManager.save()
+                })
+                return true
+            }
+
+            // Pester Config Color Swatch Click
+            if (selectedTab == "Pester" && pesterSubTab == 1 && mouseX in (cardX + 326) until (cardX + 346) && mouseY in (effY + 20) until (effY + 36)) {
+                minecraft.setScreen(ColorPickerModal(this, ConfigManager.config.pestDestroyer.pestEspColor) { newHex ->
+                    ConfigManager.config.pestDestroyer.pestEspColor = newHex
+                    ConfigManager.save()
+                })
                 return true
             }
 

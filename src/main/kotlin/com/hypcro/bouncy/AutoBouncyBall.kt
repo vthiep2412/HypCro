@@ -319,17 +319,8 @@ object AutoBouncyBall {
                         val startPos = initialStartingPos
 
                         // Smart Mode: Calculate optimal overshoot spot behind the landing position relative to start position
-                        val targetSpot = if (mode == com.hypcro.config.BouncyBallMode.SMART && startPos != null) {
-                            val dxStart = landingPos.x - startPos.x
-                            val dzStart = landingPos.z - startPos.z
-                            val distFromStart = sqrt(dxStart * dxStart + dzStart * dzStart)
-                            if (distFromStart >= 0.20) {
-                                val dirX = dxStart / distFromStart
-                                val dirZ = dzStart / distFromStart
-                                Vec3(landingPos.x + dirX * bouncyCfg.smartOffset, landingPos.y, landingPos.z + dirZ * bouncyCfg.smartOffset)
-                            } else {
-                                landingPos
-                            }
+                        val targetSpot = if (mode == com.hypcro.config.BouncyBallMode.SMART) {
+                            computeSmartTarget(landingPos, startPos, bouncyCfg.smartOffset)
                         } else {
                             landingPos
                         }
@@ -366,6 +357,8 @@ object AutoBouncyBall {
                                 if (dist < 0.10) {
                                     currentStatusText = "Positioned (Catches: $bounceCount)"
                                     MacroInputController.releaseAllMovement()
+                                    currentForwardKey = 0
+                                    currentStrafeKey = 0
                                 } else {
                                     currentStatusText = "Moving to Spot (${String.format("%.2f", dist)}b)"
 
@@ -376,6 +369,9 @@ object AutoBouncyBall {
                                     val moveBackward = diff > 112.5f || diff < -112.5f
                                     val moveLeft = diff in -157.5f..-22.5f
                                     val moveRight = diff in 22.5f..157.5f
+
+                                    currentForwardKey = if (moveForward) 1 else if (moveBackward) -1 else 0
+                                    currentStrafeKey = if (moveLeft) -1 else if (moveRight) 1 else 0
 
                                     if (moveForward) MacroInputController.holdW() else if (moveBackward) MacroInputController.holdS() else {
                                         MacroInputController.releaseW()
@@ -441,8 +437,9 @@ object AutoBouncyBall {
                                 }
                             }
                             com.hypcro.config.BouncyBallMode.SMART -> {
-                                // Smart Mode (Calm 100ms debounce with directional hysteresis and subtle 0.12b overshoot centering)
-                                if (dist < 0.18) {
+                                // Smart Mode (Calm 100ms debounce with directional hysteresis and subtle 0.06b edge bias)
+                                val smartTolerance = (bouncyCfg.smartOffset * 0.8).coerceIn(0.04, 0.08)
+                                if (dist < smartTolerance) {
                                     currentStatusText = "Positioned Smart (Catches: $bounceCount)"
                                     MacroInputController.releaseAllMovement()
                                     currentForwardKey = 0
@@ -551,6 +548,17 @@ object AutoBouncyBall {
         return nearestStand
     }
 
+    private fun computeSmartTarget(landing: Vec3, startPos: Vec3?, offset: Double): Vec3 {
+        if (startPos == null) return landing
+        val dxStart = landing.x - startPos.x
+        val dzStart = landing.z - startPos.z
+        val distFromStart = sqrt(dxStart * dxStart + dzStart * dzStart)
+        if (distFromStart < 0.20) return landing
+        val dirX = dxStart / distFromStart
+        val dirZ = dzStart / distFromStart
+        return Vec3(landing.x + dirX * offset, landing.y, landing.z + dirZ * offset)
+    }
+
     fun renderWorld() {
         val cfg = ConfigManager.config.bouncyBall
         val predictor = activePredictor ?: return
@@ -589,14 +597,8 @@ object AutoBouncyBall {
             // In SMART mode, also render the green target overshoot spot and return vector to origin
             val startPos = initialStartingPos
             if (cfg.mode == com.hypcro.config.BouncyBallMode.SMART && startPos != null) {
-                val dxStart = landing.x - startPos.x
-                val dzStart = landing.z - startPos.z
-                val distFromStart = sqrt(dxStart * dxStart + dzStart * dzStart)
-                if (distFromStart >= 0.20) {
-                    val dirX = dxStart / distFromStart
-                    val dirZ = dzStart / distFromStart
-                    val smartTarget = Vec3(landing.x + dirX * cfg.smartOffset, landing.y, landing.z + dirZ * cfg.smartOffset)
-
+                val smartTarget = computeSmartTarget(landing, startPos, cfg.smartOffset)
+                if (smartTarget != landing) {
                     // Render Green overshoot target box
                     val targetStyle = GizmoStyle.strokeAndFill(
                         ARGB.color(255, 16, 185, 129), 2.0f,
