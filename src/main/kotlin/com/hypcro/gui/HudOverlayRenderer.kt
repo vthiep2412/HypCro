@@ -18,6 +18,9 @@ import java.util.Locale
 
 object HudOverlayRenderer {
 
+    private var lastPestScanTimeMs: Long = 0L
+    private var cachedPestCount: Int = 0
+
     fun render(graphics: GuiGraphicsExtractor, deltaTracker: DeltaTracker) {
         val client = Minecraft.getInstance()
         val hudCfg = ConfigManager.config.hud
@@ -44,9 +47,14 @@ object HudOverlayRenderer {
         if (isAnyActive) {
             if (PestDestroyerEngine.isRunning) {
                 val source = PestDestroyerEngine.callerSource
-                val scbInfo = PestTabReader.scanScoreboardPests(client)
-                val tabInfo = PestTabReader.scanPests(client)
-                val pestCount = kotlin.math.max(scbInfo.aliveCount, tabInfo.aliveCount)
+                val now = System.currentTimeMillis()
+                if (now - lastPestScanTimeMs >= 500L) {
+                    val scbInfo = PestTabReader.scanScoreboardPests(client)
+                    val tabInfo = PestTabReader.scanPests(client)
+                    cachedPestCount = kotlin.math.max(scbInfo.aliveCount, tabInfo.aliveCount)
+                    lastPestScanTimeMs = now
+                }
+                val pestCount = cachedPestCount
                 val pestWord = if (pestCount == 1) "pest" else "pests"
 
                 if (source == PestCallerSource.WS_FARM_ENGINE || source == PestCallerSource.VERTICAL_FARM_ENGINE) {
@@ -100,8 +108,10 @@ object HudOverlayRenderer {
 
         val defaultX = screenWidth - scaledCardW - 10f
         val defaultY = screenHeight - scaledCardH - 10f
-        val targetX = if (hudCfg.posX < 0f) defaultX else hudCfg.posX.coerceIn(0f, screenWidth - scaledCardW)
-        val targetY = if (hudCfg.posY < 0f) defaultY else hudCfg.posY.coerceIn(0f, screenHeight - scaledCardH)
+        val maxX = (screenWidth - scaledCardW).coerceAtLeast(0f)
+        val maxY = (screenHeight - scaledCardH).coerceAtLeast(0f)
+        val targetX = if (hudCfg.posX < 0f) defaultX.coerceAtLeast(0f) else hudCfg.posX.coerceIn(0f, maxX)
+        val targetY = if (hudCfg.posY < 0f) defaultY.coerceAtLeast(0f) else hudCfg.posY.coerceIn(0f, maxY)
 
         drawCard(
             graphics = graphics,

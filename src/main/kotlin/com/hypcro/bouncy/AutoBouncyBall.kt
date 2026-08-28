@@ -66,7 +66,7 @@ object AutoBouncyBall {
 
         isRunning = true
         bounceCount = 0
-        ballCount = 1
+        ballCount = 0
         sessionStartTimeMs = System.currentTimeMillis()
         currentStatusText = "Initializing..."
         lastTargetDistance = 0.0
@@ -242,6 +242,7 @@ object AutoBouncyBall {
                 MacroInputController.holdUseItem()
                 delay(60L)
                 MacroInputController.releaseUseItem()
+                ballCount++
                 delay(350L)
             }
 

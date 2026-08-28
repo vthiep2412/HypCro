@@ -139,11 +139,14 @@ object CropBpsTracker {
         val now = System.currentTimeMillis()
         if (now - lastAvgCalcTimeMs >= AVG_POLL_INTERVAL_MS || cachedAvgBps == 0.0) {
             cleanOldTimestamps(now)
-            val totalUptimeMs = getSessionUptimeMs()
-            val windowMs = min(totalUptimeMs, AVG_WINDOW_MS)
-            val windowSec = windowMs / 1000.0
+            val oldest = breakTimestamps.peekFirst()
+            val windowSec = if (oldest != null) {
+                min((now - oldest).toDouble() / 1000.0, AVG_WINDOW_MS / 1000.0)
+            } else {
+                0.0
+            }
 
-            cachedAvgBps = if (windowSec < 1.0) {
+            cachedAvgBps = if (windowSec < 1.0 || breakTimestamps.isEmpty()) {
                 getCurrentBps()
             } else {
                 (breakTimestamps.size / windowSec).coerceIn(0.0, 20.0)
@@ -155,11 +158,6 @@ object CropBpsTracker {
 
     fun getSessionUptimeMs(): Long {
         val now = System.currentTimeMillis()
-        if (lastActiveTimeMs > 0L && !isTracking && (now - lastActiveTimeMs) > SESSION_IDLE_TIMEOUT_MS) {
-            resetSession()
-            return 0L
-        }
-
         return if (isTracking && currentSessionStartMs > 0L) {
             accumulatedActiveDurationMs + (now - currentSessionStartMs)
         } else {

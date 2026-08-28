@@ -36,13 +36,16 @@ class HudEditScreen(private val parentScreen: Screen?) : Screen(Component.litera
         val defaultX = width - scaledW - 10f
         val defaultY = height - scaledH - 10f
 
-        currentX = if (hudCfg.posX < 0f) defaultX else hudCfg.posX.coerceIn(0f, width - scaledW)
-        currentY = if (hudCfg.posY < 0f) defaultY else hudCfg.posY.coerceIn(0f, height - scaledH)
+        val maxX = (width - scaledW).coerceAtLeast(0f)
+        val maxY = (height - scaledH).coerceAtLeast(0f)
+
+        currentX = if (hudCfg.posX < 0f) defaultX.coerceAtLeast(0f) else hudCfg.posX.coerceIn(0f, maxX)
+        currentY = if (hudCfg.posY < 0f) defaultY.coerceAtLeast(0f) else hudCfg.posY.coerceIn(0f, maxY)
 
         addRenderableWidget(
             Button.builder(Component.literal("Reset Position")) {
-                currentX = width - scaledW - 10f
-                currentY = height - scaledH - 10f
+                currentX = (width - scaledW - 10f).coerceAtLeast(0f)
+                currentY = (height - scaledH - 10f).coerceAtLeast(0f)
                 currentScale = 1.0f
                 saveConfig()
             }.bounds(width / 2 - 110, height - 32, 100, 20).build()
@@ -50,8 +53,7 @@ class HudEditScreen(private val parentScreen: Screen?) : Screen(Component.litera
 
         addRenderableWidget(
             Button.builder(Component.literal("Done")) {
-                saveConfig()
-                minecraft.setScreen(parentScreen)
+                onClose()
             }.bounds(width / 2 + 10, height - 32, 100, 20).build()
         )
     }
@@ -105,9 +107,10 @@ class HudEditScreen(private val parentScreen: Screen?) : Screen(Component.litera
             val scaledW = cardDim.first * currentScale
             val scaledH = cardDim.second * currentScale
 
-            currentX = (mouseX.toFloat() - dragOffsetX).coerceIn(0f, width - scaledW)
-            currentY = (mouseY.toFloat() - dragOffsetY).coerceIn(0f, height - scaledH)
-            saveConfig()
+            val maxX = (width - scaledW).coerceAtLeast(0f)
+            val maxY = (height - scaledH).coerceAtLeast(0f)
+            currentX = (mouseX.toFloat() - dragOffsetX).coerceIn(0f, maxX)
+            currentY = (mouseY.toFloat() - dragOffsetY).coerceIn(0f, maxY)
             return true
         }
         return super.mouseDragged(event, dx, dy)
@@ -131,19 +134,24 @@ class HudEditScreen(private val parentScreen: Screen?) : Screen(Component.litera
             val scaledH = cardDim.second * currentScale
 
             // Keep box clamped on resize
-            currentX = currentX.coerceIn(0f, width - scaledW)
-            currentY = currentY.coerceIn(0f, height - scaledH)
+            val maxX = (width - scaledW).coerceAtLeast(0f)
+            val maxY = (height - scaledH).coerceAtLeast(0f)
+            currentX = currentX.coerceIn(0f, maxX)
+            currentY = currentY.coerceIn(0f, maxY)
 
-            saveConfig()
             return true
         }
         return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount)
     }
 
+    override fun onClose() {
+        saveConfig()
+        minecraft.setScreen(parentScreen)
+    }
+
     override fun keyPressed(event: KeyEvent): Boolean {
         if (event.key() == GLFW.GLFW_KEY_ESCAPE) {
-            saveConfig()
-            minecraft.setScreen(parentScreen)
+            onClose()
             return true
         }
         return super.keyPressed(event)

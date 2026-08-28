@@ -301,13 +301,12 @@ object PestDestroyerEngine {
 
             val currentY = livePlayer.position().y
             val initialDistToCenter = livePlayer.position().distanceTo(center)
+            val cruiseY = Random.nextDouble(81.0, 84.0)
 
             var alreadyTeleported = false
 
             // Only perform high-altitude ascent if crossing long distances (> 30 blocks) between different plots
             if (initialDistToCenter > 30.0) {
-                val cruiseY = Random.nextDouble(81.0, 84.0)
-
                 if (currentY < 79.0) {
                     // Low altitude: Attempt ascent to randomized cruise altitude
                     currentState = State.ROOFTOP_ASCENT
@@ -373,40 +372,53 @@ object PestDestroyerEngine {
                 }
             }
 
-            // Real-Time Scoreboard Plot Arrival Trigger during flight (targetY = null to cruise at current Y=85)
+            // Real-Time Plot Center Navigation & Altitude Verification
             currentState = State.APPROACH_PLOT_CENTER
-            val arrivedViaScoreboard = AtomicBoolean(false)
+            var plotConfirmed = false
 
-            coroutineScope {
-                val scoreboardWatcher = launch {
-                    while (isActive && isRunning) {
-                        delay(100L) // 2 ticks
-                        val lines = PestTabReader.readScoreboardLines(client)
-                        val plotRegex = Regex("""(?i)Plot\s*-\s*$targetPlotId(?!\d)""")
-                        val altPlotRegex = Regex("""(?i)Plot\s+$targetPlotId(?!\d)""")
-                        if (lines.any { plotRegex.containsMatchIn(it) || altPlotRegex.containsMatchIn(it) }) {
-                            arrivedViaScoreboard.set(true)
-                            CentralMovementCoordinator.stopNavigation()
-                            break
-                        }
-                    }
+            for (attempt in 1..2) {
+                if (!isRunning || CentralMovementCoordinator.isAbortTriggered(client)) break
+
+                // Verify cruise altitude (must re-ascend if Y <= 79.0)
+                val currentY = client.player?.position()?.y ?: cruiseY
+                if (currentY <= 79.0) {
+                    HypCroMod.log("Ascending to cruise altitude (current Y=${currentY.toInt()}, target Y=${cruiseY.toInt()})...")
+                    CentralMovementCoordinator.flyTo(client, targetX = null, targetY = cruiseY, targetZ = null)
                 }
 
-                try {
-                    // Fly to target plot X/Z only (targetY is null to cruise at current Y=85 altitude)
-                    CentralMovementCoordinator.flyTo(client, targetX = center.x, targetY = null, targetZ = center.z)
-                } finally {
-                    scoreboardWatcher.cancelAndJoin()
-                    MacroInputController.releaseAllMovement()
+                // Fly directly towards plot center X/Z at cruise altitude
+                CentralMovementCoordinator.flyTo(client, targetX = center.x, targetY = null, targetZ = center.z)
+                MacroInputController.releaseAllMovement()
+                delay(200L)
+
+                // Verify scoreboard at plot center
+                val lines = PestTabReader.readScoreboardLines(client)
+                val plotRegex = Regex("""(?i)Plot\s*-\s*$targetPlotId(?!\d)""")
+                val altPlotRegex = Regex("""(?i)Plot\s+$targetPlotId(?!\d)""")
+                val matched = lines.any { plotRegex.containsMatchIn(it) || altPlotRegex.containsMatchIn(it) }
+
+                if (matched) {
+                    plotConfirmed = true
+                    HypCroMod.logSuccess("Plot #$targetPlotId confirmed via scoreboard at plot center!")
+                    break
+                } else {
+                    HypCroMod.logWarn("Plot verification failed on attempt $attempt (Expected Plot #$targetPlotId).")
+                    if (attempt == 2) {
+                        if (callerSource == PestCallerSource.WS_FARM_ENGINE || callerSource == PestCallerSource.VERTICAL_FARM_ENGINE) {
+                            com.hypcro.failsafe.HypcroWatchdog.potentialStaffCheck("Pest Destroyer: Failed to arrive at Plot #$targetPlotId after 2 attempts.")
+                            stopPestDestroyer("Failed Arrival Failsafe")
+                            return
+                        } else {
+                            HypCroMod.logWarn("Pest Destroyer: Failed to confirm Plot #$targetPlotId after 2 attempts. Continuing with caution.")
+                        }
+                    } else {
+                        delay(500L)
+                    }
                 }
             }
 
             if (!isRunning || CentralMovementCoordinator.isAbortTriggered(client)) {
                 break
-            }
-
-            if (arrivedViaScoreboard.get()) {
-                HypCroMod.logSuccess("Plot #$targetPlotId confirmed via scoreboard arrival trigger!")
             }
 
             delay(200L)
