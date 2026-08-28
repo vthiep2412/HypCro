@@ -4,6 +4,9 @@
 - [ ] Add humanization for W/S movement. Every 1–2 minutes, delay a reaction or direction switch by up to 1.2 s. Otherwise, choose a random delay from 0 to 800 ms.
 - [x] Add a persistent on-screen HUD while the macro is running.
     - Stats to show: Elapsed time (uptime), average crops/second, current crop being farmed, current movement direction (W or S), and failsafe status.
+    
+- [x] Add watchdog bps check
+
 - [ ] Add smart mode and remake the type for Bouncy balls in misc
     - Change to Mode: [Aggresive | Calm | Smart]
     - In smart it will try to go overshoot in the best angle and position 
@@ -20,7 +23,7 @@
     - Add color selection, typical right next to the On oFF
     - Add the pest back to that esp, and it will sync with the pest esp in pest
 
-- [x] Add watchdog bps check
+
 
 - [ ] raycast path? hmm still thinking
 ---

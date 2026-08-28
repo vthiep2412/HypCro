@@ -108,15 +108,15 @@ object PestTargetTracker {
                         closestMarkerDistSq = distSq
                         matchingMarker = stand
                     }
+                }
                 if (matchingMarker == null) {
                     for (stand in generalArmorStands) {
                         val distSq = stand.distanceToSqr(entityPos)
-                        if (distSq <= closestMarkerDistSq && isPestNameMatching(stand.customName?.string)) {
+                        if (distSq <= closestMarkerDistSq) {
                             closestMarkerDistSq = distSq
                             matchingMarker = stand
                         }
                     }
-                }
                 }
                 foundEntityIds.add(entity.id)
                 results.add(TrackedPest(entity, matchingMarker, entity.position()))
@@ -129,16 +129,21 @@ object PestTargetTracker {
                         break
                     }
                 }
-                if (hasMatchingStand == null) {
-                    for (stand in generalArmorStands) {
-                        if (stand.distanceToSqr(entityPos) <= maxDistSq && isPestNameMatching(stand.customName?.string)) {
-                            hasMatchingStand = stand
-                            break
+
+                if (isPestNameMatching(entityName)) {
+                    confirmedPestUuids.add(uuid)
+                    if (hasMatchingStand == null) {
+                        for (stand in generalArmorStands) {
+                            if (stand.distanceToSqr(entityPos) <= maxDistSq) {
+                                hasMatchingStand = stand
+                                break
+                            }
                         }
                     }
-                }
-
-                if (isPestNameMatching(entityName) || hasMatchingStand != null) {
+                    matchingMarker = hasMatchingStand
+                    foundEntityIds.add(entity.id)
+                    results.add(TrackedPest(entity, matchingMarker, entity.position()))
+                } else if (hasMatchingStand != null) {
                     confirmedPestUuids.add(uuid)
                     matchingMarker = hasMatchingStand
                     foundEntityIds.add(entity.id)

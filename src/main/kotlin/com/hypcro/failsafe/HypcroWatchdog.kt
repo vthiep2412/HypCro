@@ -200,8 +200,10 @@ object HypcroWatchdog {
                     bpsDropStartTime = 0L
                 }
             }
+        } else {
+            isBpsDropArmed = false
+            bpsDropStartTime = 0L
         }
-
         lastPos = currentPos
     }
 
