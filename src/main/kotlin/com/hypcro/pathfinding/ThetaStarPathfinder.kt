@@ -7,6 +7,7 @@ import net.minecraft.world.phys.Vec3
 import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.sqrt
 
 object ThetaStarPathfinder : IPathfinder {

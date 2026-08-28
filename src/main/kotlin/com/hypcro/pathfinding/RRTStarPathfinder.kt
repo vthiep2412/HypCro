@@ -408,7 +408,7 @@ object RRTStarPathfinder : IPathfinder {
         val mid = from.add(to).scale(0.5)
         if (mid.distanceTo(start) <= 1.8 || mid.distanceTo(dest) <= 1.8) return 0.0
 
-        var penalty = AStar3DSmoothedPathfinder.groundClearancePenalty(level, mid, dest)
+        var penalty = AStar3DSmoothedPathfinder.calculateClearanceCost(level, mid, start, dest)
 
         // Add 1.2b clearance proximity penalty
         val minBX = floor(mid.x - OBSTACLE_CLEARANCE_BUFFER).toInt()

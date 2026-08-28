@@ -44,44 +44,105 @@ object PestTargetTracker {
 
         val loadedEntities = level.entitiesForRendering()
 
-        // 1. Collect all ArmorStands within vicinity
-        val armorStands = mutableListOf<ArmorStand>()
+        // 1. Identify all ArmorStands and partition pest markers vs general stands
+        val pestArmorStands = mutableListOf<ArmorStand>()
+        val generalArmorStands = mutableListOf<ArmorStand>()
+        val otherLivingEntities = mutableListOf<LivingEntity>()
+
         for (entity in loadedEntities) {
-            if (entity is ArmorStand && !entity.isRemoved) {
-                armorStands.add(entity)
+            if (entity.isRemoved) continue
+            if (entity.position().distanceTo(center) > radius) continue
+
+            if (entity is ArmorStand) {
+                val standName = entity.customName?.string
+                if (isPestNameMatching(standName)) {
+                    pestArmorStands.add(entity)
+                } else {
+                    generalArmorStands.add(entity)
+                }
+            } else if (entity is LivingEntity && entity != client.player) {
+                otherLivingEntities.add(entity)
             }
         }
 
-        // 2. Scan only Bats and Silverfish
-        for (entity in loadedEntities) {
-            if (entity.isRemoved) continue
-            if (entity !is Bat && entity !is Silverfish) continue
-            if (entity.position().distanceTo(center) > radius) continue
+        val maxDistSq = 2.5 * 2.5
 
-            val uuid = entity.uuid
-            var matchingSkull: ArmorStand? = null
+        // 2. Process pest-labeled ArmorStands: pair with closest underlying living mob (within 2.5b) or use stand itself
+        for (stand in pestArmorStands) {
+            val standPos = stand.position()
+            var closestMob: LivingEntity? = null
+            var closestDistSq = maxDistSq
 
-            // Check if already confirmed in session memory
-            if (confirmedPestUuids.contains(uuid)) {
-                matchingSkull = armorStands.minByOrNull { it.distanceTo(entity) }
-                if (matchingSkull != null && matchingSkull.distanceTo(entity) > 2.5) {
-                    matchingSkull = null
-                }
-            } else {
-                // Check mob's own name or nearby ArmorStands (tolerance <= 1.5b)
-                val entityName = entity.customName?.string
-                val nearbyArmorStands = armorStands.filter { it.distanceTo(entity) <= 1.5 }
-                val hasMatchingArmorStand = nearbyArmorStands.firstOrNull { isPestNameMatching(it.customName?.string) }
-
-                if (isPestNameMatching(entityName) || hasMatchingArmorStand != null) {
-                    confirmedPestUuids.add(uuid)
-                    matchingSkull = hasMatchingArmorStand
+            for (mob in otherLivingEntities) {
+                val distSq = mob.distanceToSqr(standPos)
+                if (distSq <= closestDistSq) {
+                    closestDistSq = distSq
+                    closestMob = mob
                 }
             }
 
-            if (confirmedPestUuids.contains(uuid) && !foundEntityIds.contains(entity.id)) {
+            val primaryEntity = closestMob ?: stand
+            val primaryId = primaryEntity.id
+
+            if (!foundEntityIds.contains(primaryId)) {
+                foundEntityIds.add(primaryId)
+                confirmedPestUuids.add(primaryEntity.uuid)
+                results.add(TrackedPest(primaryEntity, stand, primaryEntity.position()))
+            }
+        }
+
+        // 3. Process all remaining living entities (Bats, Silverfish, Endermites, Spiders, Bees, Slimes, etc.)
+        for (entity in otherLivingEntities) {
+            if (foundEntityIds.contains(entity.id)) continue
+
+            val uuid = entity.uuid
+            val entityPos = entity.position()
+            var matchingMarker: ArmorStand? = null
+
+            if (confirmedPestUuids.contains(uuid)) {
+                var closestMarkerDistSq = maxDistSq
+                for (stand in pestArmorStands) {
+                    val distSq = stand.distanceToSqr(entityPos)
+                    if (distSq <= closestMarkerDistSq) {
+                        closestMarkerDistSq = distSq
+                        matchingMarker = stand
+                    }
+                }
+                if (matchingMarker == null) {
+                    for (stand in generalArmorStands) {
+                        val distSq = stand.distanceToSqr(entityPos)
+                        if (distSq <= closestMarkerDistSq) {
+                            closestMarkerDistSq = distSq
+                            matchingMarker = stand
+                        }
+                    }
+                }
                 foundEntityIds.add(entity.id)
-                results.add(TrackedPest(entity, matchingSkull, entity.position()))
+                results.add(TrackedPest(entity, matchingMarker, entity.position()))
+            } else {
+                val entityName = entity.customName?.string
+                var hasMatchingStand: ArmorStand? = null
+                for (stand in pestArmorStands) {
+                    if (stand.distanceToSqr(entityPos) <= maxDistSq) {
+                        hasMatchingStand = stand
+                        break
+                    }
+                }
+                if (hasMatchingStand == null) {
+                    for (stand in generalArmorStands) {
+                        if (stand.distanceToSqr(entityPos) <= maxDistSq && isPestNameMatching(stand.customName?.string)) {
+                            hasMatchingStand = stand
+                            break
+                        }
+                    }
+                }
+
+                if (isPestNameMatching(entityName) || hasMatchingStand != null) {
+                    confirmedPestUuids.add(uuid)
+                    matchingMarker = hasMatchingStand
+                    foundEntityIds.add(entity.id)
+                    results.add(TrackedPest(entity, matchingMarker, entity.position()))
+                }
             }
         }
 

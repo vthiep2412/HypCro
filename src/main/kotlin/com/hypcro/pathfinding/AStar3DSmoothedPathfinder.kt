@@ -382,7 +382,7 @@ object AStar3DSmoothedPathfinder : IPathfinder {
                 if (ThetaStarPathfinder.hasLineOfSight(level, candidateA, candidateB)) {
                     // Check if shortcut dips too low to ground prematurely
                     val mid = candidateA.add(candidateB).scale(0.5)
-                    if (candidateB.distanceTo(destination) <= 1.8 || groundClearancePenalty(level, mid, destination) == 0.0) {
+                    if (candidateB.distanceTo(destination) <= 1.8 || calculateClearanceCost(level, mid, raw.first(), destination) == 0.0) {
                         furthest = check
                         break
                     }

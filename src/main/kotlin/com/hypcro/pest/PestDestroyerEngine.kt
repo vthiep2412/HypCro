@@ -317,7 +317,17 @@ object PestDestroyerEngine {
                         delay(1500L)
                         CommandHelper.sendCommand(client, "/plottp $bestTpPlot")
                         delay(1500L)
-                        CentralMovementCoordinator.flyTo(client, targetX = null, targetY = cruiseY, targetZ = null)
+                        val ascentSuccess = CentralMovementCoordinator.flyTo(client, targetX = null, targetY = cruiseY, targetZ = null)
+                        if (!ascentSuccess) {
+                            if (callerSource == PestCallerSource.WS_FARM_ENGINE || callerSource == PestCallerSource.VERTICAL_FARM_ENGINE) {
+                                com.hypcro.failsafe.HypcroWatchdog.potentialStaffCheck("Anti Stuck Active Too many times")
+                                stopPestDestroyer("Anti Stuck Failsafe")
+                            } else {
+                                HypCroMod.logWarn("Anti Stuck Active Too many times")
+                                stopPestDestroyer("Anti Stuck Limit")
+                            }
+                            return false
+                        }
                         return true
                     } else {
                         if (callerSource == PestCallerSource.WS_FARM_ENGINE || callerSource == PestCallerSource.VERTICAL_FARM_ENGINE) {
