@@ -103,9 +103,17 @@ data class PestDestroyerConfig(
 )
 
 @Serializable
+enum class BouncyBallMode {
+    CALM,
+    AGGRESSIVE,
+    SMART
+}
+
+@Serializable
 data class BouncyBallConfig(
     var autoMove: Boolean = true,
-    var aggressive: Boolean = false,
+    var mode: BouncyBallMode = BouncyBallMode.CALM,
+    var smartOffset: Double = 0.12,
     var targetBounces: Int = 40,
     var goBackToStart: Boolean = true,
     var visualizeTrajectory: Boolean = true,

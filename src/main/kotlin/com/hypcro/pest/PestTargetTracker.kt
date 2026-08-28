@@ -133,10 +133,12 @@ object PestTargetTracker {
                 if (isPestNameMatching(entityName)) {
                     confirmedPestUuids.add(uuid)
                     if (hasMatchingStand == null) {
+                        var closestGeneralDistSq = maxDistSq
                         for (stand in generalArmorStands) {
-                            if (stand.distanceToSqr(entityPos) <= maxDistSq) {
+                            val distSq = stand.distanceToSqr(entityPos)
+                            if (distSq <= closestGeneralDistSq) {
+                                closestGeneralDistSq = distSq
                                 hasMatchingStand = stand
-                                break
                             }
                         }
                     }

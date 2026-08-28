@@ -314,13 +314,32 @@ object AutoBouncyBall {
 
                     val landingPos = predictor.predictedLandingPos
                     if (landingPos != null) {
+                        val bouncyCfg = ConfigManager.config.bouncyBall
+                        val mode = bouncyCfg.mode
+                        val startPos = initialStartingPos
+
+                        // Smart Mode: Calculate optimal overshoot spot behind the landing position relative to start position
+                        val targetSpot = if (mode == com.hypcro.config.BouncyBallMode.SMART && startPos != null) {
+                            val dxStart = landingPos.x - startPos.x
+                            val dzStart = landingPos.z - startPos.z
+                            val distFromStart = sqrt(dxStart * dxStart + dzStart * dzStart)
+                            if (distFromStart >= 0.20) {
+                                val dirX = dxStart / distFromStart
+                                val dirZ = dzStart / distFromStart
+                                Vec3(landingPos.x + dirX * bouncyCfg.smartOffset, landingPos.y, landingPos.z + dirZ * bouncyCfg.smartOffset)
+                            } else {
+                                landingPos
+                            }
+                        } else {
+                            landingPos
+                        }
+
                         val pPos = livePlayer.position()
-                        val dx = landingPos.x - pPos.x
-                        val dz = landingPos.z - pPos.z
+                        val dx = targetSpot.x - pPos.x
+                        val dz = targetSpot.z - pPos.z
                         val dist = sqrt(dx * dx + dz * dz)
                         lastTargetDistance = dist
 
-                        val isAggressive = ConfigManager.config.bouncyBall.aggressive
                         val now = System.currentTimeMillis()
 
                         // Obstacle stuck detection (staff check failsafe if stuck for >800ms)
@@ -341,81 +360,137 @@ object AutoBouncyBall {
                             posAtStuckStart = null
                         }
 
-                        if (isAggressive) {
-                            // Aggressive Mode (50Hz immediate key response)
-                            if (dist < 0.10) {
-                                currentStatusText = "Positioned (Catches: $bounceCount)"
-                                MacroInputController.releaseAllMovement()
-                            } else {
-                                currentStatusText = "Moving to Spot (${String.format("%.2f", dist)}b)"
-
-                                val targetAngle = (atan2(dz, dx) * 180.0 / Math.PI).toFloat() - 90.0f
-                                val diff = Mth.wrapDegrees(targetAngle - livePlayer.yRot)
-
-                                val moveForward = diff in -67.5f..67.5f
-                                val moveBackward = diff > 112.5f || diff < -112.5f
-                                val moveLeft = diff in -157.5f..-22.5f
-                                val moveRight = diff in 22.5f..157.5f
-
-                                if (moveForward) MacroInputController.holdW() else if (moveBackward) MacroInputController.holdS() else {
-                                    MacroInputController.releaseW()
-                                    MacroInputController.releaseS()
-                                }
-
-                                if (moveLeft) MacroInputController.holdA() else if (moveRight) MacroInputController.holdD() else {
-                                    MacroInputController.releaseStrafe()
-                                }
-
-                                if (moveForward && dist > 2.5) {
-                                    MacroInputController.holdSprint()
+                        when (mode) {
+                            com.hypcro.config.BouncyBallMode.AGGRESSIVE -> {
+                                // Aggressive Mode (50Hz immediate key response)
+                                if (dist < 0.10) {
+                                    currentStatusText = "Positioned (Catches: $bounceCount)"
+                                    MacroInputController.releaseAllMovement()
                                 } else {
-                                    MacroInputController.releaseSprint()
-                                }
-                            }
-                        } else {
-                            // Smooth / Humanized Mode (Debounce, 25 deg hysteresis, coasting)
-                            if (dist < 0.18) {
-                                currentStatusText = "Positioned (Catches: $bounceCount)"
-                                MacroInputController.releaseAllMovement()
-                                currentForwardKey = 0
-                                currentStrafeKey = 0
-                            } else {
-                                currentStatusText = "Moving to Spot (${String.format("%.2f", dist)}b)"
-                                val targetAngle = (atan2(dz, dx) * 180.0 / Math.PI).toFloat() - 90.0f
-                                val diff = Mth.wrapDegrees(targetAngle - livePlayer.yRot)
+                                    currentStatusText = "Moving to Spot (${String.format("%.2f", dist)}b)"
 
-                                // Minimum 120ms key hold debounce
-                                if (now - lastKeySwitchMs >= 120L) {
+                                    val targetAngle = (atan2(dz, dx) * 180.0 / Math.PI).toFloat() - 90.0f
+                                    val diff = Mth.wrapDegrees(targetAngle - livePlayer.yRot)
+
                                     val moveForward = diff in -67.5f..67.5f
                                     val moveBackward = diff > 112.5f || diff < -112.5f
                                     val moveLeft = diff in -157.5f..-22.5f
                                     val moveRight = diff in 22.5f..157.5f
 
-                                    val newForward = if (moveForward) 1 else if (moveBackward) -1 else 0
-                                    val newStrafe = if (moveLeft) -1 else if (moveRight) 1 else 0
+                                    if (moveForward) MacroInputController.holdW() else if (moveBackward) MacroInputController.holdS() else {
+                                        MacroInputController.releaseW()
+                                        MacroInputController.releaseS()
+                                    }
 
-                                    if (newForward != currentForwardKey || newStrafe != currentStrafeKey) {
-                                        currentForwardKey = newForward
-                                        currentStrafeKey = newStrafe
-                                        lastKeySwitchMs = now
+                                    if (moveLeft) MacroInputController.holdA() else if (moveRight) MacroInputController.holdD() else {
+                                        MacroInputController.releaseStrafe()
+                                    }
 
-                                        if (newForward == 1) MacroInputController.holdW()
-                                        else if (newForward == -1) MacroInputController.holdS()
-                                        else {
-                                            MacroInputController.releaseW()
-                                            MacroInputController.releaseS()
-                                        }
-
-                                        if (newStrafe == -1) MacroInputController.holdA()
-                                        else if (newStrafe == 1) MacroInputController.holdD()
-                                        else MacroInputController.releaseStrafe()
+                                    if (moveForward && dist > 2.5) {
+                                        MacroInputController.holdSprint()
+                                    } else {
+                                        MacroInputController.releaseSprint()
                                     }
                                 }
-
-                                if (currentForwardKey == 1 && dist > 3.0) {
-                                    MacroInputController.holdSprint()
+                            }
+                            com.hypcro.config.BouncyBallMode.CALM -> {
+                                // Calm / Relaxed Mode (120ms debounce)
+                                if (dist < 0.18) {
+                                    currentStatusText = "Positioned (Catches: $bounceCount)"
+                                    MacroInputController.releaseAllMovement()
+                                    currentForwardKey = 0
+                                    currentStrafeKey = 0
                                 } else {
-                                    MacroInputController.releaseSprint()
+                                    currentStatusText = "Moving to Spot (${String.format("%.2f", dist)}b)"
+                                    val targetAngle = (atan2(dz, dx) * 180.0 / Math.PI).toFloat() - 90.0f
+                                    val diff = Mth.wrapDegrees(targetAngle - livePlayer.yRot)
+
+                                    // Minimum 120ms key hold debounce
+                                    if (now - lastKeySwitchMs >= 120L) {
+                                        val moveForward = diff in -67.5f..67.5f
+                                        val moveBackward = diff > 112.5f || diff < -112.5f
+                                        val moveLeft = diff in -157.5f..-22.5f
+                                        val moveRight = diff in 22.5f..157.5f
+
+                                        val newForward = if (moveForward) 1 else if (moveBackward) -1 else 0
+                                        val newStrafe = if (moveLeft) -1 else if (moveRight) 1 else 0
+
+                                        if (newForward != currentForwardKey || newStrafe != currentStrafeKey) {
+                                            currentForwardKey = newForward
+                                            currentStrafeKey = newStrafe
+                                            lastKeySwitchMs = now
+
+                                            if (newForward == 1) MacroInputController.holdW()
+                                            else if (newForward == -1) MacroInputController.holdS()
+                                            else {
+                                                MacroInputController.releaseW()
+                                                MacroInputController.releaseS()
+                                            }
+
+                                            if (newStrafe == -1) MacroInputController.holdA()
+                                            else if (newStrafe == 1) MacroInputController.holdD()
+                                            else MacroInputController.releaseStrafe()
+                                        }
+                                    }
+
+                                    if (currentForwardKey == 1 && dist > 3.0) {
+                                        MacroInputController.holdSprint()
+                                    } else {
+                                        MacroInputController.releaseSprint()
+                                    }
+                                }
+                            }
+                            com.hypcro.config.BouncyBallMode.SMART -> {
+                                // Smart Mode (Calm 100ms debounce with directional hysteresis and subtle 0.12b overshoot centering)
+                                if (dist < 0.18) {
+                                    currentStatusText = "Positioned Smart (Catches: $bounceCount)"
+                                    MacroInputController.releaseAllMovement()
+                                    currentForwardKey = 0
+                                    currentStrafeKey = 0
+                                } else {
+                                    currentStatusText = "Smart Positioning (${String.format("%.2f", dist)}b)"
+                                    val targetAngle = (atan2(dz, dx) * 180.0 / Math.PI).toFloat() - 90.0f
+                                    val diff = Mth.wrapDegrees(targetAngle - livePlayer.yRot)
+
+                                    if (now - lastKeySwitchMs >= 100L) {
+                                        val fwdThreshold = if (currentForwardKey == 1) 73.5f else 61.5f
+                                        val bwdThreshold = if (currentForwardKey == -1) 106.5f else 118.5f
+                                        val leftMin = if (currentStrafeKey == -1) -163.5f else -151.5f
+                                        val leftMax = if (currentStrafeKey == -1) -16.5f else -28.5f
+                                        val rightMin = if (currentStrafeKey == 1) 16.5f else 28.5f
+                                        val rightMax = if (currentStrafeKey == 1) 163.5f else 151.5f
+
+                                        val moveForward = diff in -fwdThreshold..fwdThreshold
+                                        val moveBackward = diff > bwdThreshold || diff < -bwdThreshold
+                                        val moveLeft = diff in leftMin..leftMax
+                                        val moveRight = diff in rightMin..rightMax
+
+                                        val newForward = if (moveForward) 1 else if (moveBackward) -1 else 0
+                                        val newStrafe = if (moveLeft) -1 else if (moveRight) 1 else 0
+
+                                        if (newForward != currentForwardKey || newStrafe != currentStrafeKey) {
+                                            currentForwardKey = newForward
+                                            currentStrafeKey = newStrafe
+                                            lastKeySwitchMs = now
+
+                                            if (newForward == 1) MacroInputController.holdW()
+                                            else if (newForward == -1) MacroInputController.holdS()
+                                            else {
+                                                MacroInputController.releaseW()
+                                                MacroInputController.releaseS()
+                                            }
+
+                                            if (newStrafe == -1) MacroInputController.holdA()
+                                            else if (newStrafe == 1) MacroInputController.holdD()
+                                            else MacroInputController.releaseStrafe()
+                                        }
+                                    }
+
+                                    if (currentForwardKey == 1 && dist > 3.2) {
+                                        MacroInputController.holdSprint()
+                                    } else {
+                                        MacroInputController.releaseSprint()
+                                    }
                                 }
                             }
                         }
@@ -493,7 +568,7 @@ object AutoBouncyBall {
             }
         }
 
-        // 2. Render Landing Spot Box
+        // 2. Render Landing Spot Box & Smart Target
         if (cfg.visualizeLandingBox && landing != null) {
             val pPos = player.position()
             val dist = sqrt((landing.x - pPos.x) * (landing.x - pPos.x) + (landing.z - pPos.z) * (landing.z - pPos.z))
@@ -510,6 +585,34 @@ object AutoBouncyBall {
                 landing.x + 0.3, landing.y + 0.5, landing.z + 0.3
             )
             Gizmos.cuboid(aabb, boxStyle).setAlwaysOnTop()
+
+            // In SMART mode, also render the green target overshoot spot and return vector to origin
+            val startPos = initialStartingPos
+            if (cfg.mode == com.hypcro.config.BouncyBallMode.SMART && startPos != null) {
+                val dxStart = landing.x - startPos.x
+                val dzStart = landing.z - startPos.z
+                val distFromStart = sqrt(dxStart * dxStart + dzStart * dzStart)
+                if (distFromStart >= 0.20) {
+                    val dirX = dxStart / distFromStart
+                    val dirZ = dzStart / distFromStart
+                    val smartTarget = Vec3(landing.x + dirX * cfg.smartOffset, landing.y, landing.z + dirZ * cfg.smartOffset)
+
+                    // Render Green overshoot target box
+                    val targetStyle = GizmoStyle.strokeAndFill(
+                        ARGB.color(255, 16, 185, 129), 2.0f,
+                        ARGB.color(90, 16, 185, 129)
+                    )
+                    val targetAABB = AABB(
+                        smartTarget.x - 0.22, smartTarget.y - 0.05, smartTarget.z - 0.22,
+                        smartTarget.x + 0.22, smartTarget.y + 0.4, smartTarget.z + 0.22
+                    )
+                    Gizmos.cuboid(targetAABB, targetStyle).setAlwaysOnTop()
+
+                    // Render Return direction line from target back to start origin
+                    val returnLineColor = ARGB.color(220, 217, 119, 6) // Gold/Amber vector
+                    Gizmos.line(smartTarget, startPos, returnLineColor, 2.0f)
+                }
+            }
         }
     }
 

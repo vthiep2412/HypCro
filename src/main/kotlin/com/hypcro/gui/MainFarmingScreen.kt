@@ -141,7 +141,8 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
     private lateinit var derpyPill: PillToggleWidget
 
     // Misc General Config Widgets
-    private lateinit var bouncyAggressivePill: PillToggleWidget
+    private lateinit var bouncyModePill: PillToggleWidget
+    private lateinit var bouncyModeInfo: InfoIconWidget
     private lateinit var targetBouncesSlider: SingleSliderWidget
     private lateinit var targetBouncesInfo: InfoIconWidget
     private lateinit var goBackToStartPill: PillToggleWidget
@@ -646,14 +647,30 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         // Misc Config Widgets
         val bouncyCfg = ConfigManager.config.bouncyBall
 
-        bouncyAggressivePill = PillToggleWidget(
-            cardX + 220, cardY + 20, 100, 16,
-            listOf("OFF", "ON"), if (bouncyCfg.aggressive) 1 else 0
+        bouncyModeInfo = InfoIconWidget(
+            cardX + 12 + font.width(Component.literal("Movement Mode:")) + 6,
+            cardY + 22,
+            "§eBouncy Ball Mode\n§bCalm§7: Relaxed humanized strafe with debounce.\n§cAggressive§7: Fast 50Hz instant strafe.\n§aSmart§7: Overshoots behind the ball to steer it back to center."
+        )
+        addRenderableWidget(bouncyModeInfo)
+
+        val bouncyModeIdx = when (bouncyCfg.mode) {
+            com.hypcro.config.BouncyBallMode.CALM -> 0
+            com.hypcro.config.BouncyBallMode.AGGRESSIVE -> 1
+            com.hypcro.config.BouncyBallMode.SMART -> 2
+        }
+        bouncyModePill = PillToggleWidget(
+            cardX + 140, cardY + 20, 180, 16,
+            listOf("CALM", "AGGRESSIVE", "SMART"), bouncyModeIdx
         ) { idx ->
-            ConfigManager.config.bouncyBall.aggressive = (idx == 1)
+            ConfigManager.config.bouncyBall.mode = when (idx) {
+                0 -> com.hypcro.config.BouncyBallMode.CALM
+                1 -> com.hypcro.config.BouncyBallMode.AGGRESSIVE
+                else -> com.hypcro.config.BouncyBallMode.SMART
+            }
             ConfigManager.save()
         }
-        addRenderableWidget(bouncyAggressivePill)
+        addRenderableWidget(bouncyModePill)
 
         targetBouncesInfo = InfoIconWidget(
             cardX + 12 + font.width(Component.literal("Target Bounces:")) + 6,
@@ -806,7 +823,8 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         derpyPill.y = pdY + 132
 
         // Misc Config Widgets
-        bouncyAggressivePill.y = effectiveCardY + 20
+        bouncyModeInfo.y = effectiveCardY + 22
+        bouncyModePill.y = effectiveCardY + 20
         targetBouncesInfo.y = effectiveCardY + 42
         targetBouncesSlider.y = effectiveCardY + 40
         goBackToStartInfo.y = effectiveCardY + 64
@@ -931,7 +949,8 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         derpyPill.visible = isPesterConfig
 
         // Misc - General Config
-        bouncyAggressivePill.visible = isMiscConfig
+        bouncyModeInfo.visible = isMiscConfig
+        bouncyModePill.visible = isMiscConfig
         targetBouncesSlider.visible = isMiscConfig
         targetBouncesInfo.visible = isMiscConfig
         goBackToStartPill.visible = isMiscConfig
@@ -1206,7 +1225,7 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         graphics.fill(cardX, sec1Y, cardX + cardW, sec1Y + sec1H, 0xFF1E293B.toInt())
         graphics.fill(cardX, sec1Y, cardX + cardW, sec1Y + 18, 0xFF334155.toInt())
         graphics.text(font, "§b§lBouncy Beach Ball", cardX + 10, sec1Y + 5, 0xFF38BDF8.toInt())
-        graphics.text(font, "Aggressive Mode:", cardX + 12, sec1Y + 25, 0xFF94A3B8.toInt())
+        graphics.text(font, "Movement Mode:", cardX + 12, sec1Y + 25, 0xFF94A3B8.toInt())
         graphics.text(font, "Target Bounces:", cardX + 12, sec1Y + 45, 0xFF94A3B8.toInt())
         graphics.text(font, "Go back to Start:", cardX + 12, sec1Y + 67, 0xFF94A3B8.toInt())
     }

@@ -7,7 +7,7 @@
     
 - [x] Add watchdog bps check
 
-- [ ] Add smart mode and remake the type for Bouncy balls in misc
+- [x] Add smart mode and remake the type for Bouncy balls in misc
     - Change to Mode: [Aggresive | Calm | Smart]
     - In smart it will try to go overshoot in the best angle and position 
       to basicaly move the ball back to where the player start, to keep it in the center and bounce much longer
