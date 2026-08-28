@@ -63,14 +63,17 @@ object HypCroMod : ClientModInitializer {
             }
         }
 
+        net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.DISCONNECT.register { _, _ ->
+            com.hypcro.pest.PestTargetTracker.clearSessionMemory()
+            com.hypcro.util.CropBpsTracker.resetSession()
+        }
+
         ClientTickEvents.END_CLIENT_TICK.register { client ->
-            // Reset Free Look, pest memory, and crop session on disconnect / world unload
+            // Reset Free Look on disconnect / world unload
             if (client.level == null || client.player == null) {
                 if (com.hypcro.camera.FreeLookManager.isFreeLookActive) {
                     com.hypcro.camera.FreeLookManager.reset(client)
                 }
-                com.hypcro.pest.PestTargetTracker.clearSessionMemory()
-                com.hypcro.util.CropBpsTracker.resetSession()
             } else {
                 com.hypcro.util.CropBpsTracker.onClientTick(client)
             }

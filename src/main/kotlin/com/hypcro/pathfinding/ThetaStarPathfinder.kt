@@ -745,11 +745,13 @@ object ThetaStarPathfinder : IPathfinder {
         start: Vec3,
         dest: Vec3
     ): Double {
-        val distToGoal = dest.distanceTo(Vec3(px, py, pz))
-        val distToStart = start.distanceTo(Vec3(px, py, pz))
+        val cand = Vec3(px, py, pz)
+        val distToGoal = dest.distanceTo(cand)
+        val distToStart = start.distanceTo(cand)
 
-        // When within 6 blocks of endpoints, allow smooth takeoff and landing
-        if (distToGoal < 6.0 || distToStart < 6.0) {
+        // When within 3.0 blocks of endpoints, taper clearance penalty to allow smooth takeoff and landing
+        val taper = min(1.0, min(distToGoal, distToStart) / 3.0)
+        if (taper <= 0.0) {
             return 0.0
         }
 
@@ -757,22 +759,52 @@ object ThetaStarPathfinder : IPathfinder {
 
         // 1. Cruise altitude bias (Y=85)
         if (py < CRUISE_ALTITUDE) {
-            cost += (CRUISE_ALTITUDE - py) * 0.18
+            cost += (CRUISE_ALTITUDE - py) * 0.18 * taper
         } else if (py > CRUISE_ALTITUDE + 10.0) {
-            cost += (py - (CRUISE_ALTITUDE + 10.0)) * 0.25
+            cost += (py - (CRUISE_ALTITUDE + 10.0)) * 0.25 * taper
         }
 
-        // 2. Ground obstacle avoidance penalty
+        // 2. Obstacle Proximity Cushion (Prefer open space over wall-hugging)
         val mutablePos = mutableBlockPos.get()
-        val floorBX = floor(px).toInt()
+        val baseBX = floor(px).toInt()
+        val baseBY = floor(py).toInt()
+        val baseBZ = floor(pz).toInt()
+
+        var obstacleProximityCount = 0
+
+        // Check horizontal & vertical adjacent blocks (~1.2b shell)
+        for (dx in -1..1) {
+            for (dz in -1..1) {
+                val bx = baseBX + dx
+                val bz = baseBZ + dz
+                if (!level.hasChunk(bx shr 4, bz shr 4)) continue
+
+                for (dy in 0..2) {
+                    val by = baseBY + dy
+                    mutablePos.set(bx, by, bz)
+                    val state = level.getBlockState(mutablePos)
+                    if (!state.isAir) {
+                        val shape = state.getCollisionShape(level, mutablePos)
+                        if (!shape.isEmpty) {
+                            obstacleProximityCount++
+                        }
+                    }
+                }
+            }
+        }
+
+        // Ground obstacle avoidance directly beneath
         val floorBY = floor(py - 0.70).toInt()
-        val floorBZ = floor(pz).toInt()
-        if (level.hasChunk(floorBX shr 4, floorBZ shr 4)) {
-            mutablePos.set(floorBX, floorBY, floorBZ)
+        if (level.hasChunk(baseBX shr 4, baseBZ shr 4)) {
+            mutablePos.set(baseBX, floorBY, baseBZ)
             val state = level.getBlockState(mutablePos)
             if (!state.isAir && !state.getCollisionShape(level, mutablePos).isEmpty) {
-                cost += 2.0
+                cost += 2.0 * taper
             }
+        }
+
+        if (obstacleProximityCount > 0) {
+            cost += (obstacleProximityCount * 0.8) * taper
         }
 
         return cost

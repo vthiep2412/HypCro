@@ -177,7 +177,7 @@ object AStar3DSmoothedPathfinder : IPathfinder {
 
                 PathfindingVisualizer.addDebugBranch(current.pos, neighborPos, PathfindingVisualizer.SegmentType.GREEN_REACHABLE)
 
-                val clearancePenalty = groundClearancePenalty(level, neighborPos, targetDest)
+                val clearancePenalty = calculateClearanceCost(level, neighborPos, effectiveStart, targetDest)
                 val stepCost = current.pos.distanceTo(neighborPos) + clearancePenalty
                 val newGCost = current.gCost + stepCost
                 val hCost = neighborPos.distanceTo(targetGoal)
@@ -262,16 +262,46 @@ object AStar3DSmoothedPathfinder : IPathfinder {
         return true
     }
 
-    fun groundClearancePenalty(level: Level, pos: Vec3, destination: Vec3): Double {
-        if (pos.distanceTo(destination) <= 1.8) return 0.0
-        val bp = BlockPos(floor(pos.x).toInt(), floor(pos.y - 0.7).toInt(), floor(pos.z).toInt())
-        if (level.hasChunk(bp.x shr 4, bp.z shr 4)) {
-            val state = level.getBlockState(bp)
-            if (!state.isAir && !state.getCollisionShape(level, bp).isEmpty) {
-                return 1.5
+    fun calculateClearanceCost(level: Level, pos: Vec3, start: Vec3, destination: Vec3): Double {
+        val distToGoal = pos.distanceTo(destination)
+        val distToStart = pos.distanceTo(start)
+        val taper = min(1.0, min(distToGoal, distToStart) / 3.0)
+        if (taper <= 0.0) return 0.0
+
+        var cost = 0.0
+        val baseBX = floor(pos.x).toInt()
+        val baseBY = floor(pos.y).toInt()
+        val baseBZ = floor(pos.z).toInt()
+
+        var obstacleProximityCount = 0
+        for (dx in -1..1) {
+            for (dz in -1..1) {
+                val bx = baseBX + dx
+                val bz = baseBZ + dz
+                if (!level.hasChunk(bx shr 4, bz shr 4)) continue
+                for (dy in 0..2) {
+                    val bp = BlockPos(bx, baseBY + dy, bz)
+                    val state = level.getBlockState(bp)
+                    if (!state.isAir && !state.getCollisionShape(level, bp).isEmpty) {
+                        obstacleProximityCount++
+                    }
+                }
             }
         }
-        return 0.0
+
+        val groundBP = BlockPos(baseBX, floor(pos.y - 0.7).toInt(), baseBZ)
+        if (level.hasChunk(groundBP.x shr 4, groundBP.z shr 4)) {
+            val state = level.getBlockState(groundBP)
+            if (!state.isAir && !state.getCollisionShape(level, groundBP).isEmpty) {
+                cost += 2.0 * taper
+            }
+        }
+
+        if (obstacleProximityCount > 0) {
+            cost += (obstacleProximityCount * 0.8) * taper
+        }
+
+        return cost
     }
 
     private fun getNeighborOffsets(step: Double): Array<Vec3> {

@@ -22,6 +22,32 @@ public class ClientPacketListenerMixin {
         });
     }
 
+    @Inject(method = "handleRespawn", at = @At("HEAD"))
+    private void onHandleRespawn(net.minecraft.network.protocol.game.ClientboundRespawnPacket packet, CallbackInfo ci) {
+        Minecraft client = Minecraft.getInstance();
+        client.execute(() -> {
+            com.hypcro.util.CropBpsTracker.INSTANCE.resetSession();
+            com.hypcro.pest.PestTargetTracker.INSTANCE.clearSessionMemory();
+            if (com.hypcro.farming.MacroController.INSTANCE.isAnyMacroActive() &&
+                !com.hypcro.pest.PestDestroyerEngine.INSTANCE.isRunning()) {
+                com.hypcro.failsafe.HypcroWatchdog.INSTANCE.potentialStaffCheck("Server Transfer Detected (Staff / Reboot / Hub)");
+            }
+        });
+    }
+
+    @Inject(method = "handleLogin", at = @At("HEAD"))
+    private void onHandleLogin(net.minecraft.network.protocol.game.ClientboundLoginPacket packet, CallbackInfo ci) {
+        Minecraft client = Minecraft.getInstance();
+        client.execute(() -> {
+            com.hypcro.util.CropBpsTracker.INSTANCE.resetSession();
+            com.hypcro.pest.PestTargetTracker.INSTANCE.clearSessionMemory();
+            if (com.hypcro.farming.MacroController.INSTANCE.isAnyMacroActive() &&
+                !com.hypcro.pest.PestDestroyerEngine.INSTANCE.isRunning()) {
+                com.hypcro.failsafe.HypcroWatchdog.INSTANCE.potentialStaffCheck("Server Transfer Detected (Staff / Reboot / Hub)");
+            }
+        });
+    }
+
     @Inject(method = "sendChat", at = @At("HEAD"), cancellable = true)
     private void onSendChat(String message, CallbackInfo ci) {
         boolean blockChat = com.hypcro.config.ConfigManager.INSTANCE.getConfig().getGeneralConfig().getInputLock().getBlockChatAndCommands();

@@ -44,9 +44,11 @@ class HudEditScreen(private val parentScreen: Screen?) : Screen(Component.litera
 
         addRenderableWidget(
             Button.builder(Component.literal("Reset Position")) {
-                currentX = (width - scaledW - 10f).coerceAtLeast(0f)
-                currentY = (height - scaledH - 10f).coerceAtLeast(0f)
                 currentScale = 1.0f
+                val resetW = cardDim.first * currentScale
+                val resetH = cardDim.second * currentScale
+                currentX = (width - resetW - 10f).coerceAtLeast(0f)
+                currentY = (height - resetH - 10f).coerceAtLeast(0f)
                 saveConfig()
             }.bounds(width / 2 - 110, height - 32, 100, 20).build()
         )

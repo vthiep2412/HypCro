@@ -92,7 +92,6 @@ object HypcroWatchdog {
         val watchdogConfig = com.hypcro.config.ConfigManager.config.generalConfig.watchdog
         
         if (player == null || level == null) {
-            potentialStaffCheck("Server Change or Disconnect Detected!")
             return
         }
 

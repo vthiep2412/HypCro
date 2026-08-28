@@ -233,6 +233,7 @@ object AutoBouncyBall {
 
             // 2. Search for existing ball ArmorStand in vicinity
             val existingBall = findActiveBeachBall(client, ballTexture)
+            var newlyPlaced = false
             if (existingBall == null) {
                 // Point downward humanly using GCD quantization before placing
                 currentStatusText = "Placing Ball..."
@@ -242,7 +243,7 @@ object AutoBouncyBall {
                 MacroInputController.holdUseItem()
                 delay(60L)
                 MacroInputController.releaseUseItem()
-                ballCount++
+                newlyPlaced = true
                 delay(350L)
             }
 
@@ -258,6 +259,10 @@ object AutoBouncyBall {
                 currentStatusText = "Waiting for Ball..."
                 delay(200L)
                 continue
+            }
+
+            if (newlyPlaced) {
+                ballCount++
             }
 
             activeBallEntityId = currentBall.id

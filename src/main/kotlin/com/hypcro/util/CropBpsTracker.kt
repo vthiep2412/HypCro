@@ -10,7 +10,7 @@ import kotlin.math.sqrt
 
 object CropBpsTracker {
 
-    private const val SESSION_IDLE_TIMEOUT_MS = 4 * 60 * 1000L // 4 minutes
+    private const val SESSION_IDLE_TIMEOUT_MS = 5 * 60 * 1000L // 5 minutes
     private const val AVG_WINDOW_MS = 5 * 60 * 1000L // 5 minutes rolling window for average BPS
     private const val AVG_POLL_INTERVAL_MS = 500L // 0.5s refresh polling for average BPS only
 
@@ -168,16 +168,20 @@ object CropBpsTracker {
     fun onClientTick(client: Minecraft) {
         val now = System.currentTimeMillis()
 
-        // Auto reset if player disconnected
         if (client.level == null || client.player == null) {
-            if (lastActiveTimeMs > 0L || isTracking) {
-                resetSession()
-            }
             return
         }
 
-        // Auto reset if idle for over 4 minutes
-        if (!isTracking && lastActiveTimeMs > 0L && (now - lastActiveTimeMs) > SESSION_IDLE_TIMEOUT_MS) {
+        val isAutoPesterRunning = com.hypcro.pest.PestDestroyerEngine.isRunning &&
+            com.hypcro.pest.PestDestroyerEngine.callerSource != com.hypcro.pest.PestCallerSource.MANUAL_USER
+
+        // If auto pester is actively running in background, keep the idle timer refreshed so 5-min timeout does not expire
+        if (isAutoPesterRunning) {
+            lastActiveTimeMs = now
+        }
+
+        // Auto reset if idle for over 5 minutes (and not currently running an auto pester cycle)
+        if (!isTracking && !isAutoPesterRunning && lastActiveTimeMs > 0L && (now - lastActiveTimeMs) > SESSION_IDLE_TIMEOUT_MS) {
             resetSession()
             return
         }

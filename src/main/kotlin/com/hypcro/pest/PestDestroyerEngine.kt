@@ -304,6 +304,34 @@ object PestDestroyerEngine {
             val cruiseY = Random.nextDouble(81.0, 84.0)
 
             var alreadyTeleported = false
+            var tpRetried = false
+
+            suspend fun handleStuckRecovery(contextMsg: String): Boolean {
+                if (CentralMovementCoordinator.consecutiveStuckCount >= 5) {
+                    if (bestTpPlot != null && targetPlotId != 0 && !tpRetried) {
+                        HypCroMod.logWarn("Anti-stuck triggered 5 times in $contextMsg! Retrying /plottp $bestTpPlot...")
+                        tpRetried = true
+                        alreadyTeleported = true
+                        MacroInputController.releaseAllMovement()
+                        CentralMovementCoordinator.resetStuckCount()
+                        delay(1500L)
+                        CommandHelper.sendCommand(client, "/plottp $bestTpPlot")
+                        delay(1500L)
+                        CentralMovementCoordinator.flyTo(client, targetX = null, targetY = cruiseY, targetZ = null)
+                        return true
+                    } else {
+                        if (callerSource == PestCallerSource.WS_FARM_ENGINE || callerSource == PestCallerSource.VERTICAL_FARM_ENGINE) {
+                            com.hypcro.failsafe.HypcroWatchdog.potentialStaffCheck("Anti Stuck Active Too many times")
+                            stopPestDestroyer("Anti Stuck Failsafe")
+                        } else {
+                            HypCroMod.logWarn("Anti Stuck Active Too many times")
+                            stopPestDestroyer("Anti Stuck Limit")
+                        }
+                        return false
+                    }
+                }
+                return true
+            }
 
             // Only perform high-altitude ascent if crossing long distances (> 30 blocks) between different plots
             if (initialDistToCenter > 30.0) {
@@ -317,7 +345,8 @@ object PestDestroyerEngine {
                     val hasStraightClimb = ThetaStarPathfinder.hasLineOfSight(level, startPos, ascendTarget)
 
                     if (hasStraightClimb) {
-                        CentralMovementCoordinator.flyTo(client, targetX = startPos.x, targetY = cruiseY, targetZ = startPos.z)
+                        val climbSuccess = CentralMovementCoordinator.flyTo(client, targetX = startPos.x, targetY = cruiseY, targetZ = startPos.z)
+                        if (!climbSuccess && !handleStuckRecovery("Ascent Climb")) return
                     } else {
                         val pathfinder = CentralMovementCoordinator.getActivePathfinder()
                         val waypoints = withTimeoutOrNull(3000L) {
@@ -333,14 +362,17 @@ object PestDestroyerEngine {
                                 CommandHelper.sendCommand(client, "/plottp $bestTpPlot")
                                 alreadyTeleported = true
                                 delay(1500L)
-                                CentralMovementCoordinator.flyTo(client, targetX = null, targetY = cruiseY, targetZ = null)
+                                val postTpAscent = CentralMovementCoordinator.flyTo(client, targetX = null, targetY = cruiseY, targetZ = null)
+                                if (!postTpAscent && !handleStuckRecovery("Post-TP Ascent")) return
                             }
                         } else {
-                            CentralMovementCoordinator.flyTo(client, targetX = startPos.x, targetY = cruiseY, targetZ = startPos.z)
+                            val climbSuccess = CentralMovementCoordinator.flyTo(client, targetX = startPos.x, targetY = cruiseY, targetZ = startPos.z)
+                            if (!climbSuccess && !handleStuckRecovery("Ascent Flight")) return
                         }
                     }
                 } else if (currentY < cruiseY - 1.0) {
-                    CentralMovementCoordinator.flyTo(client, targetX = null, targetY = cruiseY, targetZ = null)
+                    val ascendSuccess = CentralMovementCoordinator.flyTo(client, targetX = null, targetY = cruiseY, targetZ = null)
+                    if (!ascendSuccess && !handleStuckRecovery("Altitude Adjust")) return
                 }
 
                 // High altitude or post-ascent: Evaluate direct flight vs teleport only if not already teleported
@@ -361,14 +393,16 @@ object PestDestroyerEngine {
                         alreadyTeleported = true
                         delay(1500L)
                         // Ascend after teleport to clear plot structures
-                        CentralMovementCoordinator.flyTo(client, targetX = null, targetY = cruiseY, targetZ = null)
+                        val postTpAscent = CentralMovementCoordinator.flyTo(client, targetX = null, targetY = cruiseY, targetZ = null)
+                        if (!postTpAscent && !handleStuckRecovery("Post-TP Ascent")) return
                     }
                 }
 
                 // Ensure player is at cruise altitude before cross-island flight
                 val curY = client.player?.position()?.y ?: cruiseY
                 if (curY < cruiseY - 1.0) {
-                    CentralMovementCoordinator.flyTo(client, targetX = null, targetY = cruiseY, targetZ = null)
+                    val ascendSuccess = CentralMovementCoordinator.flyTo(client, targetX = null, targetY = cruiseY, targetZ = null)
+                    if (!ascendSuccess && !handleStuckRecovery("Cruise Altitude Alignment")) return
                 }
             }
 
@@ -379,17 +413,22 @@ object PestDestroyerEngine {
             for (attempt in 1..2) {
                 if (!isRunning || CentralMovementCoordinator.isAbortTriggered(client)) break
 
-                // Verify cruise altitude (must re-ascend if Y <= 79.0)
+                // Verify cruise altitude before center navigation
                 val currentY = client.player?.position()?.y ?: cruiseY
-                if (currentY <= 79.0) {
+                if (currentY < cruiseY - 1.0) {
                     HypCroMod.log("Ascending to cruise altitude (current Y=${currentY.toInt()}, target Y=${cruiseY.toInt()})...")
-                    CentralMovementCoordinator.flyTo(client, targetX = null, targetY = cruiseY, targetZ = null)
+                    val ascendSuccess = CentralMovementCoordinator.flyTo(client, targetX = null, targetY = cruiseY, targetZ = null)
+                    if (!ascendSuccess && !handleStuckRecovery("Center Pre-Ascent")) return
                 }
 
                 // Fly directly towards plot center X/Z at cruise altitude
-                CentralMovementCoordinator.flyTo(client, targetX = center.x, targetY = null, targetZ = center.z)
+                val flyCenterSuccess = CentralMovementCoordinator.flyTo(client, targetX = center.x, targetY = null, targetZ = center.z)
                 MacroInputController.releaseAllMovement()
                 delay(200L)
+
+                if (!flyCenterSuccess && CentralMovementCoordinator.consecutiveStuckCount >= 5) {
+                    if (!handleStuckRecovery("Plot Center Transit")) return
+                }
 
                 // Verify scoreboard at plot center
                 val lines = PestTabReader.readScoreboardLines(client)
@@ -493,13 +532,6 @@ object PestDestroyerEngine {
                     }
                 }
 
-                if (isPreservedPlot && nearbyPests.size <= 1) {
-                    HypCroMod.log("Preserved plot #$targetPlotId has only 1 pest visible. Preserving!")
-                    val randomRestSlot = Random.nextInt(4, 7)
-                    client.execute { client.player?.inventory?.selectedSlot = randomRestSlot }
-                    break
-                }
-
                 // Target closest pest
                 val targetPest = nearbyPests.minByOrNull { it.position.distanceTo(curPos) } ?: break
                 val targetPos = targetPest.position
@@ -538,7 +570,7 @@ object PestDestroyerEngine {
                 )
 
                 if (curPos.distanceTo(safeAttackPos) > 1.5) {
-                    CentralMovementCoordinator.flyTo(
+                    val flyCombatSuccess = CentralMovementCoordinator.flyTo(
                         client,
                         targetX = safeAttackPos.x,
                         targetY = safeAttackPos.y,
@@ -546,6 +578,10 @@ object PestDestroyerEngine {
                     )
                     MacroInputController.releaseAllMovement()
                     delay(60L)
+
+                    if (!flyCombatSuccess && CentralMovementCoordinator.consecutiveStuckCount >= 5) {
+                        if (!handleStuckRecovery("Combat Position Flight")) return
+                    }
                 }
 
                 val shootingPlayer = client.player ?: break

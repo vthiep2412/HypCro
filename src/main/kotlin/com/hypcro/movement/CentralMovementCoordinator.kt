@@ -44,6 +44,14 @@ object CentralMovementCoordinator {
     @Volatile
     var targetGuidancePitch: Float = 0.0f
 
+    @Volatile
+    var consecutiveStuckCount: Int = 0
+        private set
+
+    fun resetStuckCount() {
+        consecutiveStuckCount = 0
+    }
+
     fun stopNavigation() {
         isNavigationInterrupted = true
         isNavigating = false
@@ -222,7 +230,13 @@ object CentralMovementCoordinator {
                     val moved = pos.distanceTo(lastStuckCheckPos)
                     if (moved < 0.25) {
                         routeRecalcs++
-                        HypCroMod.logWarn("Stuck detected (moved only ${String.format("%.2f", moved)}b in 350ms) - recomputing route (Attempt $routeRecalcs)")
+                        consecutiveStuckCount = routeRecalcs
+                        HypCroMod.logWarn("Stuck detected (moved only ${String.format("%.2f", moved)}b in 350ms) - recomputing route (Attempt $routeRecalcs/5)")
+                        if (routeRecalcs >= 5) {
+                            HypCroMod.logWarn("Anti-stuck triggered 5 times consecutively during flight.")
+                            MacroInputController.releaseAllMovement()
+                            return false
+                        }
                         MacroInputController.releaseAllMovement()
                         val recomputed = try {
                             isPathfinding = true
@@ -239,6 +253,9 @@ object CentralMovementCoordinator {
                         lastStuckCheckPos = pos
                         lastDeviationCheckMs = System.currentTimeMillis()
                         continue
+                    } else {
+                        routeRecalcs = 0
+                        consecutiveStuckCount = 0
                     }
                     lastStuckCheckMs = nowMs
                     lastStuckCheckPos = pos
@@ -581,7 +598,13 @@ object CentralMovementCoordinator {
                     val moved = pos.distanceTo(lastStuckCheckPos)
                     if (moved < 0.25) {
                         routeRecalcs++
-                        HypCroMod.logWarn("Stuck detected (moved only ${String.format("%.2f", moved)}b in 350ms) - recomputing route (Attempt $routeRecalcs)")
+                        consecutiveStuckCount = routeRecalcs
+                        HypCroMod.logWarn("Stuck detected (moved only ${String.format("%.2f", moved)}b in 350ms) - recomputing route (Attempt $routeRecalcs/5)")
+                        if (routeRecalcs >= 5) {
+                            HypCroMod.logWarn("Anti-stuck triggered 5 times consecutively during flight.")
+                            MacroInputController.releaseAllMovement()
+                            return false
+                        }
                         MacroInputController.releaseAllMovement()
                         val recomputed = try {
                             isPathfinding = true
@@ -598,6 +621,9 @@ object CentralMovementCoordinator {
                         lastStuckCheckPos = pos
                         lastDeviationCheckMs = System.currentTimeMillis()
                         continue
+                    } else {
+                        routeRecalcs = 0
+                        consecutiveStuckCount = 0
                     }
                     lastStuckCheckMs = nowMs
                     lastStuckCheckPos = pos
