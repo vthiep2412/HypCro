@@ -25,7 +25,7 @@ A client-side Fabric mod for Hypixel SkyBlock Garden farming with zero memory in
   - Interactive **HUD Editor** (`HudEditScreen`) with drag-to-move repositioning across all screen corners and scroll-wheel scaling (50% to 250%).
   - Centralized `CropBpsTracker` measuring instantaneous crop breaking rates and session averages.
 - **Visuals & ESP Suite**:
-  - In-world 3D Pest ESP with custom Gizmo vector color styling (bounding boxes and distance tags).
+  - In-world 3D Pest ESP with custom Gizmo vector color styling (through-wall bounding boxes).
   - Interactive Color Picker Modal with a 2D Saturation/Value gradient canvas, vertical rainbow Hue slider, bidirectional Hex input box, and quick preset color chips.
   - Real-time synchronization between ESP sidebar tab and Pest Destroyer config.
   - Pathfinding Visualizer with 3D Gizmo waypoints, flight trajectories, and goal markers embedded directly under Pathfinding settings.

@@ -51,7 +51,8 @@ data class QOLConfig(
     var freeLookInvertZoom: Boolean = false,
     var freeLookRememberZoom: Boolean = false,
     var freeLookSavedZoom: Float = 4.0f,
-    var freeLookRespectInvertMouse: String = "ON" // "OFF", "ON", "ALWAYS"
+    var freeLookRespectInvertMouse: String = "ON", // "OFF", "ON", "ALWAYS"
+    var freecamSpeed: Double = 1.0
 )
 
 @Serializable
