@@ -407,31 +407,7 @@ object RRTStarPathfinder : IPathfinder {
     private fun computeClearancePenalty(level: Level, from: Vec3, to: Vec3, start: Vec3, dest: Vec3): Double {
         val mid = from.add(to).scale(0.5)
         if (mid.distanceTo(start) <= 1.8 || mid.distanceTo(dest) <= 1.8) return 0.0
-
-        var penalty = AStar3DSmoothedPathfinder.calculateClearanceCost(level, mid, start, dest)
-
-        // Add 1.2b clearance proximity penalty
-        val minBX = floor(mid.x - OBSTACLE_CLEARANCE_BUFFER).toInt()
-        val maxBX = floor(mid.x + OBSTACLE_CLEARANCE_BUFFER).toInt()
-        val minBY = floor(mid.y - 0.2).toInt()
-        val maxBY = floor(mid.y + 1.8 + OBSTACLE_CLEARANCE_BUFFER).toInt()
-        val minBZ = floor(mid.z - OBSTACLE_CLEARANCE_BUFFER).toInt()
-        val maxBZ = floor(mid.z + OBSTACLE_CLEARANCE_BUFFER).toInt()
-
-        for (bx in minBX..maxBX) {
-            for (bz in minBZ..maxBZ) {
-                for (by in minBY..maxBY) {
-                    val bp = BlockPos(bx, by, bz)
-                    if (!level.hasChunk(bp.x shr 4, bp.z shr 4)) continue
-                    val state = level.getBlockState(bp)
-                    if (state.isAir) continue
-                    val shape = state.getCollisionShape(level, bp)
-                    if (shape.isEmpty) continue
-                    penalty += 0.4
-                }
-            }
-        }
-        return penalty
+        return AStar3DSmoothedPathfinder.calculateClearanceCost(level, mid, start, dest)
     }
 
     // --- String-Pulling Smoothing & Micro-Kink Filtering ---

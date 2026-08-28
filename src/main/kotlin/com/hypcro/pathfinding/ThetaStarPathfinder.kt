@@ -32,6 +32,7 @@ object ThetaStarPathfinder : IPathfinder {
     private val localClosedSetB = ThreadLocal.withInitial { LongOpenHashSet(16384) }
     private val localOpenMapF = ThreadLocal.withInitial { Long2IntTable(16384) }
     private val localOpenMapB = ThreadLocal.withInitial { Long2IntTable(16384) }
+    private val localClearanceCache = ThreadLocal.withInitial { Long2DoubleTable(16384) }
 
     private val NEIGHBOR_DIRECTIONS = IntArray(26 * 3).also { arr ->
         var idx = 0
@@ -283,6 +284,73 @@ object ThetaStarPathfinder : IPathfinder {
         }
     }
 
+    private class Long2DoubleTable(initialCapacity: Int = 16384) {
+        private var keys = LongArray(initialCapacity)
+        private var values = DoubleArray(initialCapacity) { Double.NaN }
+        private var mask = initialCapacity - 1
+        var size = 0
+            private set
+
+        fun clear() {
+            if (size > 0) {
+                keys.fill(0L)
+                values.fill(Double.NaN)
+                size = 0
+            }
+        }
+
+        private fun hash(k: Long): Int {
+            var h = k xor (k ushr 32)
+            h = h xor (h ushr 16)
+            h = h * 0x45d9f3b
+            h = h xor (h ushr 16)
+            return h.toInt() and mask
+        }
+
+        fun get(key: Long): Double {
+            val nonZeroKey = if (key == 0L) 1L else key
+            var idx = hash(nonZeroKey)
+            while (true) {
+                val v = values[idx]
+                if (v.isNaN()) return Double.NaN
+                if (keys[idx] == nonZeroKey) return v
+                idx = (idx + 1) and mask
+            }
+        }
+
+        fun put(key: Long, value: Double) {
+            val nonZeroKey = if (key == 0L) 1L else key
+            if (size >= (keys.size shr 1) + (keys.size shr 2)) {
+                rehash(keys.size shl 1)
+            }
+            var idx = hash(nonZeroKey)
+            while (!values[idx].isNaN()) {
+                if (keys[idx] == nonZeroKey) {
+                    values[idx] = value
+                    return
+                }
+                idx = (idx + 1) and mask
+            }
+            keys[idx] = nonZeroKey
+            values[idx] = value
+            size++
+        }
+
+        private fun rehash(newCap: Int) {
+            val oldKeys = keys
+            val oldValues = values
+            keys = LongArray(newCap)
+            values = DoubleArray(newCap) { Double.NaN }
+            mask = newCap - 1
+            size = 0
+            for (i in oldKeys.indices) {
+                if (!oldValues[i].isNaN()) {
+                    put(oldKeys[i], oldValues[i])
+                }
+            }
+        }
+    }
+
     private fun packCoord(qx: Int, qy: Int, qz: Int): Long {
         val px = (qx.toLong() + X_OFFSET) and HORIZONTAL_MASK
         val pz = (qz.toLong() + Z_OFFSET) and HORIZONTAL_MASK
@@ -331,6 +399,7 @@ object ThetaStarPathfinder : IPathfinder {
         val closedSetB = localClosedSetB.get().apply { clear() }
         val openMapF = localOpenMapF.get().apply { clear() }
         val openMapB = localOpenMapB.get().apply { clear() }
+        val clearanceCache = localClearanceCache.get().apply { clear() }
 
         // Start coordinates quantized to 0.5b base unit
         val startQX = floor(effectiveStart.x * 2.0 + 0.5).toInt()
@@ -414,7 +483,7 @@ object ThetaStarPathfinder : IPathfinder {
                                     val adjVec = unpackVec3(adjPacked)
                                     if (hasLineOfSight(level, adjVec, curVec)) {
                                         val edgeDist = adjVec.distanceTo(curVec)
-                                        val clearance = calculateClearanceCost(level, curVec.x, curVec.y, curVec.z, originPos, targetPos)
+                                        val clearance = getCachedClearanceCost(level, curPacked, curVec.x, curVec.y, curVec.z, originPos, targetPos, clearanceCache)
                                         val candidateG = curPool.gCost[adjIdx] + edgeDist + clearance
                                         if (candidateG < bestG) {
                                             bestG = candidateG
@@ -515,7 +584,7 @@ object ThetaStarPathfinder : IPathfinder {
                 val nVec = Vec3(nX, nY, nZ)
                 PathfindingVisualizer.addDebugBranch(curVec, nVec, PathfindingVisualizer.SegmentType.YELLOW_SEARCHING)
 
-                val clearanceCost = calculateClearanceCost(level, nX, nY, nZ, originPos, targetPos)
+                val clearanceCost = getCachedClearanceCost(level, nPacked, nX, nY, nZ, originPos, targetPos, clearanceCache)
 
                 // Lazy Theta* Optimistic Assignment: assume parent line of sight holds
                 val edgeDist = pVec.distanceTo(nVec)
@@ -736,6 +805,23 @@ object ThetaStarPathfinder : IPathfinder {
         }
 
         return true
+    }
+
+    private fun getCachedClearanceCost(
+        level: Level,
+        packed: Long,
+        px: Double,
+        py: Double,
+        pz: Double,
+        start: Vec3,
+        dest: Vec3,
+        cache: Long2DoubleTable
+    ): Double {
+        val cached = cache.get(packed)
+        if (!cached.isNaN()) return cached
+        val cost = calculateClearanceCost(level, px, py, pz, start, dest)
+        cache.put(packed, cost)
+        return cost
     }
 
     private fun calculateClearanceCost(

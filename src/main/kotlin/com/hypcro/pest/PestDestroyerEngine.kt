@@ -59,10 +59,10 @@ object PestDestroyerEngine {
     var totalPestsKilled = 0
         private set
 
+    @Volatile
     private var sessionStartTimeMs: Long = 0L
     val sessionUptimeMs: Long
         get() = if (isRunning && sessionStartTimeMs > 0) System.currentTimeMillis() - sessionStartTimeMs else 0L
-
     @Volatile
     var callerSource = PestCallerSource.MANUAL_USER
         private set
@@ -340,7 +340,7 @@ object PestDestroyerEngine {
                         return false
                     }
                 }
-                return true
+                return false
             }
 
             // Only perform high-altitude ascent if crossing long distances (> 30 blocks) between different plots
@@ -436,9 +436,7 @@ object PestDestroyerEngine {
                 MacroInputController.releaseAllMovement()
                 delay(200L)
 
-                if (!flyCenterSuccess && CentralMovementCoordinator.consecutiveStuckCount >= 5) {
-                    if (!handleStuckRecovery("Plot Center Transit")) return
-                }
+                if (!flyCenterSuccess && !handleStuckRecovery("Plot Center Transit")) return
 
                 // Verify scoreboard at plot center
                 val lines = PestTabReader.readScoreboardLines(client)
@@ -589,9 +587,7 @@ object PestDestroyerEngine {
                     MacroInputController.releaseAllMovement()
                     delay(60L)
 
-                    if (!flyCombatSuccess && CentralMovementCoordinator.consecutiveStuckCount >= 5) {
-                        if (!handleStuckRecovery("Combat Position Flight")) return
-                    }
+                    if (!flyCombatSuccess && !handleStuckRecovery("Combat Position Flight")) return
                 }
 
                 val shootingPlayer = client.player ?: break

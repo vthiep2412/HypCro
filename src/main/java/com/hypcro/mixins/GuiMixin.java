@@ -1,5 +1,6 @@
 package com.hypcro.mixins;
 
+import com.hypcro.HypCroMod;
 import com.hypcro.gui.HudOverlayRenderer;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.gui.Gui;
@@ -14,6 +15,10 @@ public class GuiMixin {
 
     @Inject(method = "extractRenderState", at = @At("TAIL"))
     private void hypcro$renderHudOverlay(GuiGraphicsExtractor guiGraphics, DeltaTracker deltaTracker, CallbackInfo ci) {
-        HudOverlayRenderer.INSTANCE.render(guiGraphics, deltaTracker);
+        try {
+            HudOverlayRenderer.INSTANCE.render(guiGraphics, deltaTracker);
+        } catch (Throwable t) {
+            HypCroMod.INSTANCE.logError("HUD overlay render failed: " + t);
+        }
     }
 }

@@ -76,6 +76,7 @@ object HypCroMod : ClientModInitializer {
                 }
             } else {
                 com.hypcro.util.CropBpsTracker.onClientTick(client)
+                com.hypcro.gui.HudOverlayRenderer.onClientTick(client)
             }
 
             // Render Pathfinding Visualizer, Pest ESP, and Auto Bouncy Ball in-world Gizmos

@@ -41,8 +41,8 @@ object PestESP {
             return
         }
 
-        // 2. Refresh entity positions every 50ms (full plot render distance up to 256 blocks)
-        cachedPests = PestTargetTracker.findPestsInRadius(client, player.position(), 256.0)
+        // 2. Refresh entity positions every 50ms (client entity tracking distance up to 128 blocks)
+        cachedPests = PestTargetTracker.findPestsInRadius(client, player.position(), 128.0)
     }
 
     fun renderWorld() {

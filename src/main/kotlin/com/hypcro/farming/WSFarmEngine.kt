@@ -172,9 +172,6 @@ object WSFarmEngine : IFarmEngine {
             if (!isRunning || !isFarmingActive) return
             val player = client.player ?: return
             val level = client.level ?: return
-
-            CropBpsTracker.onClientTick(client)
-
             // Run Watchdog failsafes on client tick
             HypcroWatchdog.onClientTick(client)
             if (!isRunning || !isFarmingActive) return

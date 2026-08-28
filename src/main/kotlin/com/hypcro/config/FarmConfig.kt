@@ -66,6 +66,7 @@ data class WatchDogConfig(
     var checkTeleport: Boolean = true,
     var checkHotbarSlot: Boolean = true,
     var checkFarmingInterruption: Boolean = true,
+    var checkBpsDrop: Boolean = true,
     var checkUnfamiliarGui: Boolean = true
 )
 

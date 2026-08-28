@@ -24,19 +24,15 @@ public class ClientPacketListenerMixin {
 
     @Inject(method = "handleRespawn", at = @At("HEAD"))
     private void onHandleRespawn(net.minecraft.network.protocol.game.ClientboundRespawnPacket packet, CallbackInfo ci) {
-        Minecraft client = Minecraft.getInstance();
-        client.execute(() -> {
-            com.hypcro.util.CropBpsTracker.INSTANCE.resetSession();
-            com.hypcro.pest.PestTargetTracker.INSTANCE.clearSessionMemory();
-            if (com.hypcro.farming.MacroController.INSTANCE.isRunning() &&
-                !com.hypcro.pest.PestDestroyerEngine.INSTANCE.isRunning()) {
-                com.hypcro.failsafe.HypcroWatchdog.INSTANCE.potentialStaffCheck("Server Transfer Detected (Staff / Reboot / Hub)");
-            }
-        });
+        handleServerTransferReset();
     }
 
     @Inject(method = "handleLogin", at = @At("HEAD"))
     private void onHandleLogin(net.minecraft.network.protocol.game.ClientboundLoginPacket packet, CallbackInfo ci) {
+        handleServerTransferReset();
+    }
+
+    private void handleServerTransferReset() {
         Minecraft client = Minecraft.getInstance();
         client.execute(() -> {
             com.hypcro.util.CropBpsTracker.INSTANCE.resetSession();

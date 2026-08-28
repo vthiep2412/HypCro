@@ -20,7 +20,7 @@
     - Add color selection, typical right next to the On oFF
     - Add the pest back to that esp, and it will sync with the pest esp in pest
 
-- [ ] Add watchdog bps check
+- [x] Add watchdog bps check
 
 - [ ] raycast path? hmm still thinking
 ---

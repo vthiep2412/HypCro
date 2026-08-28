@@ -18,6 +18,7 @@ object AStar3DSmoothedPathfinder : IPathfinder {
     private const val COARSE_STEP_SIZE = 2.5
     private const val HASH_RESOLUTION = FINE_STEP_SIZE
     private const val AIR_CHECK_RADIUS = 2.0
+    private const val SMOOTHING_CLEARANCE_TOLERANCE = 2.0
 
     private val BASE_DIRECTIONS = Array(26) { Vec3.ZERO }.also { arr ->
         var idx = 0
@@ -265,8 +266,8 @@ object AStar3DSmoothedPathfinder : IPathfinder {
     fun calculateClearanceCost(level: Level, pos: Vec3, start: Vec3, destination: Vec3): Double {
         val distToGoal = pos.distanceTo(destination)
         val distToStart = pos.distanceTo(start)
+        if (distToGoal <= 0.2 || distToStart <= 0.2) return 0.0
         val taper = min(1.0, min(distToGoal, distToStart) / 3.0)
-        if (taper <= 0.0) return 0.0
 
         var cost = 0.0
         val baseBX = floor(pos.x).toInt()
@@ -382,7 +383,7 @@ object AStar3DSmoothedPathfinder : IPathfinder {
                 if (ThetaStarPathfinder.hasLineOfSight(level, candidateA, candidateB)) {
                     // Check if shortcut dips too low to ground prematurely
                     val mid = candidateA.add(candidateB).scale(0.5)
-                    if (candidateB.distanceTo(destination) <= 1.8 || calculateClearanceCost(level, mid, raw.first(), destination) == 0.0) {
+                    if (candidateB.distanceTo(destination) <= 1.8 || calculateClearanceCost(level, mid, raw.first(), destination) <= SMOOTHING_CLEARANCE_TOLERANCE) {
                         furthest = check
                         break
                     }

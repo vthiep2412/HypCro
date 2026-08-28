@@ -21,6 +21,22 @@ object HudOverlayRenderer {
     private var lastPestScanTimeMs: Long = 0L
     private var cachedPestCount: Int = 0
 
+    fun onClientTick(client: Minecraft) {
+        val hudCfg = ConfigManager.config.hud
+        if (!hudCfg.enabled) return
+        if (client.level == null || client.player == null) return
+
+        if (PestDestroyerEngine.isRunning) {
+            val now = System.currentTimeMillis()
+            if (now - lastPestScanTimeMs >= 500L) {
+                val scbInfo = PestTabReader.scanScoreboardPests(client)
+                val tabInfo = PestTabReader.scanPests(client)
+                cachedPestCount = kotlin.math.max(scbInfo.aliveCount, tabInfo.aliveCount)
+                lastPestScanTimeMs = now
+            }
+        }
+    }
+
     fun render(graphics: GuiGraphicsExtractor, deltaTracker: DeltaTracker) {
         val client = Minecraft.getInstance()
         val hudCfg = ConfigManager.config.hud
@@ -47,13 +63,6 @@ object HudOverlayRenderer {
         if (isAnyActive) {
             if (PestDestroyerEngine.isRunning) {
                 val source = PestDestroyerEngine.callerSource
-                val now = System.currentTimeMillis()
-                if (now - lastPestScanTimeMs >= 500L) {
-                    val scbInfo = PestTabReader.scanScoreboardPests(client)
-                    val tabInfo = PestTabReader.scanPests(client)
-                    cachedPestCount = kotlin.math.max(scbInfo.aliveCount, tabInfo.aliveCount)
-                    lastPestScanTimeMs = now
-                }
                 val pestCount = cachedPestCount
                 val pestWord = if (pestCount == 1) "pest" else "pests"
 

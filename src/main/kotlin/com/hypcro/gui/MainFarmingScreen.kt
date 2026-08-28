@@ -47,8 +47,8 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         private const val SEC_VISUALS_GAP = 70
         private const val SEC_FREELOOK_H = 104
         private const val SEC_FREELOOK_GAP = 110
-        private const val SEC_WATCHDOG_H = 144
-        private const val SEC_WATCHDOG_GAP = 150
+        private const val SEC_WATCHDOG_H = 164
+        private const val SEC_WATCHDOG_GAP = 170
         private const val SEC_LOCK_H = 124
 
         private const val SEC_FARM_FLY_GAP = 44
@@ -125,6 +125,8 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
     private lateinit var checkHotbarSlotPill: PillToggleWidget
     private lateinit var checkFarmingInterruptionPill: PillToggleWidget
     private lateinit var checkFarmingInterruptionInfo: InfoIconWidget
+    private lateinit var checkBpsDropPill: PillToggleWidget
+    private lateinit var checkBpsDropInfo: InfoIconWidget
     private lateinit var checkUnfamiliarGuiPill: PillToggleWidget
     private lateinit var checkUnfamiliarGuiInfo: InfoIconWidget
     private lateinit var autoActivePestPill: PillToggleWidget
@@ -427,14 +429,27 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         ) { idx ->
             ConfigManager.config.generalConfig.watchdog.checkFarmingInterruption = (idx == 1)
             ConfigManager.save()
+            updateWidgetVisibility()
         }
         addRenderableWidget(checkFarmingInterruptionPill)
 
-        checkUnfamiliarGuiInfo = InfoIconWidget(cardX + 12 + font.width(Component.literal("Unfamiliar GUI failsafe:")) + 6, wdY + 122, "§eUnfamiliar GUI Check")
+        checkBpsDropInfo = InfoIconWidget(cardX + 12 + font.width(Component.literal("  └ BPS Drop Protection:")) + 6, wdY + 122, "§eSuddenly Low BPS Check\n\nArms when breaking crops at >=18 BPS.\nTriggers an alarm failsafe if BPS drops below 18 for >1.2s.")
+        addRenderableWidget(checkBpsDropInfo)
+
+        checkBpsDropPill = PillToggleWidget(
+            cardX + 220, wdY + 120, 100, 16,
+            listOf("OFF", "ON"), if (genCfg.watchdog.checkFarmingInterruption && genCfg.watchdog.checkBpsDrop) 1 else 0
+        ) { idx ->
+            ConfigManager.config.generalConfig.watchdog.checkBpsDrop = (idx == 1)
+            ConfigManager.save()
+        }
+        addRenderableWidget(checkBpsDropPill)
+
+        checkUnfamiliarGuiInfo = InfoIconWidget(cardX + 12 + font.width(Component.literal("Unfamiliar GUI failsafe:")) + 6, wdY + 142, "§eUnfamiliar GUI Check")
         addRenderableWidget(checkUnfamiliarGuiInfo)
 
         checkUnfamiliarGuiPill = PillToggleWidget(
-            cardX + 220, wdY + 120, 100, 16,
+            cardX + 220, wdY + 140, 100, 16,
             listOf("OFF", "ON"), if (genCfg.watchdog.checkUnfamiliarGui) 1 else 0
         ) { idx ->
             ConfigManager.config.generalConfig.watchdog.checkUnfamiliarGui = (idx == 1)
@@ -687,6 +702,11 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         addRenderableWidget(hudStatusPill)
 
         val clampedOpacity = (hudCfg.opacity * 100).toInt().coerceIn(10, 100)
+        val normalizedOpacity = clampedOpacity / 100.0f
+        if (hudCfg.opacity != normalizedOpacity) {
+            hudCfg.opacity = normalizedOpacity
+            ConfigManager.save()
+        }
         hudOpacitySlider = SingleSliderWidget(
             cardX + 220, cardY + 42, 140, 16,
             10, 100, clampedOpacity, labelPrefix = "Opacity: ", labelSuffix = "%"
@@ -752,8 +772,10 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         checkHotbarSlotPill.y = wdY + 80
         checkFarmingInterruptionInfo.y = wdY + 102
         checkFarmingInterruptionPill.y = wdY + 100
-        checkUnfamiliarGuiInfo.y = wdY + 122
-        checkUnfamiliarGuiPill.y = wdY + 120
+        checkBpsDropInfo.y = wdY + 122
+        checkBpsDropPill.y = wdY + 120
+        checkUnfamiliarGuiInfo.y = wdY + 142
+        checkUnfamiliarGuiPill.y = wdY + 140
 
         val lockCardY = wdY + SEC_WATCHDOG_GAP
         keyMouseLockHeaderInfo.y = lockCardY + 5
@@ -865,6 +887,15 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         checkHotbarSlotPill.visible = isSettings
         checkFarmingInterruptionPill.visible = isSettings
         checkFarmingInterruptionInfo.visible = isSettings
+        val canBpsDrop = ConfigManager.config.generalConfig.watchdog.checkFarmingInterruption
+        checkBpsDropPill.active = canBpsDrop
+        if (!canBpsDrop && ConfigManager.config.generalConfig.watchdog.checkBpsDrop) {
+            ConfigManager.config.generalConfig.watchdog.checkBpsDrop = false
+            checkBpsDropPill.selectedIndex = 0
+            ConfigManager.save()
+        }
+        checkBpsDropPill.visible = isSettings
+        checkBpsDropInfo.visible = isSettings
         checkUnfamiliarGuiPill.visible = isSettings
         checkUnfamiliarGuiInfo.visible = isSettings
 
@@ -1285,7 +1316,9 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         graphics.text(font, "Check Teleport:", cardX + 12, wdY + 65, 0xFF94A3B8.toInt())
         graphics.text(font, "Check Hotbar Slot:", cardX + 12, wdY + 85, 0xFF94A3B8.toInt())
         graphics.text(font, "Farming Interruption failsafe:", cardX + 12, wdY + 105, 0xFF94A3B8.toInt())
-        graphics.text(font, "Unfamiliar GUI failsafe:", cardX + 12, wdY + 125, 0xFF94A3B8.toInt())
+        val bpsDropColor = if (checkBpsDropPill.active) 0xFF94A3B8.toInt() else 0xFF475569.toInt()
+        graphics.text(font, "  └ BPS Drop Protection:", cardX + 12, wdY + 125, bpsDropColor)
+        graphics.text(font, "Unfamiliar GUI failsafe:", cardX + 12, wdY + 145, 0xFF94A3B8.toInt())
 
         val lockY = wdY + SEC_WATCHDOG_GAP
         val lockH = SEC_LOCK_H

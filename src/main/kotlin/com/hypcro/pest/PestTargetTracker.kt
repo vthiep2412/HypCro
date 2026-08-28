@@ -60,7 +60,7 @@ object PestTargetTracker {
                 } else {
                     generalArmorStands.add(entity)
                 }
-            } else if (entity is LivingEntity && entity != client.player) {
+            } else if (entity is LivingEntity && entity !is net.minecraft.world.entity.player.Player) {
                 otherLivingEntities.add(entity)
             }
         }
@@ -74,6 +74,7 @@ object PestTargetTracker {
             var closestDistSq = maxDistSq
 
             for (mob in otherLivingEntities) {
+                if (foundEntityIds.contains(mob.id)) continue
                 val distSq = mob.distanceToSqr(standPos)
                 if (distSq <= closestDistSq) {
                     closestDistSq = distSq
@@ -107,15 +108,15 @@ object PestTargetTracker {
                         closestMarkerDistSq = distSq
                         matchingMarker = stand
                     }
-                }
                 if (matchingMarker == null) {
                     for (stand in generalArmorStands) {
                         val distSq = stand.distanceToSqr(entityPos)
-                        if (distSq <= closestMarkerDistSq) {
+                        if (distSq <= closestMarkerDistSq && isPestNameMatching(stand.customName?.string)) {
                             closestMarkerDistSq = distSq
                             matchingMarker = stand
                         }
                     }
+                }
                 }
                 foundEntityIds.add(entity.id)
                 results.add(TrackedPest(entity, matchingMarker, entity.position()))

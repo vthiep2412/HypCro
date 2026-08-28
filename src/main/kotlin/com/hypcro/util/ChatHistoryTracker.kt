@@ -7,10 +7,11 @@ object ChatHistoryTracker {
 
     private val history = ConcurrentLinkedDeque<ChatEntry>()
     private const val MAX_AGE_MS = 10_000L
+    private val COLOR_CODE_REGEX = Regex("§[0-9a-fk-or]")
 
     fun onMessageReceived(message: String) {
         val now = System.currentTimeMillis()
-        val clean = message.replace("§[0-9a-fk-or]".toRegex(), "").trim()
+        val clean = message.replace(COLOR_CODE_REGEX, "").trim()
         history.add(ChatEntry(clean, now))
         cleanup(now)
     }

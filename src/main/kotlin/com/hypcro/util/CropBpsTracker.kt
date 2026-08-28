@@ -140,11 +140,13 @@ object CropBpsTracker {
         if (now - lastAvgCalcTimeMs >= AVG_POLL_INTERVAL_MS || cachedAvgBps == 0.0) {
             cleanOldTimestamps(now)
             val oldest = breakTimestamps.peekFirst()
-            val windowSec = if (oldest != null) {
+            val rawWindowSec = if (oldest != null) {
                 min((now - oldest).toDouble() / 1000.0, AVG_WINDOW_MS / 1000.0)
             } else {
                 0.0
             }
+            val activeUptimeSec = getSessionUptimeMs().toDouble() / 1000.0
+            val windowSec = if (activeUptimeSec > 0.0) min(rawWindowSec, activeUptimeSec) else rawWindowSec
 
             cachedAvgBps = if (windowSec < 1.0 || breakTimestamps.isEmpty()) {
                 getCurrentBps()
@@ -202,8 +204,13 @@ object CropBpsTracker {
             lastPlayerPos = currentPos
 
             // Prune movement entries older than 1000ms
-            while (movementWindow.isNotEmpty() && (now - movementWindow.peekFirst().first) > 1000L) {
-                movementWindow.pollFirst()
+            while (true) {
+                val first = movementWindow.peekFirst() ?: break
+                if (now - first.first > 1000L) {
+                    movementWindow.pollFirst()
+                } else {
+                    break
+                }
             }
 
             val totalDist = movementWindow.sumOf { it.second }
@@ -217,8 +224,13 @@ object CropBpsTracker {
 
     private fun cleanOldTimestamps(now: Long) {
         val cutoff = now - AVG_WINDOW_MS
-        while (breakTimestamps.isNotEmpty() && breakTimestamps.peekFirst() < cutoff) {
-            breakTimestamps.pollFirst()
+        while (true) {
+            val first = breakTimestamps.peekFirst() ?: break
+            if (first < cutoff) {
+                breakTimestamps.pollFirst()
+            } else {
+                break
+            }
         }
     }
 }

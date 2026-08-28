@@ -31,6 +31,11 @@ object HypcroWatchdog {
 
     private const val TELEPORT_DISTANCE_THRESHOLD = 6.0
 
+    @Volatile
+    private var isBpsDropArmed: Boolean = false
+    @Volatile
+    private var bpsDropStartTime: Long = 0L
+
     fun start(toolSlot: Int?) {
         stop()
         val client = Minecraft.getInstance()
@@ -46,6 +51,8 @@ object HypcroWatchdog {
         recentPitches.clear()
         recentYaws.add(player.yRot)
         recentPitches.add(player.xRot)
+        isBpsDropArmed = false
+        bpsDropStartTime = 0L
     }
 
     fun stop() {
@@ -57,6 +64,8 @@ object HypcroWatchdog {
         slotMismatchTicks = 0
         recentYaws.clear()
         recentPitches.clear()
+        isBpsDropArmed = false
+        bpsDropStartTime = 0L
     }
 
     fun silenceAlarm() {
@@ -165,6 +174,31 @@ object HypcroWatchdog {
                 recentPitches.addLast(player.xRot)
                 while (recentYaws.size > 5) recentYaws.removeFirst()
                 while (recentPitches.size > 5) recentPitches.removeFirst()
+            }
+        }
+
+        // 3. Suddenly Low BPS Check (Staff barrier obstacle or dead-air teleport)
+        if (watchdogConfig.checkFarmingInterruption && watchdogConfig.checkBpsDrop) {
+            val currentBps = com.hypcro.util.CropBpsTracker.getCurrentBps()
+            if (!isBpsDropArmed) {
+                if (currentBps >= 18.0) {
+                    isBpsDropArmed = true
+                    bpsDropStartTime = 0L
+                }
+            } else {
+                if (currentBps < 18.0) {
+                    val now = System.currentTimeMillis()
+                    if (bpsDropStartTime == 0L) {
+                        bpsDropStartTime = now
+                    } else if (now - bpsDropStartTime >= 1200L) {
+                        bpsDropStartTime = 0L
+                        isBpsDropArmed = false
+                        potentialStaffCheck("Farming Interruption: Suddenly Low BPS")
+                        return
+                    }
+                } else {
+                    bpsDropStartTime = 0L
+                }
             }
         }
 
