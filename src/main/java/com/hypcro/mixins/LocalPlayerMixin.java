@@ -1,5 +1,6 @@
 package com.hypcro.mixins;
 
+import com.hypcro.config.ConfigManager;
 import com.hypcro.farming.MacroInputController;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import net.minecraft.client.player.LocalPlayer;
@@ -19,7 +20,8 @@ public class LocalPlayerMixin {
         if (MacroInputController.INSTANCE.isInputAllowed()) {
             return MacroInputController.INSTANCE.getSprint();
         }
-        return original;
+        // When no macro is active, respect the autoSprint config
+        return ConfigManager.INSTANCE.getConfig().getQolConfig().getAutoSprint() || original;
     }
 
     @Inject(method = "tick", at = @At("TAIL"))

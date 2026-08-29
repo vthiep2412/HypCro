@@ -48,6 +48,8 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         private const val SEC_FREELOOK_H = 104
         private const val SEC_FREELOOK_GAP = 110
         private const val SEC_FREECAM_H = 68
+        private const val SEC_FREECAM_GAP = 74
+        private const val SEC_AUTOSPRINT_H = 46
         private const val SEC_WATCHDOG_H = 164
         private const val SEC_WATCHDOG_GAP = 170
         private const val SEC_LOCK_H = 124
@@ -116,6 +118,8 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
     private lateinit var freecamSpeedInfo: InfoIconWidget
     private lateinit var freecamHideGuiPill: PillToggleWidget
     private lateinit var freecamHideGuiInfo: InfoIconWidget
+    private lateinit var autoSprintPill: PillToggleWidget
+    private lateinit var autoSprintInfo: InfoIconWidget
 
     // Settings - Key and Mouse Lock Widgets
     private lateinit var keyMouseLockHeaderInfo: InfoIconWidget
@@ -422,6 +426,19 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
 
         freecamHideGuiInfo = InfoIconWidget(cardX + 12 + font.width(Component.literal("Hide GUI:")) + 6, fcY + 42, "§eHide GUI in Freecam\n\nHides first-person hand, hotbar, and health/hunger bars while Freecam is active.")
         addRenderableWidget(freecamHideGuiInfo)
+
+        val asY = fcY + SEC_FREECAM_GAP
+        autoSprintPill = PillToggleWidget(
+            cardX + 220, asY + 20, 100, 16,
+            listOf("OFF", "ON"), if (ConfigManager.config.qolConfig.autoSprint) 1 else 0
+        ) { idx ->
+            ConfigManager.config.qolConfig.autoSprint = (idx == 1)
+            ConfigManager.save()
+        }
+        addRenderableWidget(autoSprintPill)
+
+        autoSprintInfo = InfoIconWidget(cardX + 12 + font.width(Component.literal("Auto Sprint:")) + 6, asY + 22, "§eAuto Sprint QOL\n\nAutomatically sprints when moving forward with W.\nPauses while farming macros are active.")
+        addRenderableWidget(autoSprintInfo)
 
         // 6. Settings View - Failsafe Sub-Tab: WatchDog
         val genCfg = ConfigManager.config.generalConfig
@@ -811,7 +828,7 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
             "Settings" -> when (settingsSubTab) {
                 0 -> SEC_MOUSE_GAP + SEC_PATHFINDING_H + 20
                 1 -> SEC_WATCHDOG_GAP + SEC_LOCK_H + 20
-                2 -> SEC_FREELOOK_GAP + SEC_FREECAM_H + 20
+                2 -> SEC_FREELOOK_GAP + SEC_FREECAM_GAP + SEC_AUTOSPRINT_H + 20
                 else -> 100
             }
             "Farming" -> if (farmingSubTab == 1) SEC_FARM_FLY_GAP + SEC_FARM_PEST_GAP + 20 else cardH + 20
@@ -878,6 +895,10 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         freecamSpeedInfo.y = fcY + 22
         freecamHideGuiPill.y = fcY + 40
         freecamHideGuiInfo.y = fcY + 42
+
+        val asY = fcY + SEC_FREECAM_GAP
+        autoSprintPill.y = asY + 20
+        autoSprintInfo.y = asY + 22
 
         // ESP Tab Widgets
         espTabPestPill.y = effectiveCardY + 20
@@ -1019,6 +1040,8 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         freecamSpeedInfo.visible = isSettingsQol
         freecamHideGuiPill.visible = isSettingsQol
         freecamHideGuiInfo.visible = isSettingsQol
+        autoSprintPill.visible = isSettingsQol
+        autoSprintInfo.visible = isSettingsQol
 
         // ESP Tab
         espTabPestPill.visible = isEsp
@@ -1512,6 +1535,14 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
                 graphics.text(font, "§b§lFreecam", cardX + 10, fcY + 5, 0xFF38BDF8.toInt())
                 graphics.text(font, "Flight Speed:", cardX + 12, fcY + 25, 0xFF94A3B8.toInt())
                 graphics.text(font, "Hide GUI:", cardX + 12, fcY + 45, 0xFF94A3B8.toInt())
+
+                val asY = fcY + SEC_FREECAM_GAP
+                val asH = SEC_AUTOSPRINT_H
+                graphics.fill(cardX - 1, asY - 1, cardX + cardW + 1, asY + asH + 1, 0xFF334155.toInt())
+                graphics.fill(cardX, asY, cardX + cardW, asY + asH, 0xFF1E293B.toInt())
+                graphics.fill(cardX, asY, cardX + cardW, asY + 18, 0xFF334155.toInt())
+                graphics.text(font, "§b§lAuto Sprint", cardX + 10, asY + 5, 0xFF38BDF8.toInt())
+                graphics.text(font, "Auto Sprint:", cardX + 12, asY + 25, 0xFF94A3B8.toInt())
             }
         }
     }
