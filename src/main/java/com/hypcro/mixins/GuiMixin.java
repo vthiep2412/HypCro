@@ -18,6 +18,14 @@ public class GuiMixin {
     @Unique
     private static boolean hypcro$hudRenderFailed = false;
 
+    @Inject(method = "extractHotbarAndDecorations", at = @At("HEAD"), cancellable = true)
+    private void hypcro$hideHotbarInFreecam(GuiGraphicsExtractor guiGraphics, DeltaTracker deltaTracker, CallbackInfo ci) {
+        if (com.hypcro.camera.FreecamManager.INSTANCE.isFreecamActive() &&
+            com.hypcro.config.ConfigManager.INSTANCE.getConfig().getQolConfig().getFreecamHideGui()) {
+            ci.cancel();
+        }
+    }
+
     @Inject(method = "extractRenderState", at = @At("TAIL"))
     private void hypcro$renderHudOverlay(GuiGraphicsExtractor guiGraphics, DeltaTracker deltaTracker, CallbackInfo ci) {
         try {

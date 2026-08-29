@@ -19,6 +19,9 @@ public class ClientPacketListenerMixin {
         Minecraft client = Minecraft.getInstance();
         client.execute(() -> {
             com.hypcro.failsafe.HypcroWatchdog.INSTANCE.onPacketTeleport(packet);
+            if (com.hypcro.camera.FreecamManager.INSTANCE.isFreecamActive()) {
+                com.hypcro.camera.FreecamManager.INSTANCE.disable(client);
+            }
         });
     }
 
@@ -37,6 +40,9 @@ public class ClientPacketListenerMixin {
         client.execute(() -> {
             com.hypcro.util.CropBpsTracker.INSTANCE.resetSession();
             com.hypcro.pest.PestTargetTracker.INSTANCE.clearSessionMemory();
+            if (com.hypcro.camera.FreecamManager.INSTANCE.isFreecamActive()) {
+                com.hypcro.camera.FreecamManager.INSTANCE.disable(client);
+            }
             if (com.hypcro.farming.MacroController.INSTANCE.isRunning() &&
                 !com.hypcro.pest.PestDestroyerEngine.INSTANCE.isRunning()) {
                 com.hypcro.failsafe.HypcroWatchdog.INSTANCE.potentialStaffCheck("Server Transfer Detected (Staff / Reboot / Hub)");

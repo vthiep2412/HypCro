@@ -16,6 +16,12 @@ public class KeyboardInputMixin extends ClientInput {
 
     @Inject(method = "tick", at = @At("TAIL"))
     private void onTick(CallbackInfo ci) {
+        if (com.hypcro.camera.FreecamManager.INSTANCE.isFreecamActive() && !MacroInputController.INSTANCE.isInputAllowed()) {
+            this.keyPresses = new Input(false, false, false, false, false, false, false);
+            this.moveVector = Vec2.ZERO;
+            return;
+        }
+
         if (MacroInputController.INSTANCE.isInputAllowed()) {
             boolean lockMovement = com.hypcro.config.ConfigManager.INSTANCE.getConfig().getGeneralConfig().getInputLock().getLockMovement();
             if (lockMovement) {

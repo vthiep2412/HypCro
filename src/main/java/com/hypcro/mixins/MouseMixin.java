@@ -40,6 +40,22 @@ public class MouseMixin {
 
     @Inject(method = "turnPlayer", at = @At("HEAD"), cancellable = true)
     private void onTurnPlayer(CallbackInfo ci) {
+        if (com.hypcro.camera.FreecamManager.INSTANCE.isFreecamActive()) {
+            double sens = Minecraft.getInstance().options.sensitivity().get();
+            OptionsAccessor options = (OptionsAccessor) Minecraft.getInstance().options;
+            boolean invertX = options.getInvertXMouse().get();
+            boolean invertY = options.getInvertYMouse().get();
+
+            double dx = this.accumulatedDX;
+            double dy = this.accumulatedDY;
+            this.accumulatedDX = 0.0;
+            this.accumulatedDY = 0.0;
+
+            com.hypcro.camera.FreecamManager.INSTANCE.onMouseTurn(dx, dy, sens, invertX, invertY);
+            ci.cancel();
+            return;
+        }
+
         if (FreeLookManager.INSTANCE.isFreeLookActive()) {
             double sens = Minecraft.getInstance().options.sensitivity().get();
             OptionsAccessor options = (OptionsAccessor) Minecraft.getInstance().options;

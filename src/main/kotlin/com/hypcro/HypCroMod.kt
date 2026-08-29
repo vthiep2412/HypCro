@@ -22,6 +22,7 @@ object HypCroMod : ClientModInitializer {
 
     lateinit var openGuiKey: KeyMapping
     lateinit var freeLookKey: KeyMapping
+    lateinit var freecamKey: KeyMapping
 
     private val CATEGORY = KeyMapping.Category.register(
         Identifier.fromNamespaceAndPath(MOD_ID, "main")
@@ -42,6 +43,15 @@ object HypCroMod : ClientModInitializer {
                 "key.hypcro.freelook",
                 InputConstants.Type.KEYSYM,
                 GLFW.GLFW_KEY_V,
+                CATEGORY
+            )
+        )
+
+        freecamKey = KeyMappingHelper.registerKeyMapping(
+            KeyMapping(
+                "key.hypcro.freecam",
+                InputConstants.Type.KEYSYM,
+                GLFW.GLFW_KEY_U,
                 CATEGORY
             )
         )
@@ -69,10 +79,13 @@ object HypCroMod : ClientModInitializer {
         }
 
         ClientTickEvents.END_CLIENT_TICK.register { client ->
-            // Reset Free Look on disconnect / world unload
+            // Reset Free Look and Freecam on disconnect / world unload
             if (client.level == null || client.player == null) {
                 if (com.hypcro.camera.FreeLookManager.isFreeLookActive) {
                     com.hypcro.camera.FreeLookManager.reset(client)
+                }
+                if (com.hypcro.camera.FreecamManager.isFreecamActive) {
+                    com.hypcro.camera.FreecamManager.disable(client)
                 }
             } else {
                 com.hypcro.util.CropBpsTracker.onClientTick(client)
@@ -90,26 +103,36 @@ object HypCroMod : ClientModInitializer {
                 handleOpenGuiOrStop()
             }
 
-            // Free Look Key Handling
-            val isHold = com.hypcro.config.ConfigManager.config.qolConfig.freeLookMode.equals("HOLD", ignoreCase = true)
-            if (isHold) {
-                while (freeLookKey.consumeClick()) { /* Drain clicks */ }
-                if (freeLookKey.isDown) {
-                    if (!com.hypcro.camera.FreeLookManager.isFreeLookActive) {
-                        com.hypcro.camera.FreeLookManager.enable(client)
+            // Freecam Key Handling (Toggle)
+            while (freecamKey.consumeClick()) {
+                com.hypcro.camera.FreecamManager.toggle(client)
+            }
+
+            // Free Look Key Handling (Blocked when Freecam is active)
+            if (!com.hypcro.camera.FreecamManager.isFreecamActive) {
+                val isHold = com.hypcro.config.ConfigManager.config.qolConfig.freeLookMode.equals("HOLD", ignoreCase = true)
+                if (isHold) {
+                    while (freeLookKey.consumeClick()) { /* Drain clicks */ }
+                    if (freeLookKey.isDown) {
+                        if (!com.hypcro.camera.FreeLookManager.isFreeLookActive) {
+                            com.hypcro.camera.FreeLookManager.enable(client)
+                        }
+                    } else {
+                        if (com.hypcro.camera.FreeLookManager.isFreeLookActive) {
+                            com.hypcro.camera.FreeLookManager.disable(client)
+                        }
                     }
                 } else {
-                    if (com.hypcro.camera.FreeLookManager.isFreeLookActive) {
-                        com.hypcro.camera.FreeLookManager.disable(client)
+                    if (freeLookKey.consumeClick()) {
+                        com.hypcro.camera.FreeLookManager.toggle(client)
+                        while (freeLookKey.consumeClick()) { /* Drain extra clicks */ }
                     }
                 }
             } else {
-                if (freeLookKey.consumeClick()) {
-                    com.hypcro.camera.FreeLookManager.toggle(client)
-                    while (freeLookKey.consumeClick()) { /* Drain extra clicks */ }
-                }
+                while (freeLookKey.consumeClick()) { /* Drain clicks */ }
             }
 
+            com.hypcro.camera.FreecamManager.onClientTick(client)
             com.hypcro.farming.MacroController.onClientTick(client)
         }
 

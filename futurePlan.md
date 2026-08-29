@@ -15,7 +15,7 @@
     - Movement: Mouse movement, Pathfinding & Flying (with integrated visualizer toggles)
     - Failsafe: WatchDog, Key and Mouse Lock
     - QOL: Free Look
-- [ ] Add freecam right after freelook
+- [x] Add freecam right after freelook
     - In settings control key minecraft (set default U)
     - Speed, and allow to use sprint key to increase speed by 1.2x
 - [ ] Add auto sprint as QOL (download odin and skyblocker and nofrills to learn, learn odin sprint)

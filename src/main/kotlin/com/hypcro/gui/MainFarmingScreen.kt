@@ -47,6 +47,7 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         private const val SEC_PATHFINDING_GAP = 110
         private const val SEC_FREELOOK_H = 104
         private const val SEC_FREELOOK_GAP = 110
+        private const val SEC_FREECAM_H = 68
         private const val SEC_WATCHDOG_H = 164
         private const val SEC_WATCHDOG_GAP = 170
         private const val SEC_LOCK_H = 124
@@ -111,6 +112,10 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
     private lateinit var rememberZoomPill: PillToggleWidget
     private lateinit var respectInvertPill: PillToggleWidget
     private lateinit var respectInvertInfo: InfoIconWidget
+    private lateinit var freecamSpeedSlider: SingleSliderWidget
+    private lateinit var freecamSpeedInfo: InfoIconWidget
+    private lateinit var freecamHideGuiPill: PillToggleWidget
+    private lateinit var freecamHideGuiInfo: InfoIconWidget
 
     // Settings - Key and Mouse Lock Widgets
     private lateinit var keyMouseLockHeaderInfo: InfoIconWidget
@@ -390,6 +395,33 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
 
         respectInvertInfo = InfoIconWidget(cardX + 12 + font.width(Component.literal("Respect Invert Mouse:")) + 6, flY + 82, "§eRespect Minecraft Invert Mouse Settings")
         addRenderableWidget(respectInvertInfo)
+
+        val fcY = flY + SEC_FREELOOK_GAP
+        val initialSpeedInt = (ConfigManager.config.qolConfig.freecamSpeed * 10).toInt().coerceIn(1, 50)
+        freecamSpeedSlider = SingleSliderWidget(
+            cardX + 220, fcY + 20, 110, 16,
+            minValue = 1, maxValue = 50, currentValue = initialSpeedInt,
+            customFormatter = { v -> String.format(java.util.Locale.ROOT, "%.1fx", v / 10.0) }
+        ) { intVal ->
+            ConfigManager.config.qolConfig.freecamSpeed = intVal / 10.0
+            ConfigManager.save()
+        }
+        addRenderableWidget(freecamSpeedSlider)
+
+        freecamSpeedInfo = InfoIconWidget(cardX + 12 + font.width(Component.literal("Flight Speed:")) + 6, fcY + 22, "§eFreecam Flight Speed\n\nHold Sprint (Ctrl) while flying for 1.2x boost.\nDefault keybind: [U]")
+        addRenderableWidget(freecamSpeedInfo)
+
+        freecamHideGuiPill = PillToggleWidget(
+            cardX + 220, fcY + 40, 100, 16,
+            listOf("OFF", "ON"), if (ConfigManager.config.qolConfig.freecamHideGui) 1 else 0
+        ) { idx ->
+            ConfigManager.config.qolConfig.freecamHideGui = (idx == 1)
+            ConfigManager.save()
+        }
+        addRenderableWidget(freecamHideGuiPill)
+
+        freecamHideGuiInfo = InfoIconWidget(cardX + 12 + font.width(Component.literal("Hide GUI:")) + 6, fcY + 42, "§eHide GUI in Freecam\n\nHides first-person hand, hotbar, and health/hunger bars while Freecam is active.")
+        addRenderableWidget(freecamHideGuiInfo)
 
         // 6. Settings View - Failsafe Sub-Tab: WatchDog
         val genCfg = ConfigManager.config.generalConfig
@@ -779,7 +811,7 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
             "Settings" -> when (settingsSubTab) {
                 0 -> SEC_MOUSE_GAP + SEC_PATHFINDING_H + 20
                 1 -> SEC_WATCHDOG_GAP + SEC_LOCK_H + 20
-                2 -> SEC_FREELOOK_H + 20
+                2 -> SEC_FREELOOK_GAP + SEC_FREECAM_H + 20
                 else -> 100
             }
             "Farming" -> if (farmingSubTab == 1) SEC_FARM_FLY_GAP + SEC_FARM_PEST_GAP + 20 else cardH + 20
@@ -840,6 +872,12 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         rememberZoomPill.y = flY + 60
         respectInvertPill.y = flY + 80
         respectInvertInfo.y = flY + 82
+
+        val fcY = flY + SEC_FREELOOK_GAP
+        freecamSpeedSlider.y = fcY + 20
+        freecamSpeedInfo.y = fcY + 22
+        freecamHideGuiPill.y = fcY + 40
+        freecamHideGuiInfo.y = fcY + 42
 
         // ESP Tab Widgets
         espTabPestPill.y = effectiveCardY + 20
@@ -971,12 +1009,16 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         blockChatAndCommandsPill.visible = isSettingsFailsafe
         blockChatAndCommandsInfo.visible = isSettingsFailsafe
 
-        // Settings - QOL: Free Look
+        // Settings - QOL: Free Look & Freecam
         freeLookModePill.visible = isSettingsQol
         invertZoomPill.visible = isSettingsQol
         rememberZoomPill.visible = isSettingsQol
         respectInvertPill.visible = isSettingsQol
         respectInvertInfo.visible = isSettingsQol
+        freecamSpeedSlider.visible = isSettingsQol
+        freecamSpeedInfo.visible = isSettingsQol
+        freecamHideGuiPill.visible = isSettingsQol
+        freecamHideGuiInfo.visible = isSettingsQol
 
         // ESP Tab
         espTabPestPill.visible = isEsp
@@ -1028,7 +1070,7 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
 
     override fun extractRenderState(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, delta: Float) {
         graphics.fill(0, 0, width, height, 0xFF0B0F19.toInt())
-        graphics.fill(0, headerLineY, width, headerLineY + 1, 0xFF1E293B.toInt())
+        graphics.fill(sidebarWidth, headerLineY, width, headerLineY + 1, 0xFF1E293B.toInt())
 
         graphics.fill(0, 0, sidebarWidth, height, 0xFF0F172A.toInt())
         graphics.fill(sidebarWidth, 0, sidebarWidth + 1, height, 0xFF1E293B.toInt())
@@ -1039,7 +1081,15 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         graphics.blit(HYPCRO_ICON, 10, iconY, 10 + iconSize, iconY + iconSize, 0.0f, 1.0f, 0.0f, 1.0f)
         graphics.text(font, "§b§lHypCro", 36, titleY, 0xFF38BDF8.toInt())
 
-        // 1. Sidebar Item: Farming
+        // Top Sub-Tab Navigation Pills
+        when (selectedTab) {
+            "Farming" -> farmingSubTabPill.x = (width / 2) - 60
+            "Pester" -> pesterSubTabPill.x = (width / 2) - 60
+            "Misc" -> miscSubTabPill.x = (width / 2) - 60
+            "Settings" -> settingsSubTabPill.x = (width / 2) - 90
+        }
+
+        // 1. Sidebar Item: Farming (Top)
         val farmingBoxY = headerLineY + 14
         val farmingBoxH = 24
         val farmingHovered = mouseX in 6 until (sidebarWidth - 6) && mouseY in farmingBoxY until (farmingBoxY + farmingBoxH)
@@ -1442,7 +1492,7 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
                 graphics.text(font, "Block Chat and Command:", cardX + 12, lockY + 105, 0xFF94A3B8.toInt())
             }
             2 -> {
-                // QOL Sub-Tab: Free Look
+                // QOL Sub-Tab: Free Look & Freecam
                 val flY = cardY - scrollOffset
                 val flH = SEC_FREELOOK_H
                 graphics.fill(cardX - 1, flY - 1, cardX + cardW + 1, flY + flH + 1, 0xFF334155.toInt())
@@ -1453,6 +1503,15 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
                 graphics.text(font, "Invert Zoom:", cardX + 12, flY + 45, 0xFF94A3B8.toInt())
                 graphics.text(font, "Remember Zoom (Max 25b):", cardX + 12, flY + 65, 0xFF94A3B8.toInt())
                 graphics.text(font, "Respect Invert Mouse:", cardX + 12, flY + 85, 0xFF94A3B8.toInt())
+
+                val fcY = flY + SEC_FREELOOK_GAP
+                val fcH = SEC_FREECAM_H
+                graphics.fill(cardX - 1, fcY - 1, cardX + cardW + 1, fcY + fcH + 1, 0xFF334155.toInt())
+                graphics.fill(cardX, fcY, cardX + cardW, fcY + fcH, 0xFF1E293B.toInt())
+                graphics.fill(cardX, fcY, cardX + cardW, fcY + 18, 0xFF334155.toInt())
+                graphics.text(font, "§b§lFreecam", cardX + 10, fcY + 5, 0xFF38BDF8.toInt())
+                graphics.text(font, "Flight Speed:", cardX + 12, fcY + 25, 0xFF94A3B8.toInt())
+                graphics.text(font, "Hide GUI:", cardX + 12, fcY + 45, 0xFF94A3B8.toInt())
             }
         }
     }

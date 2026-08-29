@@ -32,7 +32,9 @@ A client-side Fabric mod for Hypixel SkyBlock Garden farming with zero memory in
 - **Settings Sub-Tabs & Navigation**:
   - **Movement**: Mouse Movement configuration and 3D Pathfinding & Flying options.
   - **Failsafe**: WatchDog detection suite and Key & Mouse Lock options.
-  - **QOL**: Free Look camera controls.
+  - **QOL**:
+    - **Free Look**: 360-degree third-person camera decoupling with smooth scroll zoom up to 50 blocks.
+    - **Freecam**: Pure client-side no-clip camera flight through blocks via `U` keybind. Supports WASD movement, Space/Shift vertical flight, configurable flight speed (0.1x to 5.0x), and 1.2x sprint boost. Strictly zero angle snap on toggle off.
   - Dedicated **ESP**, **HUD**, and **Settings** navigation in the lower sidebar group.
 - **Testing Command Suite**:
   - `.hypcrotest movecam <pitch> <yaw>`: Tests camera rotation to exact angles.

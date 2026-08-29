@@ -140,6 +140,9 @@ object MacroController {
             stopMacro(reason)
             stoppedAny = true
         }
+        if (stoppedAny && com.hypcro.camera.FreecamManager.isFreecamActive) {
+            com.hypcro.camera.FreecamManager.disable()
+        }
         MacroInputController.releaseAll()
         return stoppedAny
     }
