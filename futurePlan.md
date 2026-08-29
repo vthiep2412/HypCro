@@ -43,7 +43,7 @@
 triggered but the admin rotated you back. DO NOT REACT")
     - maybe we have to delay the check a little bit.
 - [x] If player is floating while farming repeat sneak, and if can't fix it, we call staff as "Antistuck failed" and stop the macro.
-- [~] Fix by adding try catch when got tp out during macro. (not-enough-crash mod save me once, but not many times more, I have to act on my own!)
+- [x] Fix by adding try catch when got tp out during macro. (not-enough-crash mod save me once, but not many times more, I have to act on my own!)
 
 ---
 

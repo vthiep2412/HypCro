@@ -208,32 +208,36 @@ object HypcroWatchdog {
     }
 
     fun onPacketTeleport(packet: net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket) {
-        val client = Minecraft.getInstance()
-        val player = client.player
-        val prev = player?.position()
+        try {
+            val client = Minecraft.getInstance()
+            val player = client.player
+            val prev = player?.position()
 
-        // Calculate target location from packet
-        val targetPos = if (prev != null) {
-            val changePos = packet.change().position()
-            val relatives = packet.relatives()
-            val x = if (relatives.contains(net.minecraft.world.entity.Relative.X)) prev.x + changePos.x else changePos.x
-            val y = if (relatives.contains(net.minecraft.world.entity.Relative.Y)) prev.y + changePos.y else changePos.y
-            val z = if (relatives.contains(net.minecraft.world.entity.Relative.Z)) prev.z + changePos.z else changePos.z
-            net.minecraft.world.phys.Vec3(x, y, z)
-        } else {
-            packet.change().position()
-        }
-
-        val dist = if (prev != null) prev.distanceTo(targetPos) else 0.0
-
-        val isMacroRunning = com.hypcro.farming.MacroInputController.isAnyMacroRunning()
-        val isWatchdogChecking = isWatchdogActive && com.hypcro.config.ConfigManager.config.generalConfig.watchdog.checkTeleport
-
-        if (isMacroRunning && isWatchdogChecking) {
-            // While macroing: 6b+ threshold for failsafe staff check (automatically disables FreeLook in potentialStaffCheck)
-            if (dist > TELEPORT_DISTANCE_THRESHOLD) {
-                potentialStaffCheck("Teleport Packet Received (instant move ${String.format("%.2f", dist)} blocks to $targetPos)")
+            // Calculate target location from packet
+            val targetPos = if (prev != null) {
+                val changePos = packet.change().position()
+                val relatives = packet.relatives()
+                val x = if (relatives.contains(net.minecraft.world.entity.Relative.X)) prev.x + changePos.x else changePos.x
+                val y = if (relatives.contains(net.minecraft.world.entity.Relative.Y)) prev.y + changePos.y else changePos.y
+                val z = if (relatives.contains(net.minecraft.world.entity.Relative.Z)) prev.z + changePos.z else changePos.z
+                net.minecraft.world.phys.Vec3(x, y, z)
+            } else {
+                packet.change().position()
             }
+
+            val dist = if (prev != null) prev.distanceTo(targetPos) else 0.0
+
+            val isMacroRunning = com.hypcro.farming.MacroInputController.isAnyMacroRunning()
+            val isWatchdogChecking = isWatchdogActive && com.hypcro.config.ConfigManager.config.generalConfig.watchdog.checkTeleport
+
+            if (isMacroRunning && isWatchdogChecking) {
+                // While macroing: 6b+ threshold for failsafe staff check (automatically disables FreeLook in potentialStaffCheck)
+                if (dist > TELEPORT_DISTANCE_THRESHOLD) {
+                    potentialStaffCheck("Teleport Packet Received (instant move ${String.format("%.2f", dist)} blocks to $targetPos)")
+                }
+            }
+        } catch (t: Throwable) {
+            HypCroMod.logWarn("Teleport packet calculation failed safely: ${t.message}")
         }
     }
 

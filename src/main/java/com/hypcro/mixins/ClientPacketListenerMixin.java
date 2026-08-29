@@ -18,9 +18,13 @@ public class ClientPacketListenerMixin {
     private void onHandleMovePlayer(ClientboundPlayerPositionPacket packet, CallbackInfo ci) {
         Minecraft client = Minecraft.getInstance();
         client.execute(() -> {
-            com.hypcro.failsafe.HypcroWatchdog.INSTANCE.onPacketTeleport(packet);
-            if (com.hypcro.camera.FreecamManager.INSTANCE.isFreecamActive()) {
-                com.hypcro.camera.FreecamManager.INSTANCE.disable(client);
+            try {
+                com.hypcro.failsafe.HypcroWatchdog.INSTANCE.onPacketTeleport(packet);
+                if (com.hypcro.camera.FreecamManager.INSTANCE.isFreecamActive()) {
+                    com.hypcro.camera.FreecamManager.INSTANCE.disable(client);
+                }
+            } catch (Throwable t) {
+                HypCroMod.INSTANCE.logWarn("Error processing MovePlayer packet safely: " + t.getMessage());
             }
         });
     }
@@ -38,14 +42,18 @@ public class ClientPacketListenerMixin {
     private void handleServerTransferReset() {
         Minecraft client = Minecraft.getInstance();
         client.execute(() -> {
-            com.hypcro.util.CropBpsTracker.INSTANCE.resetSession();
-            com.hypcro.pest.PestTargetTracker.INSTANCE.clearSessionMemory();
-            if (com.hypcro.camera.FreecamManager.INSTANCE.isFreecamActive()) {
-                com.hypcro.camera.FreecamManager.INSTANCE.disable(client);
-            }
-            if (com.hypcro.farming.MacroController.INSTANCE.isRunning() &&
-                !com.hypcro.pest.PestDestroyerEngine.INSTANCE.isRunning()) {
-                com.hypcro.failsafe.HypcroWatchdog.INSTANCE.potentialStaffCheck("Server Transfer Detected (Staff / Reboot / Hub)");
+            try {
+                com.hypcro.util.CropBpsTracker.INSTANCE.resetSession();
+                com.hypcro.pest.PestTargetTracker.INSTANCE.clearSessionMemory();
+                if (com.hypcro.camera.FreecamManager.INSTANCE.isFreecamActive()) {
+                    com.hypcro.camera.FreecamManager.INSTANCE.disable(client);
+                }
+                if (com.hypcro.farming.MacroController.INSTANCE.isRunning() &&
+                    !com.hypcro.pest.PestDestroyerEngine.INSTANCE.isRunning()) {
+                    com.hypcro.failsafe.HypcroWatchdog.INSTANCE.potentialStaffCheck("Server Transfer Detected (Staff / Reboot / Hub)");
+                }
+            } catch (Throwable t) {
+                HypCroMod.INSTANCE.logWarn("Error handling server transfer reset: " + t.getMessage());
             }
         });
     }
