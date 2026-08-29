@@ -1083,10 +1083,10 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
 
         // Top Sub-Tab Navigation Pills
         when (selectedTab) {
-            "Farming" -> farmingSubTabPill.x = (width / 2) - 60
-            "Pester" -> pesterSubTabPill.x = (width / 2) - 60
-            "Misc" -> miscSubTabPill.x = (width / 2) - 60
-            "Settings" -> settingsSubTabPill.x = (width / 2) - 90
+            "Farming" -> farmingSubTabPill.x = (width / 2) - 85
+            "Pester" -> pesterSubTabPill.x = (width / 2) - 85
+            "Misc" -> miscSubTabPill.x = (width / 2) - 85
+            "Settings" -> settingsSubTabPill.x = (width / 2) - 115
         }
 
         // 1. Sidebar Item: Farming (Top)
