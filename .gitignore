@@ -39,3 +39,4 @@ test_*.kt
 /Learn/
 
 /.agents/
+.marscode/deviceInfo.json

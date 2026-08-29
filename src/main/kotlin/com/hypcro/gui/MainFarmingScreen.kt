@@ -479,7 +479,7 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         }
         addRenderableWidget(checkFarmingInterruptionPill)
 
-        checkBpsDropInfo = InfoIconWidget(cardX + 12 + font.width(Component.literal("  └ BPS Drop Protection:")) + 6, wdY + 122, "§eSuddenly Low BPS Check\n\nArms when breaking crops at >=18 BPS.\nTriggers an alarm failsafe if BPS drops below 18 for >1.2s.")
+        checkBpsDropInfo = InfoIconWidget(cardX + 12 + font.width(Component.literal("  └ BPS Drop Protection:")) + 6, wdY + 122, "§eSuddenly Low BPS Check\n\nArms when breaking crops at >=18 BPS.\nTriggers an alarm failsafe if BPS drops below 18 for >1.8s.")
         addRenderableWidget(checkBpsDropInfo)
 
         checkBpsDropPill = PillToggleWidget(
