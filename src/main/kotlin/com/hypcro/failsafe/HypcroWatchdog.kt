@@ -252,11 +252,13 @@ object HypcroWatchdog {
     }
 
     fun potentialStaffCheck(reason: String) {
-        // Disable Free Look immediately so player returns to normal perspective
         val client = Minecraft.getInstance()
+        // Disable Free Look immediately so player returns to normal perspective
         if (com.hypcro.camera.FreeLookManager.isFreeLookActive) {
             com.hypcro.camera.FreeLookManager.disable(client)
         }
+        // Disable Freecam immediately so detached camera mode is turned off
+        com.hypcro.camera.FreecamManager.disable(client)
         com.hypcro.farming.MacroController.abortScript(reason)
         HypCroMod.logAlarmBanner(reason)
         playFailsafeAlarm()

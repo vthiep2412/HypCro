@@ -110,6 +110,7 @@ object MacroController {
         if (!engine.isRunning) {
             activeSessionEngine = null
         }
+        com.hypcro.camera.FreecamManager.disable()
     }
 
     @Synchronized
@@ -140,9 +141,11 @@ object MacroController {
             stopMacro(reason)
             stoppedAny = true
         }
-        if (stoppedAny && com.hypcro.camera.FreecamManager.isFreecamActive) {
-            com.hypcro.camera.FreecamManager.disable()
-        }
+        // if (stoppedAny && com.hypcro.camera.FreecamManager.isFreecamActive) {
+        //     com.hypcro.camera.FreecamManager.disable()
+        // }
+        // Ensure detached camera mode is always turned off on master stop
+        com.hypcro.camera.FreecamManager.disable()
         MacroInputController.releaseAll()
         return stoppedAny
     }
