@@ -44,16 +44,31 @@ public class ClientPacketListenerMixin {
         client.execute(() -> {
             try {
                 com.hypcro.util.CropBpsTracker.INSTANCE.resetSession();
+            } catch (Throwable t) {
+                HypCroMod.INSTANCE.logWarn("Error resetting BPS session on server transfer: " + t.getMessage());
+            }
+
+            try {
                 com.hypcro.pest.PestTargetTracker.INSTANCE.clearSessionMemory();
+            } catch (Throwable t) {
+                HypCroMod.INSTANCE.logWarn("Error clearing pest session memory on server transfer: " + t.getMessage());
+            }
+
+            try {
                 if (com.hypcro.camera.FreecamManager.INSTANCE.isFreecamActive()) {
                     com.hypcro.camera.FreecamManager.INSTANCE.disable(client);
                 }
+            } catch (Throwable t) {
+                HypCroMod.INSTANCE.logWarn("Error disabling freecam on server transfer: " + t.getMessage());
+            }
+
+            try {
                 if (com.hypcro.farming.MacroController.INSTANCE.isRunning() &&
                     !com.hypcro.pest.PestDestroyerEngine.INSTANCE.isRunning()) {
                     com.hypcro.failsafe.HypcroWatchdog.INSTANCE.potentialStaffCheck("Server Transfer Detected (Staff / Reboot / Hub)");
                 }
             } catch (Throwable t) {
-                HypCroMod.INSTANCE.logWarn("Error handling server transfer reset: " + t.getMessage());
+                HypCroMod.INSTANCE.logWarn("Error handling transfer watchdog check: " + t.getMessage());
             }
         });
     }
