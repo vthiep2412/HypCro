@@ -190,7 +190,11 @@ object HypcroWatchdog {
                     val now = System.currentTimeMillis()
                     if (bpsDropStartTime == 0L) {
                         bpsDropStartTime = now
-                    } else if (now - bpsDropStartTime >= 1800L) {
+                    } else if (now - bpsDropStartTime >= 1500L) {
+                        if (com.hypcro.farming.WSFarmEngine.isTurningOrRecovering()) {
+                            bpsDropStartTime = 0L
+                            return
+                        }
                         bpsDropStartTime = 0L
                         isBpsDropArmed = false
                         potentialStaffCheck("Farming Interruption: Suddenly Low BPS")

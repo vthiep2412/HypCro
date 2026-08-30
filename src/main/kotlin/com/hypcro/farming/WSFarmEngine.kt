@@ -166,6 +166,10 @@ object WSFarmEngine : IFarmEngine {
     private var lastPestCheckTime: Long = 0L
     private var lastCheckPos: Vec3? = null
     private var macroStartTime: Long = 0L
+    @Volatile
+    private var lastTurnTime: Long = 0L
+
+    fun isTurningOrRecovering(): Boolean = (System.currentTimeMillis() - lastTurnTime < 500L)
 
     override fun onClientTick(client: Minecraft) {
         try {
@@ -215,6 +219,7 @@ object WSFarmEngine : IFarmEngine {
                         if (neededKey != currentActiveKey) {
                             // Scenario A: Water state dictates a different key -> Switch!
                             currentActiveKey = neededKey
+                            lastTurnTime = System.currentTimeMillis()
                             // HypCroMod.log(">> Water transition: inWater=$inWater -> Key=$currentActiveKey at (${String.format("%.1f", player.x)}, ${String.format("%.1f", player.y)}, ${String.format("%.1f", player.z)})")
                         } else {
                             // Scenario B: Stopped moving, but water state is exactly the same
