@@ -442,7 +442,11 @@ object PestDestroyerEngine {
                 val lines = PestTabReader.readScoreboardLines(client)
                 val plotRegex = Regex("""(?i)Plot\s*-\s*$targetPlotId(?!\d)""")
                 val altPlotRegex = Regex("""(?i)Plot\s+$targetPlotId(?!\d)""")
-                val matched = lines.any { plotRegex.containsMatchIn(it) || altPlotRegex.containsMatchIn(it) }
+                // Plot 0 appears as "The Garden" on the scoreboard, not "Plot - 0"
+                val gardenRegex = if (targetPlotId == 0) Regex("""(?i)The\s*Garden""") else null
+                val matched = lines.any { line ->
+                    plotRegex.containsMatchIn(line) || altPlotRegex.containsMatchIn(line) || (gardenRegex != null && gardenRegex.containsMatchIn(line))
+                }
 
                 if (matched) {
                     plotConfirmed = true

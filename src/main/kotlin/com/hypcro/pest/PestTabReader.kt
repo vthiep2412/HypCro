@@ -28,6 +28,13 @@ object PestTabReader {
     fun getScoreboardPlotPestCount(client: Minecraft, targetPlotId: Int): Int? {
         val lines = readScoreboardLines(client)
         for (line in lines) {
+            // Plot 0 is displayed as "The Garden xN" on the scoreboard, not "Plot - 0 xN"
+            if (targetPlotId == 0) {
+                val gardenMatcher = GARDEN_PEST_COUNT_PATTERN.matcher(line)
+                if (gardenMatcher.find()) {
+                    return gardenMatcher.group(1).toIntOrNull()
+                }
+            }
             val plotMatcher = SCOREBOARD_PLOT_PATTERN.matcher(line)
             if (plotMatcher.find()) {
                 val plotId = plotMatcher.group(1).toIntOrNull()
@@ -49,6 +56,10 @@ object PestTabReader {
             val gardenMatcher = GARDEN_PEST_COUNT_PATTERN.matcher(line)
             if (gardenMatcher.find()) {
                 totalGardenPests = gardenMatcher.group(1).toIntOrNull() ?: 0
+                // "The Garden" on the scoreboard corresponds to Plot 0
+                if (totalGardenPests > 0) {
+                    plots.add(0)
+                }
             }
 
             val plotMatcher = SCOREBOARD_PLOT_PATTERN.matcher(line)
