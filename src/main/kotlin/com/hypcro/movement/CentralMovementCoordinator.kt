@@ -547,7 +547,7 @@ object CentralMovementCoordinator {
 
             MacroInputController.releaseAllMovement()
 
-            if (ConfigManager.config.pestDestroyer.stopAfterDestination) {
+            if (ConfigManager.config.pestDestroyer.stopAfterDestination && !ignoreHorizontalXZ) {
                 MacroInputController.releaseSprint()
                 MacroInputController.releaseW()
                 MacroInputController.holdS()
@@ -972,7 +972,7 @@ object CentralMovementCoordinator {
             MacroInputController.releaseAllMovement()
 
             // Active S-Braking to eliminate forward flight momentum if enabled
-            if (ConfigManager.config.pestDestroyer.stopAfterDestination) {
+            if (ConfigManager.config.pestDestroyer.stopAfterDestination && !ignoreHorizontalXZ) {
                 MacroInputController.releaseSprint()
                 MacroInputController.releaseW()
                 MacroInputController.holdS()
