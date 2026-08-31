@@ -82,6 +82,12 @@ object PathfindingVisualizer {
         clearDebug()
     }
 
+    fun clearIfNotVerbose() {
+        if (!isVerbose) {
+            clear()
+        }
+    }
+
     fun renderWorld() {
         if (!ConfigManager.config.generalConfig.visuals.pathfindingVisualizer) return
 

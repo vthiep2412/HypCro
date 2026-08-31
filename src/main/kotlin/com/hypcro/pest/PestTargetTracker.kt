@@ -15,18 +15,18 @@ import net.minecraft.world.item.Items
 
 data class TrackedPest(
     val entity: Entity,
-    val skullMarker: ArmorStand?,
-    val position: Vec3
-)
+    val skullMarker: ArmorStand? = entity as? ArmorStand,
+    private val _pos: Vec3? = null
+) {
+    val position: Vec3 get() = entity.position()
+}
 
 object PestTargetTracker {
 
     private val confirmedPestUuids = Collections.synchronizedSet(mutableSetOf<UUID>())
-    private val ignoredNonPestUuids = Collections.synchronizedSet(mutableSetOf<UUID>())
 
     fun clearSessionMemory() {
         confirmedPestUuids.clear()
-        ignoredNonPestUuids.clear()
     }
 
     val KNOWN_PEST_NAMES = listOf(
@@ -73,6 +73,13 @@ object PestTargetTracker {
         "ewogICJ0aW1lc3RhbXAiIDogMTY5NzQ3MDQ0MzA4MiwKICAicHJvZmlsZUlkIiA6ICJkOGNkMTNjZGRmNGU0Y2IzODJmYWZiYWIwOGIyNzQ4OSIsCiAgInByb2ZpbGVOYW1lIiA6ICJaYWNoeVphY2giLAogICJzaWduYXR1cmVSZXF1aXJlZCIgOiB0cnVlLAogICJ0ZXh0dXJlcyIgOiB7CiAgICAiU0tJTiIgOiB7CiAgICAgICJ1cmwiIDogImh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvN2E3OWQwZmQ2NzdiNTQ1MzA5NjExMTdlZjg0YWRjMjA2ZTJjYzUwNDVjMTM0NGQ2MWQ3NzZiZjhhYzJmZTFiYSIKICAgIH0KICB9Cn0="
     )
 
+    private val SECONDARY_SEGMENT_HEADS = setOf(
+        // Earthworm tail
+        "ewogICJ0aW1lc3RhbXAiIDogMTY5NzQ3MDQ3ODAzMCwKICAicHJvZmlsZUlkIiA6ICI0NmY3N2NjNmQ2MjU0NjEzYjc2NmYyZDRmMDM2MzZhNiIsCiAgInByb2ZpbGVOYW1lIiA6ICJNaXNzV29sZiIsCiAgInNpZ25hdHVyZVJlcXVpcmVkIiA6IHRydWUsCiAgInRleHR1cmVzIiA6IHsKICAgICJTS0lOIiA6IHsKICAgICAgInVybCIgOiAiaHR0cDovL3RleHR1cmVzLm1pbmVjcmFmdC5uZXQvdGV4dHVyZS9mZDQwYWE1MDkwNTIzNWI2MjhlNzM3OWViMzFmYTQ1Y2Q0MWI1MDNmMDk3MjFkYjNjNDM3ZmNlZTM5MjA3ZGZjIgogICAgfQogIH0KfQ==",
+        // Firefly flash
+        "ewogICJ0aW1lc3RhbXAiIDogMTc2MDQ1MDQyMzg4OSwKICAicHJvZmlsZUlkIiA6ICIyY2Y2MzExZjUyMTM0NTE2YTEyNTY3NWUwMzk3NmU2MSIsCiAgInByb2ZpbGVOYW1lIiA6ICJmaWdodHN0b2NrIiwKICAic2lnbmF0dXJlUmVxdWlyZWQiIDogdHJ1ZSwKICAidGV4dHVyZXMiIDogewogICAgIlNLSU4iIDogewogICAgICAidXJsIiA6ICJodHRwOi8vdGV4dHVyZXMubWluZWNyYWZ0Lm5ldC90ZXh0dXJlLzNlNTI3ODJkN2YyYWFlZThhZjViYTI5MjhmZWM3ODg1ZTk0ODc5MzM0YzIyOTZiYzllN2UyZGJjNTQxOGU1OGYiLAogICAgICAibWV0YWRhdGEiIDogewogICAgICAgICJtb2RlbCIgOiAic2xpbSIKICAgICAgfQogICAgfQogIH0KfQ=="
+    )
+
     fun isPestNameMatching(rawName: String?): Boolean {
         if (rawName.isNullOrBlank()) return false
         val clean = PestTabReader.stripColor(rawName).uppercase()
@@ -84,157 +91,54 @@ object PestTargetTracker {
      * Extracts the base64 skull texture value from an ArmorStand's head item.
      * Mirrors Skyblocker's ItemUtils#getHeadTexture logic.
      */
-    private fun getArmorStandHeadTexture(entity: ArmorStand): String? {
+    fun getArmorStandHeadTexture(entity: ArmorStand): String? {
         val headItem = entity.getItemBySlot(EquipmentSlot.HEAD)
-        if (headItem.isEmpty || headItem.item != Items.PLAYER_HEAD) return null
+        if (headItem.isEmpty || !headItem.`is`(Items.PLAYER_HEAD)) return null
         val profile = headItem.get(DataComponents.PROFILE) ?: return null
         return profile.partialProfile().properties.get("textures").firstOrNull()?.value
     }
 
     /**
      * Checks whether the ArmorStand is wearing a known Pest head texture.
-     * This is prioritized over nameplate matching so pests are visible instantly
-     * at full 128-block render distance.
+     * Pests are visible instantly at full render distance.
      */
-    private fun isPestHeadArmorStand(entity: ArmorStand): Boolean {
+    fun isPestHeadArmorStand(entity: ArmorStand): Boolean {
         val texture = getArmorStandHeadTexture(entity) ?: return false
         return PEST_HEADS.contains(texture)
     }
 
+    fun isSecondarySegment(entity: ArmorStand): Boolean {
+        val texture = getArmorStandHeadTexture(entity) ?: return false
+        return SECONDARY_SEGMENT_HEADS.contains(texture)
+    }
+
     fun findPestsInRadius(client: Minecraft, center: Vec3, radius: Double): List<TrackedPest> {
         val level = client.level ?: return emptyList()
-        val results = mutableListOf<TrackedPest>()
-        val foundEntityIds = mutableSetOf<Int>()
+        val radiusSq = radius * radius
 
         val loadedEntities = level.entitiesForRendering()
-
-        // 1. Identify all ArmorStands and partition pest markers vs general stands
-        val pestArmorStands = mutableListOf<ArmorStand>()
-        val generalArmorStands = mutableListOf<ArmorStand>()
-        val otherLivingEntities = mutableListOf<LivingEntity>()
+        val candidateStands = mutableListOf<ArmorStand>()
 
         for (entity in loadedEntities) {
             if (entity.isRemoved) continue
-            if (entity.position().distanceTo(center) > radius) continue
+            if (entity !is ArmorStand) continue
+            if (entity.position().distanceToSqr(center) > radiusSq) continue
 
-            if (entity is ArmorStand) {
-                if (ignoredNonPestUuids.contains(entity.uuid)) {
-                    generalArmorStands.add(entity)
-                    continue
-                }
-
-                val headTexture = getArmorStandHeadTexture(entity)
-                if (headTexture != null) {
-                    // Wearing a player head: determine pest status SOLELY by texture match
-                    if (PEST_HEADS.contains(headTexture)) {
-                        pestArmorStands.add(entity)
-                    } else {
-                        ignoredNonPestUuids.add(entity.uuid)
-                        generalArmorStands.add(entity)
-                    }
-                } else {
-                    // No player head: fall back to customName
-                    val standName = entity.customName?.string
-                    if (isPestNameMatching(standName)) {
-                        pestArmorStands.add(entity)
-                    } else {
-                        if (!standName.isNullOrBlank()) {
-                            ignoredNonPestUuids.add(entity.uuid)
-                        }
-                        generalArmorStands.add(entity)
-                    }
-                }
-            } else if (entity is LivingEntity && entity !is net.minecraft.world.entity.player.Player) {
-                otherLivingEntities.add(entity)
+            if (isPestHeadArmorStand(entity)) {
+                candidateStands.add(entity)
             }
         }
 
-        val maxDistSq = 2.5 * 2.5
+        // Sort so primary heads are selected before secondary segments (tails/flashes)
+        val sortedStands = candidateStands.sortedBy { if (isSecondarySegment(it)) 1 else 0 }
+        val results = mutableListOf<TrackedPest>()
+        val clusterDistSq = 1.6 * 1.6
 
-        // 2. Process pest-labeled ArmorStands: pair with closest underlying living mob (within 2.5b) or use stand itself
-        for (stand in pestArmorStands) {
+        for (stand in sortedStands) {
             val standPos = stand.position()
-            var closestMob: LivingEntity? = null
-            var closestDistSq = maxDistSq
-
-            for (mob in otherLivingEntities) {
-                if (foundEntityIds.contains(mob.id)) continue
-                val distSq = mob.distanceToSqr(standPos)
-                if (distSq <= closestDistSq) {
-                    closestDistSq = distSq
-                    closestMob = mob
-                }
-            }
-
-            val primaryEntity = closestMob ?: stand
-            val primaryId = primaryEntity.id
-
-            if (!foundEntityIds.contains(primaryId)) {
-                foundEntityIds.add(primaryId)
-                confirmedPestUuids.add(primaryEntity.uuid)
-                results.add(TrackedPest(primaryEntity, stand, primaryEntity.position()))
-            }
-        }
-
-        // 3. Process all remaining living entities (Bats, Silverfish, Endermites, Spiders, Bees, Slimes, etc.)
-        for (entity in otherLivingEntities) {
-            if (foundEntityIds.contains(entity.id)) continue
-
-            val uuid = entity.uuid
-            val entityPos = entity.position()
-            var matchingMarker: ArmorStand? = null
-
-            if (confirmedPestUuids.contains(uuid)) {
-                var closestMarkerDistSq = maxDistSq
-                for (stand in pestArmorStands) {
-                    val distSq = stand.distanceToSqr(entityPos)
-                    if (distSq <= closestMarkerDistSq) {
-                        closestMarkerDistSq = distSq
-                        matchingMarker = stand
-                    }
-                }
-                if (matchingMarker == null) {
-                    for (stand in generalArmorStands) {
-                        val distSq = stand.distanceToSqr(entityPos)
-                        if (distSq <= closestMarkerDistSq) {
-                            closestMarkerDistSq = distSq
-                            matchingMarker = stand
-                        }
-                    }
-                }
-                foundEntityIds.add(entity.id)
-                results.add(TrackedPest(entity, matchingMarker, entity.position()))
-            } else {
-                val entityName = entity.customName?.string
-                var hasMatchingStand: ArmorStand? = null
-                for (stand in pestArmorStands) {
-                    if (stand.distanceToSqr(entityPos) <= maxDistSq) {
-                        hasMatchingStand = stand
-                        break
-                    }
-                }
-
-                if (isPestNameMatching(entityName)) {
-                    confirmedPestUuids.add(uuid)
-                    if (hasMatchingStand == null) {
-                        var closestGeneralDistSq = maxDistSq
-                        for (stand in generalArmorStands) {
-                            val distSq = stand.distanceToSqr(entityPos)
-                            if (distSq <= closestGeneralDistSq) {
-                                closestGeneralDistSq = distSq
-                                hasMatchingStand = stand
-                            }
-                        }
-                    }
-                    matchingMarker = hasMatchingStand
-                    foundEntityIds.add(entity.id)
-                    results.add(TrackedPest(entity, matchingMarker, entity.position()))
-                } else if (hasMatchingStand != null) {
-                    confirmedPestUuids.add(uuid)
-                    matchingMarker = hasMatchingStand
-                    foundEntityIds.add(entity.id)
-                    results.add(TrackedPest(entity, matchingMarker, entity.position()))
-                }
+            // If already merged with an existing nearby pest stand (e.g. Earthworm body/tail segments), skip
+            if (results.none { it.position.distanceToSqr(standPos) < clusterDistSq }) {
+                results.add(TrackedPest(stand, stand))
             }
         }
 
@@ -257,29 +161,15 @@ object PestTargetTracker {
     }
 
     fun isPestDeadOrRemoved(client: Minecraft, pest: TrackedPest): Boolean {
-        if (pest.entity.isRemoved) {
-            forgetPest(pest.entity.uuid)
-            return true
-        }
-        if (pest.entity is LivingEntity && (pest.entity.isDeadOrDying || pest.entity.health <= 0.0f)) {
-            forgetPest(pest.entity.uuid)
-            return true
-        }
-        if (pest.skullMarker != null && pest.skullMarker.isRemoved) {
-            forgetPest(pest.entity.uuid)
-            return true
-        }
+        if (pest.entity.isRemoved) return true
         val level = client.level ?: return true
         val entityById = level.getEntity(pest.entity.id)
-        if (entityById == null || entityById.isRemoved) {
-            forgetPest(pest.entity.uuid)
-            return true
-        }
+        if (entityById == null || entityById.isRemoved) return true
         return false
     }
 
-    fun getSafeHoverY(client: Minecraft, x: Double, startY: Double, z: Double, minAirClearance: Double = 0.15): Double {
-        val level = client.level ?: return startY
+    fun getSafeHoverY(client: Minecraft, x: Double, startY: Double, z: Double, minAirClearance: Double = 1.8): Double {
+        val level = client.level ?: return startY + minAirClearance
         val bx = kotlin.math.floor(x).toInt()
         val bz = kotlin.math.floor(z).toInt()
         val startBY = kotlin.math.floor(startY + 2.0).toInt().coerceIn(-64, 320)
@@ -293,11 +183,11 @@ object PestTargetTracker {
                 val shape = state.getCollisionShape(level, mutablePos)
                 if (!shape.isEmpty) {
                     val maxBlockY = by + shape.max(net.minecraft.core.Direction.Axis.Y)
-                    return kotlin.math.max(startY, maxBlockY + minAirClearance)
+                    return maxBlockY + minAirClearance
                 }
             }
         }
-        return startY
+        return startY + minAirClearance
     }
 
     fun findSafeAttackPosition(
@@ -328,10 +218,10 @@ object PestTargetTracker {
         val defaultPos = if (dist > 0.1) {
             val rawX = targetPos.x - (toTarget.x / dist) * attackRange
             val rawZ = targetPos.z - (toTarget.z / dist) * attackRange
-            val safeY = getSafeHoverY(client, rawX, targetPos.y + 0.5, rawZ, minAirClearance = 0.15)
+            val safeY = getSafeHoverY(client, rawX, targetPos.y, rawZ, minAirClearance = 1.8)
             clampToPlot(Vec3(rawX, safeY, rawZ))
         } else {
-            val safeY = getSafeHoverY(client, targetPos.x + attackRange, targetPos.y + 0.5, targetPos.z, minAirClearance = 0.15)
+            val safeY = getSafeHoverY(client, targetPos.x + attackRange, targetPos.y, targetPos.z, minAirClearance = 1.8)
             clampToPlot(Vec3(targetPos.x + attackRange, safeY, targetPos.z))
         }
 
@@ -350,7 +240,7 @@ object PestTargetTracker {
             if (plotCenter != null && !isInsidePlotBounds(Vec3(candidateX, targetPos.y, candidateZ), plotCenter, maxPlotOffset)) {
                 continue
             }
-            val safeY = getSafeHoverY(client, candidateX, targetPos.y + 0.5, candidateZ, minAirClearance = 0.15)
+            val safeY = getSafeHoverY(client, candidateX, targetPos.y, candidateZ, minAirClearance = 1.8)
             val candidatePos = Vec3(candidateX, safeY, candidateZ)
 
             val fireVec = targetPos.subtract(candidatePos).normalize()

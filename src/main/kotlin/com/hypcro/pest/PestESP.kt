@@ -51,12 +51,6 @@ object PestESP {
             cachedPests = emptyList()
             return
         }
-        val client = Minecraft.getInstance()
-        val now = System.currentTimeMillis()
-        if (now - lastScanTimeMs >= 50L) {
-            lastScanTimeMs = now
-            tick(client)
-        }
 
         if (!cachedIsInGarden || cachedPests.isEmpty()) return
 
@@ -68,12 +62,13 @@ object PestESP {
         )
 
         for (pest in cachedPests) {
-            val pos = pest.position
+            if (pest.entity.isRemoved) continue
+            val eyePos = pest.entity.eyePosition
 
-            // 2x visual box expansion (renders through all walls via setAlwaysOnTop)
+            // Tight custom box wrapped around the pest head skull (renders through walls)
             val box = AABB(
-                pos.x - 0.8, pos.y - 0.2, pos.z - 0.8,
-                pos.x + 0.8, pos.y + 1.4, pos.z + 0.8
+                eyePos.x - 0.32, eyePos.y - 0.28, eyePos.z - 0.32,
+                eyePos.x + 0.32, eyePos.y + 0.32, eyePos.z + 0.32
             )
             Gizmos.cuboid(box, espStyle).setAlwaysOnTop()
         }

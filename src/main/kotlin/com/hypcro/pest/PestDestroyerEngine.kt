@@ -136,6 +136,7 @@ object PestDestroyerEngine {
         activeJob?.cancel()
         activeJob = null
         CentralMovementCoordinator.isAbortRequested = true
+        com.hypcro.pathfinding.PathfindingVisualizer.clearIfNotVerbose()
         MacroInputController.releaseAll()
     }
 

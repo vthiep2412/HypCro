@@ -21,10 +21,12 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
 }
 
+val modVersion = project.version.toString()
 tasks.processResources {
-    inputs.property("version", project.version)
+    inputs.property("version", modVersion)
+    val props = mapOf("version" to modVersion)
     filesMatching("fabric.mod.json") {
-        expand("version" to project.version)
+        expand(props)
     }
 }
 

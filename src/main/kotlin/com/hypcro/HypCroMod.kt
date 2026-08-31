@@ -94,6 +94,7 @@ object HypCroMod : ClientModInitializer {
 
             // Render Pathfinding Visualizer, Pest ESP, and Auto Bouncy Ball in-world Gizmos
             if (client.level != null && client.player != null) {
+                com.hypcro.pest.PestESP.tick(client)
                 com.hypcro.pathfinding.PathfindingVisualizer.renderWorld()
                 com.hypcro.pest.PestESP.renderWorld()
                 com.hypcro.bouncy.AutoBouncyBall.renderWorld()

@@ -146,6 +146,7 @@ object MacroController {
         // }
         // Ensure detached camera mode is always turned off on master stop
         com.hypcro.camera.FreecamManager.disable()
+        com.hypcro.pathfinding.PathfindingVisualizer.clearIfNotVerbose()
         MacroInputController.releaseAll()
         return stoppedAny
     }

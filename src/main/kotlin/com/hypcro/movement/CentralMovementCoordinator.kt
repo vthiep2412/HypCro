@@ -56,6 +56,7 @@ object CentralMovementCoordinator {
         isNavigationInterrupted = true
         isNavigating = false
         MacroInputController.releaseAllMovement()
+        com.hypcro.pathfinding.PathfindingVisualizer.clearIfNotVerbose()
     }
 
     fun isAbortTriggered(client: Minecraft? = null): Boolean {
@@ -183,6 +184,7 @@ object CentralMovementCoordinator {
             MacroInputController.releaseAllMovement()
             isNavigating = false
             isNavigationInterrupted = false
+            com.hypcro.pathfinding.PathfindingVisualizer.clearIfNotVerbose()
         }
     }
 
