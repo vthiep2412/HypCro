@@ -65,10 +65,10 @@ object PestESP {
             if (pest.entity.isRemoved) continue
             val eyePos = pest.entity.eyePosition
 
-            // Tight custom box wrapped around the pest head skull (renders through walls)
+            // Expanded custom box wrapped around the pest head skull (2x size, renders through walls)
             val box = AABB(
-                eyePos.x - 0.32, eyePos.y - 0.28, eyePos.z - 0.32,
-                eyePos.x + 0.32, eyePos.y + 0.32, eyePos.z + 0.32
+                eyePos.x - 0.64, eyePos.y - 0.56, eyePos.z - 0.64,
+                eyePos.x + 0.64, eyePos.y + 0.64, eyePos.z + 0.64
             )
             Gizmos.cuboid(box, espStyle).setAlwaysOnTop()
         }

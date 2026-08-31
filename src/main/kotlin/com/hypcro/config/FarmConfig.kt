@@ -125,6 +125,20 @@ data class BouncyBallConfig(
 )
 
 @Serializable
+data class DungeonConfig(
+    var batEsp: Boolean = false,
+    var batEspColor: String = "#8B4513",
+    var starMobsEsp: Boolean = false,
+    var starMobsEspColor: String = "#F57738",
+    var lostAdventurerEsp: Boolean = false,
+    var lostAdventurerColor: String = "#FEE15C",
+    var shadowAssassinEsp: Boolean = false,
+    var shadowAssassinColor: String = "#5B2CB2",
+    var diamondGuyEsp: Boolean = false,
+    var diamondGuyColor: String = "#57C2F7"
+)
+
+@Serializable
 data class HudConfig(
     var enabled: Boolean = true,
     var opacity: Float = 0.80f,
@@ -146,6 +160,7 @@ data class FarmConfig(
     var generalConfig: GeneralConfig = GeneralConfig(),
     var pestDestroyer: PestDestroyerConfig = PestDestroyerConfig(),
     var bouncyBall: BouncyBallConfig = BouncyBallConfig(),
+    var dungeon: DungeonConfig = DungeonConfig(),
     var hud: HudConfig = HudConfig()
 )
 

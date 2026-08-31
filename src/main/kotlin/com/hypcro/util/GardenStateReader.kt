@@ -54,4 +54,13 @@ object GardenStateReader {
         val scoreLines = readScoreboardLines(client)
         return scoreLines.any { it.contains("The Garden", ignoreCase = true) || it.contains("Plot -", ignoreCase = true) }
     }
+
+    fun isInDungeons(client: Minecraft): Boolean {
+        val tabLines = readTabList(client)
+        if (tabLines.any { it.contains("Area: Catacombs", ignoreCase = true) || it.contains("Dungeon: Catacombs", ignoreCase = true) }) {
+            return true
+        }
+        val scoreLines = readScoreboardLines(client)
+        return scoreLines.any { it.contains("The Catacombs", ignoreCase = true) || it.contains("Catacombs (", ignoreCase = true) }
+    }
 }

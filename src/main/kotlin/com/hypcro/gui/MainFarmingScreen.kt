@@ -15,6 +15,7 @@ import com.hypcro.gui.widgets.InfoIconWidget
 import com.hypcro.gui.widgets.PillToggleWidget
 import com.hypcro.gui.widgets.PlotGridModal
 import com.hypcro.gui.widgets.SingleSliderWidget
+import com.hypcro.dungeon.DungeonESP
 import com.hypcro.pest.PestDestroyerEngine
 import com.hypcro.pest.PestESP
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -59,6 +60,8 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         private const val SEC_PEST_CONF_GAP = 156
         private const val SEC_MISC_CONF_GAP = 88
         private const val SEC_HUD_H = 88
+        private const val SEC_DUNGEON_ESP_H = 130
+        private const val SEC_DUNGEON_ESP_GAP = 136
         private const val SEC_OTHER_ESP_H = 46
     }
 
@@ -92,6 +95,11 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
     private lateinit var settingsSubTabPill: PillToggleWidget
 
     // ESP View Widgets
+    private lateinit var batEspPill: PillToggleWidget
+    private lateinit var starMobsEspPill: PillToggleWidget
+    private lateinit var lostAdventurerEspPill: PillToggleWidget
+    private lateinit var shadowAssassinEspPill: PillToggleWidget
+    private lateinit var diamondGuyEspPill: PillToggleWidget
     private lateinit var espTabPestPill: PillToggleWidget
 
     // Settings - Mouse Movement
@@ -648,9 +656,55 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         }
         addRenderableWidget(pestEspPill)
 
-        // 8b. ESP Tab Widgets
-        espTabPestPill = PillToggleWidget(
+        // 8b. ESP Tab Widgets (Dungeon ESP & Other ESP)
+        val dngCfg = ConfigManager.config.dungeon
+        batEspPill = PillToggleWidget(
             cardX + 220, cardY + 20, 100, 16,
+            listOf("OFF", "ON"), if (dngCfg.batEsp) 1 else 0
+        ) { idx ->
+            ConfigManager.config.dungeon.batEsp = (idx == 1)
+            ConfigManager.save()
+        }
+        addRenderableWidget(batEspPill)
+
+        starMobsEspPill = PillToggleWidget(
+            cardX + 220, cardY + 42, 100, 16,
+            listOf("OFF", "ON"), if (dngCfg.starMobsEsp) 1 else 0
+        ) { idx ->
+            ConfigManager.config.dungeon.starMobsEsp = (idx == 1)
+            ConfigManager.save()
+        }
+        addRenderableWidget(starMobsEspPill)
+
+        lostAdventurerEspPill = PillToggleWidget(
+            cardX + 220, cardY + 64, 100, 16,
+            listOf("OFF", "ON"), if (dngCfg.lostAdventurerEsp) 1 else 0
+        ) { idx ->
+            ConfigManager.config.dungeon.lostAdventurerEsp = (idx == 1)
+            ConfigManager.save()
+        }
+        addRenderableWidget(lostAdventurerEspPill)
+
+        shadowAssassinEspPill = PillToggleWidget(
+            cardX + 220, cardY + 86, 100, 16,
+            listOf("OFF", "ON"), if (dngCfg.shadowAssassinEsp) 1 else 0
+        ) { idx ->
+            ConfigManager.config.dungeon.shadowAssassinEsp = (idx == 1)
+            ConfigManager.save()
+        }
+        addRenderableWidget(shadowAssassinEspPill)
+
+        diamondGuyEspPill = PillToggleWidget(
+            cardX + 220, cardY + 108, 100, 16,
+            listOf("OFF", "ON"), if (dngCfg.diamondGuyEsp) 1 else 0
+        ) { idx ->
+            ConfigManager.config.dungeon.diamondGuyEsp = (idx == 1)
+            ConfigManager.save()
+        }
+        addRenderableWidget(diamondGuyEspPill)
+
+        espTabPestPill = PillToggleWidget(
+            cardX + 220, cardY + SEC_DUNGEON_ESP_GAP + 20, 100, 16,
             listOf("OFF", "ON"), if (pestDestroyerCfg.pestEsp) 1 else 0
         ) { idx ->
             val active = (idx == 1)
@@ -834,7 +888,7 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
             "Farming" -> if (farmingSubTab == 1) SEC_FARM_FLY_GAP + SEC_FARM_PEST_GAP + 20 else cardH + 20
             "Pester" -> if (pesterSubTab == 1) SEC_PEST_CONF_GAP + 20 else cardH + 20
             "Misc" -> if (miscSubTab == 1) SEC_MISC_CONF_GAP + 20 else cardH + 20
-            "ESP" -> SEC_OTHER_ESP_H + 20
+            "ESP" -> SEC_DUNGEON_ESP_GAP + SEC_OTHER_ESP_H + 20
             "HUD" -> SEC_HUD_H + 20
             else -> 100
         }
@@ -901,7 +955,15 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         autoSprintInfo.y = asY + 22
 
         // ESP Tab Widgets
-        espTabPestPill.y = effectiveCardY + 20
+        val dngY = effectiveCardY
+        batEspPill.y = dngY + 20
+        starMobsEspPill.y = dngY + 42
+        lostAdventurerEspPill.y = dngY + 64
+        shadowAssassinEspPill.y = dngY + 86
+        diamondGuyEspPill.y = dngY + 108
+
+        val otherEspY = dngY + SEC_DUNGEON_ESP_GAP
+        espTabPestPill.y = otherEspY + 20
 
         // Farming Config Widgets
         val farmSec1Y = effectiveCardY
@@ -1044,6 +1106,11 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         autoSprintInfo.visible = isSettingsQol
 
         // ESP Tab
+        batEspPill.visible = isEsp
+        starMobsEspPill.visible = isEsp
+        lostAdventurerEspPill.visible = isEsp
+        shadowAssassinEspPill.visible = isEsp
+        diamondGuyEspPill.visible = isEsp
         espTabPestPill.visible = isEsp
 
         // Farming - General Config
@@ -1386,26 +1453,49 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         graphics.text(font, "HUD Edit:", cardX + 12, secY + 69, 0xFF94A3B8.toInt())
     }
 
-    private fun renderEspView(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
-        val espY = cardY - scrollOffset
-        val espH = SEC_OTHER_ESP_H
-        graphics.fill(cardX - 1, espY - 1, cardX + cardW + 1, espY + espH + 1, 0xFF334155.toInt())
-        graphics.fill(cardX, espY, cardX + cardW, espY + espH, 0xFF1E293B.toInt())
-        graphics.fill(cardX, espY, cardX + cardW, espY + 18, 0xFF334155.toInt())
-        graphics.text(font, "§b§lOther ESP", cardX + 10, espY + 5, 0xFF38BDF8.toInt())
-
-        graphics.text(font, "Pest ESP:", cardX + 12, espY + 25, 0xFF94A3B8.toInt())
-
-        // Pest ESP Color Swatch (on the right of toggle pill)
-        val swatchX = cardX + 326
-        val swatchY = espY + 20
+    private fun renderColorSwatch(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, swatchX: Int, swatchY: Int, hexColor: String) {
         val swatchW = 20
         val swatchH = 16
-        val (r, g, b) = PestESP.parseRgb(ConfigManager.config.pestDestroyer.pestEspColor)
+        val (r, g, b) = DungeonESP.parseRgb(hexColor)
         val isSwatchHovered = mouseX in swatchX until (swatchX + swatchW) && mouseY in swatchY until (swatchY + swatchH)
         val swatchBorder = if (isSwatchHovered) 0xFF38BDF8.toInt() else 0xFF475569.toInt()
         graphics.fill(swatchX - 1, swatchY - 1, swatchX + swatchW + 1, swatchY + swatchH + 1, swatchBorder)
         graphics.fill(swatchX, swatchY, swatchX + swatchW, swatchY + swatchH, ARGB.color(255, r, g, b))
+    }
+
+    private fun renderEspView(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
+        val dngY = cardY - scrollOffset
+        val dngH = SEC_DUNGEON_ESP_H
+        val dngCfg = ConfigManager.config.dungeon
+
+        // 1. Dungeon Card (Top)
+        graphics.fill(cardX - 1, dngY - 1, cardX + cardW + 1, dngY + dngH + 1, 0xFF334155.toInt())
+        graphics.fill(cardX, dngY, cardX + cardW, dngY + dngH, 0xFF1E293B.toInt())
+        graphics.fill(cardX, dngY, cardX + cardW, dngY + 18, 0xFF334155.toInt())
+        graphics.text(font, "§b§lDungeon", cardX + 10, dngY + 5, 0xFF38BDF8.toInt())
+
+        graphics.text(font, "Bat ESP:", cardX + 12, dngY + 25, 0xFF94A3B8.toInt())
+        graphics.text(font, "StarMobs ESP:", cardX + 12, dngY + 47, 0xFF94A3B8.toInt())
+        graphics.text(font, "Lost Adventurer:", cardX + 12, dngY + 69, 0xFF94A3B8.toInt())
+        graphics.text(font, "Shadow Assassin:", cardX + 12, dngY + 91, 0xFF94A3B8.toInt())
+        graphics.text(font, "Diamond Guy:", cardX + 12, dngY + 113, 0xFF94A3B8.toInt())
+
+        renderColorSwatch(graphics, mouseX, mouseY, cardX + 326, dngY + 20, dngCfg.batEspColor)
+        renderColorSwatch(graphics, mouseX, mouseY, cardX + 326, dngY + 42, dngCfg.starMobsEspColor)
+        renderColorSwatch(graphics, mouseX, mouseY, cardX + 326, dngY + 64, dngCfg.lostAdventurerColor)
+        renderColorSwatch(graphics, mouseX, mouseY, cardX + 326, dngY + 86, dngCfg.shadowAssassinColor)
+        renderColorSwatch(graphics, mouseX, mouseY, cardX + 326, dngY + 108, dngCfg.diamondGuyColor)
+
+        // 2. Other ESP Card (Below Dungeon)
+        val otherY = dngY + SEC_DUNGEON_ESP_GAP
+        val otherH = SEC_OTHER_ESP_H
+        graphics.fill(cardX - 1, otherY - 1, cardX + cardW + 1, otherY + otherH + 1, 0xFF334155.toInt())
+        graphics.fill(cardX, otherY, cardX + cardW, otherY + otherH, 0xFF1E293B.toInt())
+        graphics.fill(cardX, otherY, cardX + cardW, otherY + 18, 0xFF334155.toInt())
+        graphics.text(font, "§b§lOther ESP", cardX + 10, otherY + 5, 0xFF38BDF8.toInt())
+
+        graphics.text(font, "Pest ESP:", cardX + 12, otherY + 25, 0xFF94A3B8.toInt())
+        renderColorSwatch(graphics, mouseX, mouseY, cardX + 326, otherY + 20, ConfigManager.config.pestDestroyer.pestEspColor)
     }
 
     private fun renderFarmingConfig(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
@@ -1650,13 +1740,54 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
                 return true
             }
 
-            // ESP Tab Color Swatch Click
-            if (selectedTab == "ESP" && mouseX in (cardX + 326) until (cardX + 346) && mouseY in (effY + 20) until (effY + 36)) {
-                minecraft.setScreen(ColorPickerModal(this, ConfigManager.config.pestDestroyer.pestEspColor) { newHex ->
-                    ConfigManager.config.pestDestroyer.pestEspColor = newHex
-                    ConfigManager.save()
-                })
-                return true
+            // ESP Tab Color Swatch Clicks
+            if (selectedTab == "ESP" && mouseX in (cardX + 326) until (cardX + 346)) {
+                // Dungeon Card Swatches
+                if (mouseY in (effY + 20) until (effY + 36)) {
+                    minecraft.setScreen(ColorPickerModal(this, ConfigManager.config.dungeon.batEspColor) { newHex ->
+                        ConfigManager.config.dungeon.batEspColor = newHex
+                        ConfigManager.save()
+                    })
+                    return true
+                }
+                if (mouseY in (effY + 42) until (effY + 58)) {
+                    minecraft.setScreen(ColorPickerModal(this, ConfigManager.config.dungeon.starMobsEspColor) { newHex ->
+                        ConfigManager.config.dungeon.starMobsEspColor = newHex
+                        ConfigManager.save()
+                    })
+                    return true
+                }
+                if (mouseY in (effY + 64) until (effY + 80)) {
+                    minecraft.setScreen(ColorPickerModal(this, ConfigManager.config.dungeon.lostAdventurerColor) { newHex ->
+                        ConfigManager.config.dungeon.lostAdventurerColor = newHex
+                        ConfigManager.save()
+                    })
+                    return true
+                }
+                if (mouseY in (effY + 86) until (effY + 102)) {
+                    minecraft.setScreen(ColorPickerModal(this, ConfigManager.config.dungeon.shadowAssassinColor) { newHex ->
+                        ConfigManager.config.dungeon.shadowAssassinColor = newHex
+                        ConfigManager.save()
+                    })
+                    return true
+                }
+                if (mouseY in (effY + 108) until (effY + 124)) {
+                    minecraft.setScreen(ColorPickerModal(this, ConfigManager.config.dungeon.diamondGuyColor) { newHex ->
+                        ConfigManager.config.dungeon.diamondGuyColor = newHex
+                        ConfigManager.save()
+                    })
+                    return true
+                }
+
+                // Other ESP Card (Pest ESP) Swatch
+                val otherY = effY + SEC_DUNGEON_ESP_GAP
+                if (mouseY in (otherY + 20) until (otherY + 36)) {
+                    minecraft.setScreen(ColorPickerModal(this, ConfigManager.config.pestDestroyer.pestEspColor) { newHex ->
+                        ConfigManager.config.pestDestroyer.pestEspColor = newHex
+                        ConfigManager.save()
+                    })
+                    return true
+                }
             }
 
             // Pester Config Color Swatch Click
