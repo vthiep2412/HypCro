@@ -317,7 +317,7 @@ object PestDestroyerEngine {
                         delay(1500L)
                         CommandHelper.sendCommand(client, "/plottp $bestTpPlot")
                         delay(1500L)
-                        val ascentSuccess = CentralMovementCoordinator.flyTo(client, targetX = null, targetY = cruiseY, targetZ = null)
+                        val ascentSuccess = CentralMovementCoordinator.flyTo(client, targetX = null, targetY = cruiseY, targetZ = null, ignoreHorizontalXZ = true)
                         if (!ascentSuccess) {
                             if (callerSource == PestCallerSource.WS_FARM_ENGINE || callerSource == PestCallerSource.VERTICAL_FARM_ENGINE) {
                                 com.hypcro.failsafe.HypcroWatchdog.potentialStaffCheck("Anti Stuck Active Too many times")
@@ -361,7 +361,7 @@ object PestDestroyerEngine {
                         val pathfinder = CentralMovementCoordinator.getActivePathfinder()
                         val waypoints = withTimeoutOrNull(3000L) {
                             withContext(Dispatchers.Default) {
-                                pathfinder.computePath(level, startPos, ascendTarget)
+                                pathfinder.computePath(level, startPos, ascendTarget, ignoreHorizontalXZ = true)
                             }
                         }
 
@@ -372,7 +372,7 @@ object PestDestroyerEngine {
                                 CommandHelper.sendCommand(client, "/plottp $bestTpPlot")
                                 alreadyTeleported = true
                                 delay(1500L)
-                                val postTpAscent = CentralMovementCoordinator.flyTo(client, targetX = null, targetY = cruiseY, targetZ = null)
+                                val postTpAscent = CentralMovementCoordinator.flyTo(client, targetX = null, targetY = cruiseY, targetZ = null, ignoreHorizontalXZ = true)
                                 if (!postTpAscent && !handleStuckRecovery("Post-TP Ascent")) return
                             }
                         } else {
@@ -381,7 +381,7 @@ object PestDestroyerEngine {
                         }
                     }
                 } else if (currentY < cruiseY - 1.0) {
-                    val ascendSuccess = CentralMovementCoordinator.flyTo(client, targetX = null, targetY = cruiseY, targetZ = null)
+                    val ascendSuccess = CentralMovementCoordinator.flyTo(client, targetX = null, targetY = cruiseY, targetZ = null, ignoreHorizontalXZ = true)
                     if (!ascendSuccess && !handleStuckRecovery("Altitude Adjust")) return
                 }
 
@@ -403,7 +403,7 @@ object PestDestroyerEngine {
                         alreadyTeleported = true
                         delay(1500L)
                         // Ascend after teleport to clear plot structures
-                        val postTpAscent = CentralMovementCoordinator.flyTo(client, targetX = null, targetY = cruiseY, targetZ = null)
+                        val postTpAscent = CentralMovementCoordinator.flyTo(client, targetX = null, targetY = cruiseY, targetZ = null, ignoreHorizontalXZ = true)
                         if (!postTpAscent && !handleStuckRecovery("Post-TP Ascent")) return
                     }
                 }
@@ -411,7 +411,7 @@ object PestDestroyerEngine {
                 // Ensure player is at cruise altitude before cross-island flight
                 val curY = client.player?.position()?.y ?: cruiseY
                 if (curY < cruiseY - 1.0) {
-                    val ascendSuccess = CentralMovementCoordinator.flyTo(client, targetX = null, targetY = cruiseY, targetZ = null)
+                    val ascendSuccess = CentralMovementCoordinator.flyTo(client, targetX = null, targetY = cruiseY, targetZ = null, ignoreHorizontalXZ = true)
                     if (!ascendSuccess && !handleStuckRecovery("Cruise Altitude Alignment")) return
                 }
             }
@@ -427,7 +427,7 @@ object PestDestroyerEngine {
                 val currentY = client.player?.position()?.y ?: cruiseY
                 if (currentY < cruiseY - 1.0) {
                     HypCroMod.log("Ascending to cruise altitude (current Y=${currentY.toInt()}, target Y=${cruiseY.toInt()})...")
-                    val ascendSuccess = CentralMovementCoordinator.flyTo(client, targetX = null, targetY = cruiseY, targetZ = null)
+                    val ascendSuccess = CentralMovementCoordinator.flyTo(client, targetX = null, targetY = cruiseY, targetZ = null, ignoreHorizontalXZ = true)
                     if (!ascendSuccess && !handleStuckRecovery("Center Pre-Ascent")) return
                 }
 

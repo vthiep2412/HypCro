@@ -98,7 +98,8 @@ object CentralMovementCoordinator {
         targetY: Double? = null,
         targetZ: Double? = null,
         targetPitch: Float? = null,
-        targetYaw: Float? = null
+        targetYaw: Float? = null,
+        ignoreHorizontalXZ: Boolean = false
     ): Boolean {
         val player = client.player ?: return false
         val level = client.level ?: return false
@@ -154,7 +155,7 @@ object CentralMovementCoordinator {
             val rawWaypoints = try {
                 isPathfinding = true
                 withContext(Dispatchers.Default) {
-                    pathfinder.computePath(level, startPos, finalDestination)
+                    pathfinder.computePath(level, startPos, finalDestination, ignoreHorizontalXZ)
                 }
             } finally {
                 isPathfinding = false
@@ -173,9 +174,9 @@ object CentralMovementCoordinator {
 
             val isClassic = ConfigManager.config.pestDestroyer.flightEngineVersion.equals("CLASSIC", ignoreCase = true)
             if (isClassic) {
-                return flyWaypointsClassic(client, level, pathfinder, startPos, waypoints, finalDestination, targetPitch, targetYaw)
+                return flyWaypointsClassic(client, level, pathfinder, startPos, waypoints, finalDestination, targetPitch, targetYaw, ignoreHorizontalXZ)
             } else {
-                return flyWaypointsDecoupledV2(client, level, pathfinder, startPos, waypoints, finalDestination, targetPitch, targetYaw)
+                return flyWaypointsDecoupledV2(client, level, pathfinder, startPos, waypoints, finalDestination, targetPitch, targetYaw, ignoreHorizontalXZ)
             }
         } finally {
             MouseMovementEngine.resetFlightVelocity()
@@ -193,7 +194,8 @@ object CentralMovementCoordinator {
         waypoints: List<Vec3>,
         finalDestination: Vec3,
         targetPitch: Float?,
-        targetYaw: Float?
+        targetYaw: Float?,
+        ignoreHorizontalXZ: Boolean = false
     ): Boolean {
         var activeWaypoints = waypoints
         var currentWaypointIdx = if (waypoints.size > 1 && startPos.distanceTo(waypoints[0]) < 1.5) 1 else 0
@@ -242,7 +244,7 @@ object CentralMovementCoordinator {
                         val recomputed = try {
                             isPathfinding = true
                             withContext(Dispatchers.Default) {
-                                pathfinder.computePath(level, pos, finalDestination)
+                                pathfinder.computePath(level, pos, finalDestination, ignoreHorizontalXZ)
                             }
                         } finally {
                             isPathfinding = false
@@ -273,7 +275,7 @@ object CentralMovementCoordinator {
                         val recomputed = try {
                             isPathfinding = true
                             withContext(Dispatchers.Default) {
-                                pathfinder.computePath(level, pos, finalDestination)
+                                pathfinder.computePath(level, pos, finalDestination, ignoreHorizontalXZ)
                             }
                         } finally {
                             isPathfinding = false
@@ -327,7 +329,13 @@ object CentralMovementCoordinator {
                 val distToFinal = pos.distanceTo(finalDestination)
 
                 // Arrival check
-                if (distToFinal <= 1.0 || (isFinalNode && distToWaypoint <= 1.0)) {
+                val isArrived = if (ignoreHorizontalXZ) {
+                    pos.y >= finalDestination.y - 0.5
+                } else {
+                    distToFinal <= 1.0 || (isFinalNode && distToWaypoint <= 1.0)
+                }
+
+                if (isArrived) {
                     break
                 }
 
@@ -364,7 +372,7 @@ object CentralMovementCoordinator {
                     val candidateNode = activeWaypoints[k]
                     val cHDist = sqrt((candidateNode.x - pos.x) * (candidateNode.x - pos.x) + (candidateNode.z - pos.z) * (candidateNode.z - pos.z))
                     val cVDist = abs(candidateNode.y - pos.y)
-                    val maxH = if (isImportantCorner) 0.65 else 0.85
+                    val maxH = if (isImportantCorner) 0.65 else if (ignoreHorizontalXZ) 1.2 else 0.85
                     val maxV = if (isImportantCorner) 0.80 else 0.95
 
                     if (cHDist <= maxH && cVDist <= maxV) {
@@ -393,52 +401,59 @@ object CentralMovementCoordinator {
                 val forwardProj = dx * forwardUnitX + dz * forwardUnitZ
                 val strafeProj = dx * strafeUnitX + dz * strafeUnitZ
 
-                // Horizontal Propulsion
-                if (forwardProj > 0.15) {
-                    MacroInputController.holdW()
-                    MacroInputController.releaseS()
-                } else if (forwardProj < -0.15) {
-                    MacroInputController.holdS()
-                    MacroInputController.releaseW()
-                } else {
+                // Horizontal Propulsion (only if not ignoreHorizontalXZ on final node / pure ascent)
+                val isPureAltitudeAscent = ignoreHorizontalXZ && isFinalNode && pos.y >= waypoint.y - 0.5
+                if (isPureAltitudeAscent) {
                     MacroInputController.releaseW()
                     MacroInputController.releaseS()
-                }
-
-                // Horizontal Strafe with Hysteresis & Straight Corridor Damping
-                val strafeThresholdEnter = 0.40
-                val strafeThresholdExit = 0.15
-                val isStraightRunway = forwardProj > 1.0 && kotlin.math.abs(strafeProj) < 0.35
-
-                if (isStraightRunway) {
-                    currentStrafeState = 0
                     MacroInputController.releaseStrafe()
                 } else {
-                    if (currentStrafeState == 0) {
-                        if (strafeProj > strafeThresholdEnter) {
-                            currentStrafeState = -1
-                            MacroInputController.holdA()
-                        } else if (strafeProj < -strafeThresholdEnter) {
-                            currentStrafeState = 1
-                            MacroInputController.holdD()
-                        } else {
-                            MacroInputController.releaseStrafe()
-                        }
-                    } else if (currentStrafeState == -1) {
-                        // Currently strafing Left (A)
-                        if (strafeProj < strafeThresholdExit) {
-                            currentStrafeState = 0
-                            MacroInputController.releaseStrafe()
-                        } else {
-                            MacroInputController.holdA()
-                        }
-                    } else if (currentStrafeState == 1) {
-                        // Currently strafing Right (D)
-                        if (strafeProj > -strafeThresholdExit) {
-                            currentStrafeState = 0
-                            MacroInputController.releaseStrafe()
-                        } else {
-                            MacroInputController.holdD()
+                    if (forwardProj > 0.15) {
+                        MacroInputController.holdW()
+                        MacroInputController.releaseS()
+                    } else if (forwardProj < -0.15) {
+                        MacroInputController.holdS()
+                        MacroInputController.releaseW()
+                    } else {
+                        MacroInputController.releaseW()
+                        MacroInputController.releaseS()
+                    }
+
+                    // Horizontal Strafe with Hysteresis & Straight Corridor Damping
+                    val strafeThresholdEnter = 0.40
+                    val strafeThresholdExit = 0.15
+                    val isStraightRunway = forwardProj > 1.0 && kotlin.math.abs(strafeProj) < 0.35
+
+                    if (isStraightRunway) {
+                        currentStrafeState = 0
+                        MacroInputController.releaseStrafe()
+                    } else {
+                        if (currentStrafeState == 0) {
+                            if (strafeProj > strafeThresholdEnter) {
+                                currentStrafeState = -1
+                                MacroInputController.holdA()
+                            } else if (strafeProj < -strafeThresholdEnter) {
+                                currentStrafeState = 1
+                                MacroInputController.holdD()
+                            } else {
+                                MacroInputController.releaseStrafe()
+                            }
+                        } else if (currentStrafeState == -1) {
+                            // Currently strafing Left (A)
+                            if (strafeProj < strafeThresholdExit) {
+                                currentStrafeState = 0
+                                MacroInputController.releaseStrafe()
+                            } else {
+                                MacroInputController.holdA()
+                            }
+                        } else if (currentStrafeState == 1) {
+                            // Currently strafing Right (D)
+                            if (strafeProj > -strafeThresholdExit) {
+                                currentStrafeState = 0
+                                MacroInputController.releaseStrafe()
+                            } else {
+                                MacroInputController.holdD()
+                            }
                         }
                     }
                 }
@@ -561,7 +576,8 @@ object CentralMovementCoordinator {
         waypoints: List<Vec3>,
         finalDestination: Vec3,
         targetPitch: Float?,
-        targetYaw: Float?
+        targetYaw: Float?,
+        ignoreHorizontalXZ: Boolean = false
     ): Boolean {
         var activeWaypoints = waypoints
         var currentWaypointIdx = if (waypoints.size > 1 && startPos.distanceTo(waypoints[0]) < 1.5) 1 else 0
@@ -609,7 +625,7 @@ object CentralMovementCoordinator {
                         val recomputed = try {
                             isPathfinding = true
                             withContext(Dispatchers.Default) {
-                                pathfinder.computePath(level, pos, finalDestination)
+                                pathfinder.computePath(level, pos, finalDestination, ignoreHorizontalXZ)
                             }
                         } finally {
                             isPathfinding = false
@@ -640,7 +656,7 @@ object CentralMovementCoordinator {
                         val recomputed = try {
                             isPathfinding = true
                             withContext(Dispatchers.Default) {
-                                pathfinder.computePath(level, pos, finalDestination)
+                                pathfinder.computePath(level, pos, finalDestination, ignoreHorizontalXZ)
                             }
                         } finally {
                             isPathfinding = false
@@ -711,8 +727,14 @@ object CentralMovementCoordinator {
                 val distToWaypoint = sqrt(dx * dx + dy * dy + dz * dz)
                 val distToFinal = pos.distanceTo(finalDestination)
 
-                // Immediate Arrival Check: finish cleanly when within 1.2b of final destination or last node
-                if (distToFinal <= 1.2 || (isFinalNode && distToWaypoint <= 1.2)) {
+                // Immediate Arrival Check: finish cleanly when within 1.2b of final destination or last node, or altitude reached in ignoreHorizontalXZ mode
+                val isArrived = if (ignoreHorizontalXZ) {
+                    pos.y >= finalDestination.y - 0.5
+                } else {
+                    distToFinal <= 1.2 || (isFinalNode && distToWaypoint <= 1.2)
+                }
+
+                if (isArrived) {
                     break
                 }
 
@@ -817,7 +839,7 @@ object CentralMovementCoordinator {
 
                 if (isNearPureVertical) {
                     MacroInputController.releaseSprint()
-                    if (horizontalDist > 0.20) {
+                    if (horizontalDist > 0.20 && !ignoreHorizontalXZ) {
                         if (abs(relAngle) < 45.0f) {
                             MacroInputController.holdW()
                             MacroInputController.releaseStrafe()

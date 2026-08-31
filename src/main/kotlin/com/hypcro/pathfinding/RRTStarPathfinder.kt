@@ -43,27 +43,46 @@ object RRTStarPathfinder : IPathfinder {
         override fun compareTo(other: Edge): Int = this.estimatedCost.compareTo(other.estimatedCost)
     }
 
-    override fun computePath(level: Level, start: Vec3, destination: Vec3): List<Vec3> {
-        return computePath(level, start, destination, null)
+    override fun computePath(level: Level, start: Vec3, destination: Vec3, ignoreHorizontalXZ: Boolean): List<Vec3> {
+        return computePath(level, start, destination, null, ignoreHorizontalXZ)
     }
 
-    fun computePath(level: Level, start: Vec3, destination: Vec3, maxTimeMs: Long? = null): List<Vec3> {
+    fun computePath(level: Level, start: Vec3, destination: Vec3, maxTimeMs: Long? = null, ignoreHorizontalXZ: Boolean = false): List<Vec3> {
         val startTime = System.currentTimeMillis()
         val timeBudgetMs = maxTimeMs ?: (com.hypcro.config.ConfigManager.config.pestDestroyer.bitStarTimeSeconds * 1000.0).toLong().coerceAtLeast(100L)
         PathfindingVisualizer.clearDebug()
 
-        val targetDest = ThetaStarPathfinder.findPassableDestination(level, destination)
-        if (targetDest == null) {
-            HypCroMod.logWarn("BIT*: destination is fully enclosed in solid blocks")
-            PathfindingVisualizer.setPath("BIT* (Obstructed)", emptyList(), System.currentTimeMillis() - startTime)
-            return emptyList()
-        }
         val effectiveStart = ThetaStarPathfinder.findPassableStart(level, start)
         if (effectiveStart == null) {
             HypCroMod.logWarn("BIT*: starting position is fully enclosed in solid blocks")
             PathfindingVisualizer.setPath("BIT* (Blocked Start)", emptyList(), System.currentTimeMillis() - startTime)
             return emptyList()
         }
+
+        val goalY = destination.y
+        val targetDest: Vec3
+        if (ignoreHorizontalXZ) {
+            if (VerticalGoal.isReached(effectiveStart.y, goalY)) {
+                val atAltitude = listOf(effectiveStart)
+                PathfindingVisualizer.setPath("BIT* (Altitude Reached)", atAltitude, System.currentTimeMillis() - startTime)
+                return atAltitude
+            }
+            targetDest = Vec3(effectiveStart.x, goalY, effectiveStart.z)
+        } else {
+            val passableDest = ThetaStarPathfinder.findPassableDestination(level, destination)
+            if (passableDest == null) {
+                HypCroMod.logWarn("BIT*: destination is fully enclosed in solid blocks")
+                PathfindingVisualizer.setPath("BIT* (Obstructed)", emptyList(), System.currentTimeMillis() - startTime)
+                return emptyList()
+            }
+            targetDest = passableDest
+        }
+
+        fun heuristicTo(pos: Vec3): Double =
+            if (ignoreHorizontalXZ) VerticalGoal.heuristic(pos.y, goalY) else pos.distanceTo(targetDest)
+
+        fun driftCostAt(pos: Vec3): Double =
+            if (ignoreHorizontalXZ) VerticalGoal.driftCost(pos.x, pos.z, effectiveStart.x, effectiveStart.z) else 0.0
 
         // Direct Line of Sight shortcut
         if (effectiveStart.distanceTo(targetDest) <= 1.2 || checkFlightEdge(level, effectiveStart, targetDest, effectiveStart, targetDest)) {
@@ -73,7 +92,8 @@ object RRTStarPathfinder : IPathfinder {
             return directPath
         }
 
-        val isCloseRange = effectiveStart.distanceTo(targetDest) <= 8.0
+        val totalDist = heuristicTo(effectiveStart)
+        val isCloseRange = totalDist <= 8.0
         val connectRadius = if (isCloseRange) FINE_CONNECTION_RADIUS else DEFAULT_CONNECTION_RADIUS
 
         val root = Vertex(effectiveStart, 0.0)
@@ -83,15 +103,15 @@ object RRTStarPathfinder : IPathfinder {
         val unconnectedSamples = mutableListOf(goalVertex)
 
         val vertexComparator = Comparator<Vertex> { a, b ->
-            val fa = a.cost + a.pos.distanceTo(targetDest)
-            val fb = b.cost + b.pos.distanceTo(targetDest)
+            val fa = a.cost + heuristicTo(a.pos)
+            val fb = b.cost + heuristicTo(b.pos)
             fa.compareTo(fb)
         }
         val vertexQueue = PriorityQueue(vertexComparator)
         val edgeQueue = PriorityQueue<Edge>()
 
         var cBest = Double.POSITIVE_INFINITY
-        val cMin = effectiveStart.distanceTo(targetDest)
+        val cMin = totalDist
         val rng = ThreadLocalRandom.current()
 
         // Symmetrical sampling corridor around start and goal for uninformed batches
@@ -127,7 +147,7 @@ object RRTStarPathfinder : IPathfinder {
                 var attempts = 0
                 val maxAttempts = samplesToGenerate * 8
 
-                if (cBest == Double.POSITIVE_INFINITY) {
+                if (cBest == Double.POSITIVE_INFINITY || ignoreHorizontalXZ) {
                     // Uninformed uniform sampling in corridor bounding box
                     while (generated < samplesToGenerate && attempts < maxAttempts) {
                         attempts++
@@ -162,14 +182,14 @@ object RRTStarPathfinder : IPathfinder {
             }
 
             // 2. Interleaved Vertex Expansion: expand vertices into edgeQueue until edgeQueue top is competitive
-            while (System.currentTimeMillis() - startTime < timeBudgetMs && vertexQueue.isNotEmpty() && (edgeQueue.isEmpty() || (vertexQueue.peek().cost + vertexQueue.peek().pos.distanceTo(targetDest)) <= edgeQueue.peek().estimatedCost)) {
+            while (System.currentTimeMillis() - startTime < timeBudgetMs && vertexQueue.isNotEmpty() && (edgeQueue.isEmpty() || (vertexQueue.peek().cost + heuristicTo(vertexQueue.peek().pos)) <= edgeQueue.peek().estimatedCost)) {
                 if (CentralMovementCoordinator.isAbortTriggered()) {
                     PathfindingVisualizer.clearDebug()
                     return emptyList()
                 }
 
                 val bestVertex = vertexQueue.poll()
-                val vEst = bestVertex.cost + bestVertex.pos.distanceTo(targetDest)
+                val vEst = bestVertex.cost + heuristicTo(bestVertex.pos)
                 if (vEst >= cBest) continue
 
                 val vPos = bestVertex.pos
@@ -178,7 +198,7 @@ object RRTStarPathfinder : IPathfinder {
                 for (sample in unconnectedSamples) {
                     val dist = vPos.distanceTo(sample.pos)
                     if (dist <= connectRadius) {
-                        val estCost = bestVertex.cost + dist + sample.pos.distanceTo(targetDest)
+                        val estCost = bestVertex.cost + dist + heuristicTo(sample.pos)
                         if (estCost < cBest && bestVertex.cost + dist < sample.cost) {
                             edgeQueue.add(Edge(bestVertex, sample, estCost))
                         }
@@ -190,7 +210,7 @@ object RRTStarPathfinder : IPathfinder {
                     if (otherTreeV === bestVertex) continue
                     val dist = vPos.distanceTo(otherTreeV.pos)
                     if (dist <= connectRadius) {
-                        val estCost = bestVertex.cost + dist + otherTreeV.pos.distanceTo(targetDest)
+                        val estCost = bestVertex.cost + dist + heuristicTo(otherTreeV.pos)
                         if (estCost < cBest && bestVertex.cost + dist < otherTreeV.cost) {
                             edgeQueue.add(Edge(bestVertex, otherTreeV, estCost))
                         }
@@ -221,7 +241,7 @@ object RRTStarPathfinder : IPathfinder {
                 val edgeDist = source.pos.distanceTo(target.pos)
                 val candidateCost = source.cost + edgeDist
 
-                if (candidateCost + target.pos.distanceTo(targetDest) >= cBest) continue
+                if (candidateCost + heuristicTo(target.pos) >= cBest) continue
                 if (candidateCost >= target.cost) continue
 
                 PathfindingVisualizer.addDebugBranch(source.pos, target.pos, PathfindingVisualizer.SegmentType.YELLOW_SEARCHING)
@@ -235,7 +255,8 @@ object RRTStarPathfinder : IPathfinder {
                 PathfindingVisualizer.addDebugBranch(source.pos, target.pos, PathfindingVisualizer.SegmentType.GREEN_REACHABLE)
 
                 val clearancePenalty = computeClearancePenalty(level, source.pos, target.pos, effectiveStart, targetDest)
-                val finalTargetCost = candidateCost + clearancePenalty
+                val driftPenalty = driftCostAt(target.pos)
+                val finalTargetCost = candidateCost + clearancePenalty + driftPenalty
 
                 if (finalTargetCost < target.cost) {
                     target.cost = finalTargetCost
@@ -247,9 +268,15 @@ object RRTStarPathfinder : IPathfinder {
                         vertexQueue.add(target)
                     }
 
-                    // Check if target reached goal or has direct line of sight to goal
-                    if (target === goalVertex || target.pos.distanceTo(targetDest) <= 1.2 || checkFlightEdge(level, target.pos, targetDest, effectiveStart, targetDest)) {
-                        val toGoalCost = if (target === goalVertex) 0.0 else target.pos.distanceTo(targetDest)
+                    // Check if target reached goal or has direct line of sight to goal / altitude reached
+                    val isGoalReached = if (ignoreHorizontalXZ) {
+                        VerticalGoal.isReached(target.pos.y, goalY)
+                    } else {
+                        target === goalVertex || target.pos.distanceTo(targetDest) <= 1.2 || checkFlightEdge(level, target.pos, targetDest, effectiveStart, targetDest)
+                    }
+
+                    if (isGoalReached) {
+                        val toGoalCost = if (target === goalVertex || ignoreHorizontalXZ) 0.0 else target.pos.distanceTo(targetDest)
                         val totalSolCost = target.cost + toGoalCost
                         if (totalSolCost < cBest) {
                             cBest = totalSolCost
@@ -257,6 +284,7 @@ object RRTStarPathfinder : IPathfinder {
                                 goalVertex.cost = totalSolCost
                                 goalVertex.parent = target
                             }
+                            if (ignoreHorizontalXZ) break
                         }
                     }
                 }
@@ -285,9 +313,10 @@ object RRTStarPathfinder : IPathfinder {
 
         // Apply string-pulling smoothing, obstacle clearance enforcement, and micro-kink filtering
         val smoothedPath = smoothFlightPath(level, rawPath, effectiveStart, targetDest)
-        recordChosenPathDebug(smoothedPath)
-        PathfindingVisualizer.setPath("BIT*", smoothedPath, System.currentTimeMillis() - startTime)
-        return smoothedPath
+        val finalPath = if (ignoreHorizontalXZ) VerticalGoal.truncateAtAltitude(smoothedPath, goalY) else smoothedPath
+        recordChosenPathDebug(finalPath)
+        PathfindingVisualizer.setPath("BIT*", finalPath, System.currentTimeMillis() - startTime)
+        return finalPath
     }
 
     // --- Mathematical Helpers for Prolate Hyperspheroid (PHS) Informed Sampling ---

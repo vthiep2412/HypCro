@@ -90,6 +90,8 @@ object ThetaStarPathfinder : IPathfinder {
             size = 0
         }
 
+        fun isEmpty(): Boolean = size == 0
+
         fun isNotEmpty(): Boolean = size > 0
 
         fun peekF(): Double = if (size > 0) pool.fCost[heap[0]] else Double.POSITIVE_INFINITY
@@ -366,22 +368,44 @@ object ThetaStarPathfinder : IPathfinder {
         return Vec3(unpackQX(packed) * 0.5, unpackQY(packed) * 0.5, unpackQZ(packed) * 0.5)
     }
 
-    override fun computePath(level: Level, start: Vec3, destination: Vec3): List<Vec3> {
+    override fun computePath(level: Level, start: Vec3, destination: Vec3, ignoreHorizontalXZ: Boolean): List<Vec3> {
         val startTime = System.currentTimeMillis()
         PathfindingVisualizer.clearDebug()
 
-        val targetDest = findPassableDestination(level, destination)
-        if (targetDest == null) {
-            HypCroMod.logWarn("Theta*: destination is fully enclosed in solid blocks")
-            PathfindingVisualizer.setPath("Theta* (Obstructed)", emptyList(), System.currentTimeMillis() - startTime)
-            return emptyList()
-        }
         val effectiveStart = findPassableStart(level, start)
         if (effectiveStart == null) {
             HypCroMod.logWarn("Theta*: starting position is fully enclosed in solid blocks")
             PathfindingVisualizer.setPath("Theta* (Blocked Start)", emptyList(), System.currentTimeMillis() - startTime)
             return emptyList()
         }
+
+        // Altitude-only mode: the goal is a Y plane. The anchor straight above the start is used
+        // purely as a soft preference origin, never as a hard arrival requirement.
+        val goalY = destination.y
+        val targetDest: Vec3
+        if (ignoreHorizontalXZ) {
+            if (VerticalGoal.isReached(effectiveStart.y, goalY)) {
+                val atAltitude = listOf(effectiveStart)
+                PathfindingVisualizer.setPath("Theta* (Altitude Reached)", atAltitude, System.currentTimeMillis() - startTime)
+                return atAltitude
+            }
+            targetDest = Vec3(effectiveStart.x, goalY, effectiveStart.z)
+        } else {
+            val passableDest = findPassableDestination(level, destination)
+            if (passableDest == null) {
+                HypCroMod.logWarn("Theta*: destination is fully enclosed in solid blocks")
+                PathfindingVisualizer.setPath("Theta* (Obstructed)", emptyList(), System.currentTimeMillis() - startTime)
+                return emptyList()
+            }
+            targetDest = passableDest
+        }
+
+        // In altitude-only mode distance to goal collapses to the remaining vertical climb.
+        fun heuristicTo(from: Vec3, target: Vec3): Double =
+            if (ignoreHorizontalXZ) VerticalGoal.heuristic(from.y, goalY) else from.distanceTo(target)
+
+        fun driftCostAt(px: Double, pz: Double): Double =
+            if (ignoreHorizontalXZ) VerticalGoal.driftCost(px, pz, effectiveStart.x, effectiveStart.z) else 0.0
 
         // Direct line-of-sight shortcut
         if (effectiveStart.distanceTo(targetDest) <= 1.2 || hasLineOfSight(level, effectiveStart, targetDest)) {
@@ -418,15 +442,17 @@ object ThetaStarPathfinder : IPathfinder {
         heapF.push(startNodeIdx)
         openMapF.put(startPacked, startNodeIdx)
 
-        val destNodeIdx = poolB.allocate(destPacked, 0.0, 1.25 * initialDist, -1)
-        heapB.push(destNodeIdx)
-        openMapB.put(destPacked, destNodeIdx)
+        if (!ignoreHorizontalXZ) {
+            val destNodeIdx = poolB.allocate(destPacked, 0.0, 1.25 * initialDist, -1)
+            heapB.push(destNodeIdx)
+            openMapB.put(destPacked, destNodeIdx)
+        }
 
         var closestNodeF = startNodeIdx
         var closestDistSqF = initialDist * initialDist
         var expansions = 0
 
-        while (heapF.isNotEmpty() && heapB.isNotEmpty()) {
+        while (heapF.isNotEmpty() && (ignoreHorizontalXZ || heapB.isNotEmpty())) {
             if (com.hypcro.movement.CentralMovementCoordinator.isAbortTriggered()) {
                 PathfindingVisualizer.clearDebug()
                 return emptyList()
@@ -436,7 +462,7 @@ object ThetaStarPathfinder : IPathfinder {
             }
 
             // Alternate expansion based on smaller top f-cost
-            val expandForward = heapF.peekF() <= heapB.peekF()
+            val expandForward = ignoreHorizontalXZ || heapB.isEmpty() || heapF.peekF() <= heapB.peekF()
             val curPool = if (expandForward) poolF else poolB
             val curHeap = if (expandForward) heapF else heapB
             val curClosed = if (expandForward) closedSetF else closedSetB
@@ -522,7 +548,7 @@ object ThetaStarPathfinder : IPathfinder {
             }
 
             // Frontier Meeting Check: Did we intersect the opposite frontier?
-            if (otherClosed.contains(curPacked) || otherOpenMap.get(curPacked) != -1) {
+            if (!ignoreHorizontalXZ && (otherClosed.contains(curPacked) || otherOpenMap.get(curPacked) != -1)) {
                 val otherIdx = otherOpenMap.get(curPacked)
                 if (otherIdx >= 0) {
                     val forwardNodeIdx = if (expandForward) curIdx else otherIdx
@@ -538,22 +564,31 @@ object ThetaStarPathfinder : IPathfinder {
                 }
             }
 
-            // Direct line of sight arrival check
-            if (curVec.distanceTo(targetPos) <= 1.4 || hasLineOfSight(level, curVec, targetPos)) {
+            // Arrival check: In altitude-only mode, reaching goalY is arrival. In normal mode, distance or LOS to targetPos
+            val isArrived = if (ignoreHorizontalXZ) {
+                expandForward && VerticalGoal.isReached(curVec.y, goalY)
+            } else {
+                curVec.distanceTo(targetPos) <= 1.4 || hasLineOfSight(level, curVec, targetPos)
+            }
+
+            if (isArrived) {
                 val rawPath = if (expandForward) {
-                    reconstructPathForward(poolF, curIdx, effectiveStart).toMutableList().apply { add(targetDest) }
+                    val reconstructed = reconstructPathForward(poolF, curIdx, effectiveStart).toMutableList()
+                    if (!ignoreHorizontalXZ) reconstructed.apply { add(targetDest) } else reconstructed
                 } else {
-                    reconstructPathBackward(poolB, curIdx, targetDest).toMutableList().apply { add(0, effectiveStart) }
+                    val reconstructed = reconstructPathBackward(poolB, curIdx, targetDest).toMutableList()
+                    if (!ignoreHorizontalXZ) reconstructed.apply { add(0, effectiveStart) } else reconstructed
                 }
                 val pruned = pruneCollinearWaypoints(level, rawPath, targetDest)
-                recordChosenPathDebug(pruned)
-                PathfindingVisualizer.setPath("Theta*", pruned, System.currentTimeMillis() - startTime)
-                return pruned
+                val finalPath = if (ignoreHorizontalXZ) VerticalGoal.truncateAtAltitude(pruned, goalY) else pruned
+                recordChosenPathDebug(finalPath)
+                PathfindingVisualizer.setPath("Theta*", finalPath, System.currentTimeMillis() - startTime)
+                return finalPath
             }
 
             // Adaptive Sky Leaping: In open sky (Y >= HIGH_SKY_ALTITUDE), leap 2.5 blocks per step
             val isHighSky = curVec.y >= HIGH_SKY_ALTITUDE && isClearAirVolume(level, curVec.x, curVec.y, curVec.z, 2.0)
-            val distToGoal = curVec.distanceTo(targetPos)
+            val distToGoal = if (ignoreHorizontalXZ) VerticalGoal.heuristic(curVec.y, goalY) else curVec.distanceTo(targetPos)
             val distToStart = curVec.distanceTo(originPos)
             val isNearEndpoint = distToGoal <= 8.0 || distToStart <= 8.0
 
@@ -585,11 +620,12 @@ object ThetaStarPathfinder : IPathfinder {
                 PathfindingVisualizer.addDebugBranch(curVec, nVec, PathfindingVisualizer.SegmentType.YELLOW_SEARCHING)
 
                 val clearanceCost = getCachedClearanceCost(level, nPacked, nX, nY, nZ, originPos, targetPos, clearanceCache)
+                val driftCost = driftCostAt(nX, nZ)
 
                 // Lazy Theta* Optimistic Assignment: assume parent line of sight holds
                 val edgeDist = pVec.distanceTo(nVec)
-                val gCost = curPool.gCost[effectiveParent] + edgeDist + clearanceCost
-                val hCost = nVec.distanceTo(targetPos)
+                val gCost = curPool.gCost[effectiveParent] + edgeDist + clearanceCost + driftCost
+                val hCost = heuristicTo(nVec, targetPos)
                 val fCost = gCost + 1.25 * hCost
 
                 val existingIdx = curOpenMap.get(nPacked)
@@ -622,13 +658,14 @@ object ThetaStarPathfinder : IPathfinder {
         }
         val fallbackRaw = reconstructPathForward(poolF, closestNodeF, effectiveStart).toMutableList()
         val fallbackTail = fallbackRaw.lastOrNull()
-        if (fallbackTail != null && hasLineOfSight(level, fallbackTail, targetDest)) {
+        if (!ignoreHorizontalXZ && fallbackTail != null && hasLineOfSight(level, fallbackTail, targetDest)) {
             fallbackRaw.add(targetDest)
         }
         val fallbackPruned = pruneCollinearWaypoints(level, fallbackRaw, targetDest)
-        recordChosenPathDebug(fallbackPruned)
-        PathfindingVisualizer.setPath("Theta*", fallbackPruned, System.currentTimeMillis() - startTime)
-        return fallbackPruned
+        val finalFallback = if (ignoreHorizontalXZ) VerticalGoal.truncateAtAltitude(fallbackPruned, goalY) else fallbackPruned
+        recordChosenPathDebug(finalFallback)
+        PathfindingVisualizer.setPath("Theta*", finalFallback, System.currentTimeMillis() - startTime)
+        return finalFallback
     }
 
     fun isClearAirVolume(level: Level, px: Double, py: Double, pz: Double, radius: Double = 2.0): Boolean {

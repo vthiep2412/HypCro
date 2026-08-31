@@ -47,22 +47,41 @@ object AStar3DSmoothedPathfinder : IPathfinder {
         override fun compareTo(other: Node): Int = this.fCost.compareTo(other.fCost)
     }
 
-    override fun computePath(level: Level, start: Vec3, destination: Vec3): List<Vec3> {
+    override fun computePath(level: Level, start: Vec3, destination: Vec3, ignoreHorizontalXZ: Boolean): List<Vec3> {
         val startTime = System.currentTimeMillis()
         PathfindingVisualizer.clearDebug()
 
-        val targetDest = ThetaStarPathfinder.findPassableDestination(level, destination)
-        if (targetDest == null) {
-            HypCroMod.logWarn("A*: destination is fully enclosed in solid blocks")
-            PathfindingVisualizer.setPath("3D A* (Obstructed)", emptyList(), System.currentTimeMillis() - startTime)
-            return emptyList()
-        }
         val effectiveStart = ThetaStarPathfinder.findPassableStart(level, start)
         if (effectiveStart == null) {
             HypCroMod.logWarn("A*: starting position is fully enclosed in solid blocks")
             PathfindingVisualizer.setPath("3D A* (Blocked Start)", emptyList(), System.currentTimeMillis() - startTime)
             return emptyList()
         }
+
+        val goalY = destination.y
+        val targetDest: Vec3
+        if (ignoreHorizontalXZ) {
+            if (VerticalGoal.isReached(effectiveStart.y, goalY)) {
+                val atAltitude = listOf(effectiveStart)
+                PathfindingVisualizer.setPath("3D A* (Altitude Reached)", atAltitude, System.currentTimeMillis() - startTime)
+                return atAltitude
+            }
+            targetDest = Vec3(effectiveStart.x, goalY, effectiveStart.z)
+        } else {
+            val passableDest = ThetaStarPathfinder.findPassableDestination(level, destination)
+            if (passableDest == null) {
+                HypCroMod.logWarn("A*: destination is fully enclosed in solid blocks")
+                PathfindingVisualizer.setPath("3D A* (Obstructed)", emptyList(), System.currentTimeMillis() - startTime)
+                return emptyList()
+            }
+            targetDest = passableDest
+        }
+
+        fun heuristicTo(pos: Vec3): Double =
+            if (ignoreHorizontalXZ) VerticalGoal.heuristic(pos.y, goalY) else pos.distanceTo(targetDest)
+
+        fun driftCostAt(pos: Vec3): Double =
+            if (ignoreHorizontalXZ) VerticalGoal.driftCost(pos.x, pos.z, effectiveStart.x, effectiveStart.z) else 0.0
 
         // Direct Line of Sight Fast-Path
         if (effectiveStart.distanceTo(targetDest) <= 1.2 || ThetaStarPathfinder.hasLineOfSight(level, effectiveStart, targetDest)) {
@@ -73,11 +92,11 @@ object AStar3DSmoothedPathfinder : IPathfinder {
         }
 
         // Close-range high precision mode: < 8 blocks distance uses 0.5b fine resolution
-        val totalDist = effectiveStart.distanceTo(targetDest)
+        val totalDist = heuristicTo(effectiveStart)
         val isCloseRange = totalDist <= 8.0
         val baseStepSize = if (isCloseRange) FINE_STEP_SIZE else DEFAULT_STEP_SIZE
 
-        // Dual Frontiers for Bidirectional Search
+        // Dual Frontiers for Bidirectional Search (disabled when ignoreHorizontalXZ to allow free climb)
         val openForward = PriorityQueue<Node>()
         val openBackward = PriorityQueue<Node>()
 
@@ -88,15 +107,16 @@ object AStar3DSmoothedPathfinder : IPathfinder {
         val visitedBackward = HashMap<Long, Node>()
 
         val startNode = Node(effectiveStart, 0.0, totalDist, null, isForward = true)
-        val destNode = Node(targetDest, 0.0, totalDist, null, isForward = false)
-
         openForward.add(startNode)
-        openBackward.add(destNode)
-
         val startHash = posHash(effectiveStart, HASH_RESOLUTION)
-        val destHash = posHash(targetDest, HASH_RESOLUTION)
         visitedForward[startHash] = startNode
-        visitedBackward[destHash] = destNode
+
+        if (!ignoreHorizontalXZ) {
+            val destNode = Node(targetDest, 0.0, totalDist, null, isForward = false)
+            openBackward.add(destNode)
+            val destHash = posHash(targetDest, HASH_RESOLUTION)
+            visitedBackward[destHash] = destNode
+        }
 
         var bestMeetingCost = Double.MAX_VALUE
         var bestForwardMeetNode: Node? = null
@@ -105,7 +125,7 @@ object AStar3DSmoothedPathfinder : IPathfinder {
         var closestForwardNode = startNode
         var expansions = 0
 
-        while (openForward.isNotEmpty() && openBackward.isNotEmpty()) {
+        while (openForward.isNotEmpty() && (ignoreHorizontalXZ || openBackward.isNotEmpty())) {
             if (CentralMovementCoordinator.isAbortTriggered()) {
                 PathfindingVisualizer.clearDebug()
                 return emptyList()
@@ -115,14 +135,16 @@ object AStar3DSmoothedPathfinder : IPathfinder {
             }
 
             // Termination check: if best meeting cost is lower than smallest possible f-cost
-            val minForwardF = openForward.peek()?.fCost ?: Double.MAX_VALUE
-            val minBackwardF = openBackward.peek()?.fCost ?: Double.MAX_VALUE
-            if (bestMeetingCost < Double.MAX_VALUE && (minForwardF + minBackwardF) * 0.5 >= bestMeetingCost) {
-                break
+            if (!ignoreHorizontalXZ) {
+                val minForwardF = openForward.peek()?.fCost ?: Double.MAX_VALUE
+                val minBackwardF = openBackward.peek()?.fCost ?: Double.MAX_VALUE
+                if (bestMeetingCost < Double.MAX_VALUE && (minForwardF + minBackwardF) * 0.5 >= bestMeetingCost) {
+                    break
+                }
             }
 
             // Step Forward Frontier
-            val expandForward = openForward.size <= openBackward.size
+            val expandForward = ignoreHorizontalXZ || openForward.size <= openBackward.size
             val activeOpen = if (expandForward) openForward else openBackward
             val activeClosed = if (expandForward) closedForward else closedBackward
             val activeVisited = if (expandForward) visitedForward else visitedBackward
@@ -138,17 +160,25 @@ object AStar3DSmoothedPathfinder : IPathfinder {
                 closestForwardNode = current
             }
 
-            // Early raycast connection to opposite start/goal if within line of sight
-            if (current.pos.distanceTo(targetGoal) <= 1.5 || ThetaStarPathfinder.hasLineOfSight(level, current.pos, targetGoal)) {
+            // Arrival check: In altitude-only mode or line of sight to targetGoal
+            val isArrived = if (ignoreHorizontalXZ) {
+                VerticalGoal.isReached(current.pos.y, goalY)
+            } else {
+                current.pos.distanceTo(targetGoal) <= 1.5 || ThetaStarPathfinder.hasLineOfSight(level, current.pos, targetGoal)
+            }
+
+            if (isArrived) {
                 val fullPath = if (expandForward) {
-                    reconstructDirect(level, current, targetGoal, forward = true)
+                    val direct = reconstructDirect(level, current, targetGoal, forward = true)
+                    if (ignoreHorizontalXZ) direct.filter { it.distanceTo(targetGoal) > 0.05 || VerticalGoal.isReached(it.y, goalY) } else direct
                 } else {
                     reconstructDirect(level, current, targetGoal, forward = false)
                 }
                 val smoothedPath = smoothPath(level, fullPath, targetDest)
-                recordChosenPathDebug(smoothedPath)
-                PathfindingVisualizer.setPath("3D A* with Smoothing", smoothedPath, System.currentTimeMillis() - startTime)
-                return smoothedPath
+                val finalPath = if (ignoreHorizontalXZ) VerticalGoal.truncateAtAltitude(smoothedPath, goalY) else smoothedPath
+                recordChosenPathDebug(finalPath)
+                PathfindingVisualizer.setPath("3D A* with Smoothing", finalPath, System.currentTimeMillis() - startTime)
+                return finalPath
             }
 
             // Adaptive Coarse-to-Fine Step Evaluation
@@ -158,8 +188,10 @@ object AStar3DSmoothedPathfinder : IPathfinder {
             val neighborOffsets = getNeighborOffsets(currentStep)
             val sortedOffsets = neighborOffsets.clone()
             sortedOffsets.sortWith(Comparator { o1, o2 ->
-                val d1 = current.pos.add(o1).distanceToSqr(targetGoal)
-                val d2 = current.pos.add(o2).distanceToSqr(targetGoal)
+                val p1 = current.pos.add(o1)
+                val p2 = current.pos.add(o2)
+                val d1 = if (ignoreHorizontalXZ) VerticalGoal.heuristic(p1.y, goalY) else p1.distanceToSqr(targetGoal)
+                val d2 = if (ignoreHorizontalXZ) VerticalGoal.heuristic(p2.y, goalY) else p2.distanceToSqr(targetGoal)
                 d1.compareTo(d2)
             })
 
@@ -179,9 +211,10 @@ object AStar3DSmoothedPathfinder : IPathfinder {
                 PathfindingVisualizer.addDebugBranch(current.pos, neighborPos, PathfindingVisualizer.SegmentType.GREEN_REACHABLE)
 
                 val clearancePenalty = calculateClearanceCost(level, neighborPos, effectiveStart, targetDest)
-                val stepCost = current.pos.distanceTo(neighborPos) + clearancePenalty
+                val driftPenalty = driftCostAt(neighborPos)
+                val stepCost = current.pos.distanceTo(neighborPos) + clearancePenalty + driftPenalty
                 val newGCost = current.gCost + stepCost
-                val hCost = neighborPos.distanceTo(targetGoal)
+                val hCost = if (expandForward) heuristicTo(neighborPos) else neighborPos.distanceTo(targetGoal)
 
                 val existingNode = activeVisited[neighborHash]
                 if (existingNode == null || newGCost < existingNode.gCost) {
@@ -189,18 +222,20 @@ object AStar3DSmoothedPathfinder : IPathfinder {
                     activeVisited[neighborHash] = neighborNode
                     activeOpen.add(neighborNode)
 
-                    // Check for frontier meeting
-                    val oppositeNode = oppositeVisited[neighborHash]
-                    if (oppositeNode != null) {
-                        val totalPathCost = newGCost + oppositeNode.gCost
-                        if (totalPathCost < bestMeetingCost) {
-                            bestMeetingCost = totalPathCost
-                            if (expandForward) {
-                                bestForwardMeetNode = neighborNode
-                                bestBackwardMeetNode = oppositeNode
-                            } else {
-                                bestForwardMeetNode = oppositeNode
-                                bestBackwardMeetNode = neighborNode
+                    // Check for frontier meeting (only in bidirectional mode)
+                    if (!ignoreHorizontalXZ) {
+                        val oppositeNode = oppositeVisited[neighborHash]
+                        if (oppositeNode != null) {
+                            val totalPathCost = newGCost + oppositeNode.gCost
+                            if (totalPathCost < bestMeetingCost) {
+                                bestMeetingCost = totalPathCost
+                                if (expandForward) {
+                                    bestForwardMeetNode = neighborNode
+                                    bestBackwardMeetNode = oppositeNode
+                                } else {
+                                    bestForwardMeetNode = oppositeNode
+                                    bestBackwardMeetNode = neighborNode
+                                }
                             }
                         }
                     }
@@ -214,7 +249,7 @@ object AStar3DSmoothedPathfinder : IPathfinder {
         }
 
         // Path Reconstruction from Bidirectional Meeting
-        if (bestForwardMeetNode != null && bestBackwardMeetNode != null) {
+        if (!ignoreHorizontalXZ && bestForwardMeetNode != null && bestBackwardMeetNode != null) {
             val rawPath = reconstructBidirectional(level, bestForwardMeetNode, bestBackwardMeetNode)
             val smoothedPath = smoothPath(level, rawPath, targetDest)
             recordChosenPathDebug(smoothedPath)
@@ -222,7 +257,7 @@ object AStar3DSmoothedPathfinder : IPathfinder {
             return smoothedPath
         }
 
-        if (openForward.isEmpty() || openBackward.isEmpty()) {
+        if (openForward.isEmpty() || (!ignoreHorizontalXZ && openBackward.isEmpty())) {
             HypCroMod.logWarn("A*: destination is unreachable - search frontiers exhausted")
             PathfindingVisualizer.setPath("3D A* (Unreachable)", emptyList(), System.currentTimeMillis() - startTime)
             return emptyList()
@@ -231,9 +266,10 @@ object AStar3DSmoothedPathfinder : IPathfinder {
         HypCroMod.logWarn("A*: expansion budget exhausted, using partial path to closest reached node")
         val rawPath = reconstructDirect(level, closestForwardNode, targetDest, forward = true)
         val smoothed = smoothPath(level, rawPath, targetDest)
-        recordChosenPathDebug(smoothed)
-        PathfindingVisualizer.setPath("3D A* with Smoothing", smoothed, System.currentTimeMillis() - startTime)
-        return smoothed
+        val finalFallback = if (ignoreHorizontalXZ) VerticalGoal.truncateAtAltitude(smoothed, goalY) else smoothed
+        recordChosenPathDebug(finalFallback)
+        PathfindingVisualizer.setPath("3D A* with Smoothing", finalFallback, System.currentTimeMillis() - startTime)
+        return finalFallback
     }
 
     fun isPassable(level: Level, pos: Vec3): Boolean {
