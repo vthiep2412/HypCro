@@ -181,18 +181,18 @@ object HypcroWatchdog {
         if (watchdogConfig.checkFarmingInterruption && watchdogConfig.checkBpsDrop) {
             val currentBps = com.hypcro.util.CropBpsTracker.getCurrentBps()
             if (!isBpsDropArmed) {
-                if (currentBps >= 18.0) {
+                if (currentBps >= 17.0) {
                     isBpsDropArmed = true
                     bpsDropStartTime = 0L
                 }
             } else {
                 if (com.hypcro.farming.WSFarmEngine.isTurningOrRecovering()) {
                     bpsDropStartTime = 0L
-                } else if (currentBps < 18.0) {
+                } else if (currentBps < 17.0) {
                     val now = System.currentTimeMillis()
                     if (bpsDropStartTime == 0L) {
                         bpsDropStartTime = now
-                    } else if (now - bpsDropStartTime >= 1500L) {
+                    } else if (now - bpsDropStartTime >= 1600L) {
                         bpsDropStartTime = 0L
                         isBpsDropArmed = false
                         potentialStaffCheck("Farming Interruption: Suddenly Low BPS")

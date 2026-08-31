@@ -438,22 +438,44 @@ object PestDestroyerEngine {
 
                 if (!flyCenterSuccess && !handleStuckRecovery("Plot Center Transit")) return
 
-                // Verify scoreboard at plot center
-                val lines = PestTabReader.readScoreboardLines(client)
-                val plotRegex = Regex("""(?i)Plot\s*-\s*$targetPlotId(?!\d)""")
-                val altPlotRegex = Regex("""(?i)Plot\s+$targetPlotId(?!\d)""")
-                // Plot 0 appears as "The Garden" on the scoreboard, not "Plot - 0"
-                val gardenRegex = if (targetPlotId == 0) Regex("""(?i)The\s*Garden""") else null
-                val matched = lines.any { line ->
-                    plotRegex.containsMatchIn(line) || altPlotRegex.containsMatchIn(line) || (gardenRegex != null && gardenRegex.containsMatchIn(line))
+                // Verify arrival at plot center
+                // Plot 0 (Center Barn) is never rendered as "Plot - 0" on the scoreboard sidebar,
+                // so arrival is verified purely by player distance to the plot center (0, 0) instead.
+                val matched = if (targetPlotId == 0) {
+                    val playerPos = client.player?.position()
+                    val distToCenter = playerPos?.let { pos ->
+                        val dx = pos.x - center.x
+                        val dz = pos.z - center.z
+                        sqrt(dx * dx + dz * dz)
+                    } ?: Double.MAX_VALUE
+
+                    if (distToCenter <= 15.0) {
+                        HypCroMod.logSuccess("Plot #0 arrival confirmed via player distance to center (${String.format("%.1f", distToCenter)}b <= 15b)!")
+                        true
+                    } else {
+                        HypCroMod.logWarn("Plot #0 arrival verification failed on attempt $attempt (distance to center: ${String.format("%.1f", distToCenter)}b).")
+                        false
+                    }
+                } else {
+                    // Normal plots (1..24): verify via scoreboard "Plot - N" line
+                    val lines = PestTabReader.readScoreboardLines(client)
+                    val plotRegex = Regex("""(?i)Plot\s*-\s*$targetPlotId(?!\d)""")
+                    val altPlotRegex = Regex("""(?i)Plot\s+$targetPlotId(?!\d)""")
+                    lines.any { line ->
+                        plotRegex.containsMatchIn(line) || altPlotRegex.containsMatchIn(line)
+                    }
                 }
 
                 if (matched) {
                     plotConfirmed = true
-                    HypCroMod.logSuccess("Plot #$targetPlotId confirmed via scoreboard at plot center!")
+                    if (targetPlotId != 0) {
+                        HypCroMod.logSuccess("Plot #$targetPlotId confirmed via scoreboard at plot center!")
+                    }
                     break
                 } else {
-                    HypCroMod.logWarn("Plot verification failed on attempt $attempt (Expected Plot #$targetPlotId).")
+                    if (targetPlotId != 0) {
+                        HypCroMod.logWarn("Plot verification failed on attempt $attempt (Expected Plot #$targetPlotId).")
+                    }
                     if (attempt == 2) {
                         if (callerSource == PestCallerSource.WS_FARM_ENGINE || callerSource == PestCallerSource.VERTICAL_FARM_ENGINE) {
                             com.hypcro.failsafe.HypcroWatchdog.potentialStaffCheck("Pest Destroyer: Failed to arrive at Plot #$targetPlotId after 2 attempts.")
@@ -517,14 +539,19 @@ object PestDestroyerEngine {
                         break
                     }
 
-                    // Check Tablist and Scoreboard every 2s
+                    // Check Tablist (and Scoreboard for normal plots) every 2s
+                    // Plot 0 (Center Barn) has no scoreboard line, so only Tablist is authoritative.
                     val tabCheck = PestTabReader.scanPests(client)
-                    val scbCheck = PestTabReader.scanScoreboardPests(client)
-                    val isStillInfested = tabCheck.infestedPlots.contains(targetPlotId) || scbCheck.infestedPlots.contains(targetPlotId)
+                    val isStillInfested = if (targetPlotId == 0) {
+                        tabCheck.infestedPlots.contains(targetPlotId)
+                    } else {
+                        val scbCheck = PestTabReader.scanScoreboardPests(client)
+                        tabCheck.infestedPlots.contains(targetPlotId) || scbCheck.infestedPlots.contains(targetPlotId)
+                    }
 
                     if (!isStillInfested) {
                         plotClearedOnTablist = true
-                        HypCroMod.log("Plot #$targetPlotId is no longer infested on Tablist/Scoreboard. Advancing.")
+                        HypCroMod.log("Plot #$targetPlotId is no longer infested on ${if (targetPlotId == 0) "Tablist" else "Tablist/Scoreboard"}. Advancing.")
                         break
                     }
                 }
@@ -536,7 +563,7 @@ object PestDestroyerEngine {
                 if (nearbyPests.isEmpty()) {
                     // Reached 10s limit with 0 entities loaded and Tablist still claiming infested
                     if (isAutoRun) {
-                        HypcroWatchdog.potentialStaffCheck("Plot #$targetPlotId is listed as infested on Tablist/Scoreboard, but 0 pest entities loaded after 10s")
+                        HypcroWatchdog.potentialStaffCheck("Plot #$targetPlotId is listed as infested on ${if (targetPlotId == 0) "Tablist" else "Tablist/Scoreboard"}, but 0 pest entities loaded after 10s")
                         return
                     } else {
                         HypCroMod.logWarn("Plot #$targetPlotId is listed as infested, but no pest entities loaded after 10s. Halting manual Pest Destroyer.")

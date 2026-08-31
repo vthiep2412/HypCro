@@ -169,7 +169,7 @@ object WSFarmEngine : IFarmEngine {
     @Volatile
     private var lastTurnTime: Long = 0L
 
-    fun isTurningOrRecovering(): Boolean = (System.currentTimeMillis() - lastTurnTime < 500L)
+    fun isTurningOrRecovering(): Boolean = (System.currentTimeMillis() - lastTurnTime < 800L)
 
     override fun onClientTick(client: Minecraft) {
         try {
@@ -224,7 +224,8 @@ object WSFarmEngine : IFarmEngine {
                         } else {
                             // Scenario B: Stopped moving, but water state is exactly the same
                             // Intended: Only trigger failsafe if configured; full anti-stuck handles broader recovery flows
-                            if (ConfigManager.config.generalConfig.watchdog.checkFarmingInterruption) {
+                            // Skip while turning/re-accelerating to avoid false alarm right after a W/S key switch
+                            if (ConfigManager.config.generalConfig.watchdog.checkFarmingInterruption && !isTurningOrRecovering()) {
                                 HypcroWatchdog.potentialStaffCheck("Farming Interruption")
                                 return
                             }
