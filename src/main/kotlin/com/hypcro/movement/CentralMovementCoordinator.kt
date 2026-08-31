@@ -330,7 +330,7 @@ object CentralMovementCoordinator {
 
                 // Arrival check
                 val isArrived = if (ignoreHorizontalXZ) {
-                    pos.y >= finalDestination.y - 0.5
+                    if (finalDestination.y >= startPos.y) pos.y >= finalDestination.y - 0.5 else pos.y <= finalDestination.y + 0.5
                 } else {
                     distToFinal <= 1.0 || (isFinalNode && distToWaypoint <= 1.0)
                 }
@@ -402,7 +402,7 @@ object CentralMovementCoordinator {
                 val strafeProj = dx * strafeUnitX + dz * strafeUnitZ
 
                 // Horizontal Propulsion (only if not ignoreHorizontalXZ on final node / pure ascent)
-                val isPureAltitudeAscent = ignoreHorizontalXZ && isFinalNode && pos.y >= waypoint.y - 0.5
+                val isPureAltitudeAscent = ignoreHorizontalXZ && isFinalNode && (if (finalDestination.y >= startPos.y) pos.y >= waypoint.y - 0.5 else pos.y <= waypoint.y + 0.5)
                 if (isPureAltitudeAscent) {
                     MacroInputController.releaseW()
                     MacroInputController.releaseS()
@@ -729,7 +729,7 @@ object CentralMovementCoordinator {
 
                 // Immediate Arrival Check: finish cleanly when within 1.2b of final destination or last node, or altitude reached in ignoreHorizontalXZ mode
                 val isArrived = if (ignoreHorizontalXZ) {
-                    pos.y >= finalDestination.y - 0.5
+                    if (finalDestination.y >= startPos.y) pos.y >= finalDestination.y - 0.5 else pos.y <= finalDestination.y + 0.5
                 } else {
                     distToFinal <= 1.2 || (isFinalNode && distToWaypoint <= 1.2)
                 }
@@ -763,8 +763,8 @@ object CentralMovementCoordinator {
                         }
                     }
 
-                    val maxH = if (candidateIsCorner) 0.6 else 0.8
-                    val maxV = if (candidateIsCorner) 0.75 else 0.85
+                    val maxH = if (candidateIsCorner) 0.65 else if (ignoreHorizontalXZ) 1.2 else 0.85
+                    val maxV = if (candidateIsCorner) 0.75 else 0.95
 
                     if (cHDist <= maxH && cVDist <= maxV) {
                         advancedIdx = k + 1
@@ -797,6 +797,7 @@ object CentralMovementCoordinator {
                 val lookDz = lookAheadPoint.z - pos.z
                 val lookHorizDist = sqrt(lookDx * lookDx + lookDz * lookDz)
 
+                // Guidance Targets: only update if error is outside deadzone
                 val desiredYaw = if (lookHorizDist > 0.1) {
                     (atan2(lookDz, lookDx) * 180.0 / Math.PI).toFloat() - 90.0f
                 } else {
@@ -837,7 +838,14 @@ object CentralMovementCoordinator {
                     MacroInputController.releaseS()
                 }
 
-                if (isNearPureVertical) {
+                val isPureAltitudeAscent = ignoreHorizontalXZ && isFinalNode && (if (finalDestination.y >= startPos.y) pos.y >= waypoint.y - 0.5 else pos.y <= waypoint.y + 0.5)
+
+                if (isPureAltitudeAscent) {
+                    MacroInputController.releaseSprint()
+                    MacroInputController.releaseW()
+                    MacroInputController.releaseS()
+                    MacroInputController.releaseStrafe()
+                } else if (isNearPureVertical) {
                     MacroInputController.releaseSprint()
                     if (horizontalDist > 0.20 && !ignoreHorizontalXZ) {
                         if (abs(relAngle) < 45.0f) {

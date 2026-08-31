@@ -376,7 +376,7 @@ object PestDestroyerEngine {
                                 if (!postTpAscent && !handleStuckRecovery("Post-TP Ascent")) return
                             }
                         } else {
-                            val climbSuccess = CentralMovementCoordinator.flyTo(client, targetX = startPos.x, targetY = cruiseY, targetZ = startPos.z)
+                            val climbSuccess = CentralMovementCoordinator.flyTo(client, targetX = startPos.x, targetY = cruiseY, targetZ = startPos.z, ignoreHorizontalXZ = true)
                             if (!climbSuccess && !handleStuckRecovery("Ascent Flight")) return
                         }
                     }

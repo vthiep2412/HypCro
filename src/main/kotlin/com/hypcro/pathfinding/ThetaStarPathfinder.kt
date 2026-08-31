@@ -523,7 +523,7 @@ object ThetaStarPathfinder : IPathfinder {
 
                     if (bestParent >= 0) {
                         curPool.gCost[curIdx] = bestG
-                        curPool.fCost[curIdx] = bestG + 1.25 * curVec.distanceTo(targetPos)
+                        curPool.fCost[curIdx] = bestG + 1.25 * heuristicTo(curVec, targetPos)
                         curPool.parent[curIdx] = bestParent
                         curHeap.push(curIdx)
                         continue
@@ -537,10 +537,15 @@ object ThetaStarPathfinder : IPathfinder {
             curClosed.add(curPacked)
 
             if (expandForward) {
-                val dX = curVec.x - targetDest.x
-                val dY = curVec.y - targetDest.y
-                val dZ = curVec.z - targetDest.z
-                val curDistSq = dX * dX + dY * dY + dZ * dZ
+                val curDistSq = if (ignoreHorizontalXZ) {
+                    val h = heuristicTo(curVec, targetDest)
+                    h * h
+                } else {
+                    val dX = curVec.x - targetDest.x
+                    val dY = curVec.y - targetDest.y
+                    val dZ = curVec.z - targetDest.z
+                    dX * dX + dY * dY + dZ * dZ
+                }
                 if (curDistSq < closestDistSqF) {
                     closestDistSqF = curDistSq
                     closestNodeF = curIdx
