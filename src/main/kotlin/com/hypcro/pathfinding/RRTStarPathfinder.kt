@@ -60,9 +60,10 @@ object RRTStarPathfinder : IPathfinder {
         }
 
         val goalY = destination.y
+        val ascending = goalY >= effectiveStart.y
         val targetDest: Vec3
         if (ignoreHorizontalXZ) {
-            if (VerticalGoal.isReached(effectiveStart.y, goalY)) {
+            if (VerticalGoal.isReached(effectiveStart.y, goalY, ascending)) {
                 val atAltitude = listOf(effectiveStart)
                 PathfindingVisualizer.setPath("BIT* (Altitude Reached)", atAltitude, System.currentTimeMillis() - startTime)
                 return atAltitude
@@ -79,7 +80,7 @@ object RRTStarPathfinder : IPathfinder {
         }
 
         fun heuristicTo(pos: Vec3): Double =
-            if (ignoreHorizontalXZ) VerticalGoal.heuristic(pos.y, goalY) else pos.distanceTo(targetDest)
+            if (ignoreHorizontalXZ) VerticalGoal.heuristic(pos.y, goalY, ascending) else pos.distanceTo(targetDest)
 
         fun driftCostAt(pos: Vec3): Double =
             if (ignoreHorizontalXZ) VerticalGoal.driftCost(pos.x, pos.z, effectiveStart.x, effectiveStart.z) else 0.0
@@ -272,7 +273,7 @@ object RRTStarPathfinder : IPathfinder {
 
                     // Check if target reached goal or has direct line of sight to goal / altitude reached
                     val isGoalReached = if (ignoreHorizontalXZ) {
-                        VerticalGoal.isReached(target.pos.y, goalY)
+                        VerticalGoal.isReached(target.pos.y, goalY, ascending)
                     } else {
                         target === goalVertex || target.pos.distanceTo(targetDest) <= 1.2 || checkFlightEdge(level, target.pos, targetDest, effectiveStart, targetDest)
                     }
@@ -324,7 +325,7 @@ object RRTStarPathfinder : IPathfinder {
         // Apply string-pulling smoothing, obstacle clearance enforcement, and micro-kink filtering
         val smoothingTarget = if (ignoreHorizontalXZ) solutionTip.pos else targetDest
         val smoothedPath = smoothFlightPath(level, rawPath, effectiveStart, smoothingTarget)
-        val finalPath = if (ignoreHorizontalXZ) VerticalGoal.truncateAtAltitude(smoothedPath, goalY) else smoothedPath
+        val finalPath = if (ignoreHorizontalXZ) VerticalGoal.truncateAtAltitude(smoothedPath, goalY, ascending) else smoothedPath
         recordChosenPathDebug(finalPath)
         PathfindingVisualizer.setPath("BIT*", finalPath, System.currentTimeMillis() - startTime)
         return finalPath

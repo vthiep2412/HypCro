@@ -59,9 +59,10 @@ object AStar3DSmoothedPathfinder : IPathfinder {
         }
 
         val goalY = destination.y
+        val ascending = goalY >= effectiveStart.y
         val targetDest: Vec3
         if (ignoreHorizontalXZ) {
-            if (VerticalGoal.isReached(effectiveStart.y, goalY)) {
+            if (VerticalGoal.isReached(effectiveStart.y, goalY, ascending)) {
                 val atAltitude = listOf(effectiveStart)
                 PathfindingVisualizer.setPath("3D A* (Altitude Reached)", atAltitude, System.currentTimeMillis() - startTime)
                 return atAltitude
@@ -78,7 +79,7 @@ object AStar3DSmoothedPathfinder : IPathfinder {
         }
 
         fun heuristicTo(pos: Vec3): Double =
-            if (ignoreHorizontalXZ) VerticalGoal.heuristic(pos.y, goalY) else pos.distanceTo(targetDest)
+            if (ignoreHorizontalXZ) VerticalGoal.heuristic(pos.y, goalY, ascending) else pos.distanceTo(targetDest)
 
         fun driftCostAt(pos: Vec3): Double =
             if (ignoreHorizontalXZ) VerticalGoal.driftCost(pos.x, pos.z, effectiveStart.x, effectiveStart.z) else 0.0
@@ -162,7 +163,7 @@ object AStar3DSmoothedPathfinder : IPathfinder {
 
             // Arrival check: In altitude-only mode or line of sight to targetGoal
             val isArrived = if (ignoreHorizontalXZ) {
-                VerticalGoal.isReached(current.pos.y, goalY)
+                VerticalGoal.isReached(current.pos.y, goalY, ascending)
             } else {
                 current.pos.distanceTo(targetGoal) <= 1.5 || ThetaStarPathfinder.hasLineOfSight(level, current.pos, targetGoal)
             }
@@ -170,12 +171,12 @@ object AStar3DSmoothedPathfinder : IPathfinder {
             if (isArrived) {
                 val fullPath = if (expandForward) {
                     val direct = reconstructDirect(level, current, targetGoal, forward = true)
-                    if (ignoreHorizontalXZ) direct.filter { it.distanceTo(targetGoal) > 0.05 || VerticalGoal.isReached(it.y, goalY) } else direct
+                    if (ignoreHorizontalXZ) direct.filter { it.distanceTo(targetGoal) > 0.05 || VerticalGoal.isReached(it.y, goalY, ascending) } else direct
                 } else {
                     reconstructDirect(level, current, targetGoal, forward = false)
                 }
                 val smoothedPath = smoothPath(level, fullPath, targetDest)
-                val finalPath = if (ignoreHorizontalXZ) VerticalGoal.truncateAtAltitude(smoothedPath, goalY) else smoothedPath
+                val finalPath = if (ignoreHorizontalXZ) VerticalGoal.truncateAtAltitude(smoothedPath, goalY, ascending) else smoothedPath
                 recordChosenPathDebug(finalPath)
                 PathfindingVisualizer.setPath("3D A* with Smoothing", finalPath, System.currentTimeMillis() - startTime)
                 return finalPath
@@ -190,8 +191,8 @@ object AStar3DSmoothedPathfinder : IPathfinder {
             sortedOffsets.sortWith(Comparator { o1, o2 ->
                 val p1 = current.pos.add(o1)
                 val p2 = current.pos.add(o2)
-                val d1 = if (ignoreHorizontalXZ) VerticalGoal.heuristic(p1.y, goalY) else p1.distanceToSqr(targetGoal)
-                val d2 = if (ignoreHorizontalXZ) VerticalGoal.heuristic(p2.y, goalY) else p2.distanceToSqr(targetGoal)
+                val d1 = if (ignoreHorizontalXZ) VerticalGoal.heuristic(p1.y, goalY, ascending) else p1.distanceToSqr(targetGoal)
+                val d2 = if (ignoreHorizontalXZ) VerticalGoal.heuristic(p2.y, goalY, ascending) else p2.distanceToSqr(targetGoal)
                 d1.compareTo(d2)
             })
 
@@ -266,7 +267,7 @@ object AStar3DSmoothedPathfinder : IPathfinder {
         HypCroMod.logWarn("A*: expansion budget exhausted, using partial path to closest reached node")
         val rawPath = reconstructDirect(level, closestForwardNode, targetDest, forward = true)
         val smoothed = smoothPath(level, rawPath, targetDest)
-        val finalFallback = if (ignoreHorizontalXZ) VerticalGoal.truncateAtAltitude(smoothed, goalY) else smoothed
+        val finalFallback = if (ignoreHorizontalXZ) VerticalGoal.truncateAtAltitude(smoothed, goalY, ascending) else smoothed
         recordChosenPathDebug(finalFallback)
         PathfindingVisualizer.setPath("3D A* with Smoothing", finalFallback, System.currentTimeMillis() - startTime)
         return finalFallback

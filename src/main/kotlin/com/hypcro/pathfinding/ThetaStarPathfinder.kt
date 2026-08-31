@@ -382,9 +382,10 @@ object ThetaStarPathfinder : IPathfinder {
         // Altitude-only mode: the goal is a Y plane. The anchor straight above the start is used
         // purely as a soft preference origin, never as a hard arrival requirement.
         val goalY = destination.y
+        val ascending = goalY >= effectiveStart.y
         val targetDest: Vec3
         if (ignoreHorizontalXZ) {
-            if (VerticalGoal.isReached(effectiveStart.y, goalY)) {
+            if (VerticalGoal.isReached(effectiveStart.y, goalY, ascending)) {
                 val atAltitude = listOf(effectiveStart)
                 PathfindingVisualizer.setPath("Theta* (Altitude Reached)", atAltitude, System.currentTimeMillis() - startTime)
                 return atAltitude
@@ -402,7 +403,7 @@ object ThetaStarPathfinder : IPathfinder {
 
         // In altitude-only mode distance to goal collapses to the remaining vertical climb.
         fun heuristicTo(from: Vec3, target: Vec3): Double =
-            if (ignoreHorizontalXZ) VerticalGoal.heuristic(from.y, goalY) else from.distanceTo(target)
+            if (ignoreHorizontalXZ) VerticalGoal.heuristic(from.y, goalY, ascending) else from.distanceTo(target)
 
         fun driftCostAt(px: Double, pz: Double): Double =
             if (ignoreHorizontalXZ) VerticalGoal.driftCost(px, pz, effectiveStart.x, effectiveStart.z) else 0.0
@@ -571,7 +572,7 @@ object ThetaStarPathfinder : IPathfinder {
 
             // Arrival check: In altitude-only mode, reaching goalY is arrival. In normal mode, distance or LOS to targetPos
             val isArrived = if (ignoreHorizontalXZ) {
-                expandForward && VerticalGoal.isReached(curVec.y, goalY)
+                expandForward && VerticalGoal.isReached(curVec.y, goalY, ascending)
             } else {
                 curVec.distanceTo(targetPos) <= 1.4 || hasLineOfSight(level, curVec, targetPos)
             }
@@ -585,7 +586,7 @@ object ThetaStarPathfinder : IPathfinder {
                     if (!ignoreHorizontalXZ) reconstructed.apply { add(0, effectiveStart) } else reconstructed
                 }
                 val pruned = pruneCollinearWaypoints(level, rawPath, targetDest)
-                val finalPath = if (ignoreHorizontalXZ) VerticalGoal.truncateAtAltitude(pruned, goalY) else pruned
+                val finalPath = if (ignoreHorizontalXZ) VerticalGoal.truncateAtAltitude(pruned, goalY, ascending) else pruned
                 recordChosenPathDebug(finalPath)
                 PathfindingVisualizer.setPath("Theta*", finalPath, System.currentTimeMillis() - startTime)
                 return finalPath
@@ -593,7 +594,7 @@ object ThetaStarPathfinder : IPathfinder {
 
             // Adaptive Sky Leaping: In open sky (Y >= HIGH_SKY_ALTITUDE), leap 2.5 blocks per step
             val isHighSky = curVec.y >= HIGH_SKY_ALTITUDE && isClearAirVolume(level, curVec.x, curVec.y, curVec.z, 2.0)
-            val distToGoal = if (ignoreHorizontalXZ) VerticalGoal.heuristic(curVec.y, goalY) else curVec.distanceTo(targetPos)
+            val distToGoal = if (ignoreHorizontalXZ) VerticalGoal.heuristic(curVec.y, goalY, ascending) else curVec.distanceTo(targetPos)
             val distToStart = curVec.distanceTo(originPos)
             val isNearEndpoint = distToGoal <= 8.0 || distToStart <= 8.0
 
@@ -667,7 +668,7 @@ object ThetaStarPathfinder : IPathfinder {
             fallbackRaw.add(targetDest)
         }
         val fallbackPruned = pruneCollinearWaypoints(level, fallbackRaw, targetDest)
-        val finalFallback = if (ignoreHorizontalXZ) VerticalGoal.truncateAtAltitude(fallbackPruned, goalY) else fallbackPruned
+        val finalFallback = if (ignoreHorizontalXZ) VerticalGoal.truncateAtAltitude(fallbackPruned, goalY, ascending) else fallbackPruned
         recordChosenPathDebug(finalFallback)
         PathfindingVisualizer.setPath("Theta*", finalFallback, System.currentTimeMillis() - startTime)
         return finalFallback

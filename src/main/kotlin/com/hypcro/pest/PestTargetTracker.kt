@@ -137,7 +137,9 @@ object PestTargetTracker {
         for (stand in sortedStands) {
             val standPos = stand.position()
             // If already merged with an existing nearby pest stand (e.g. Earthworm body/tail segments), skip
-            if (results.none { it.position.distanceToSqr(standPos) < clusterDistSq }) {
+            if (!isSecondarySegment(stand) ||
+                results.none { it.position.distanceToSqr(standPos) < clusterDistSq }) {
+                results.add(TrackedPest(stand, stand))
                 results.add(TrackedPest(stand, stand))
             }
         }

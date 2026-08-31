@@ -7,6 +7,7 @@ import com.hypcro.pathfinding.AStar3DSmoothedPathfinder
 import com.hypcro.pathfinding.IPathfinder
 import com.hypcro.pathfinding.RRTStarPathfinder
 import com.hypcro.pathfinding.ThetaStarPathfinder
+import com.hypcro.pathfinding.VerticalGoal
 import com.hypcro.farming.MacroInputController
 import kotlinx.coroutines.*
 import com.mojang.blaze3d.platform.InputConstants
@@ -332,7 +333,7 @@ object CentralMovementCoordinator {
 
                 // Arrival check
                 val isArrived = if (ignoreHorizontalXZ) {
-                    if (finalDestination.y >= startPos.y) pos.y >= finalDestination.y - 0.5 else pos.y <= finalDestination.y + 0.5
+                    if (finalDestination.y >= startPos.y) pos.y >= finalDestination.y - VerticalGoal.ARRIVAL_TOLERANCE else pos.y <= finalDestination.y + VerticalGoal.ARRIVAL_TOLERANCE
                 } else {
                     distToFinal <= 1.0 || (isFinalNode && distToWaypoint <= 1.0)
                 }
@@ -404,7 +405,7 @@ object CentralMovementCoordinator {
                 val strafeProj = dx * strafeUnitX + dz * strafeUnitZ
 
                 // Horizontal Propulsion (only if not ignoreHorizontalXZ on final node / pure ascent)
-                val isPureAltitudeAscent = ignoreHorizontalXZ && isFinalNode && (if (finalDestination.y >= startPos.y) pos.y >= waypoint.y - 0.5 else pos.y <= waypoint.y + 0.5)
+                val isPureAltitudeAscent = ignoreHorizontalXZ && isFinalNode && (if (finalDestination.y >= startPos.y) pos.y >= waypoint.y - VerticalGoal.ARRIVAL_TOLERANCE else pos.y <= waypoint.y + VerticalGoal.ARRIVAL_TOLERANCE)
                 if (isPureAltitudeAscent) {
                     MacroInputController.releaseW()
                     MacroInputController.releaseS()
@@ -731,7 +732,7 @@ object CentralMovementCoordinator {
 
                 // Immediate Arrival Check: finish cleanly when within 1.2b of final destination or last node, or altitude reached in ignoreHorizontalXZ mode
                 val isArrived = if (ignoreHorizontalXZ) {
-                    if (finalDestination.y >= startPos.y) pos.y >= finalDestination.y - 0.5 else pos.y <= finalDestination.y + 0.5
+                    if (finalDestination.y >= startPos.y) pos.y >= finalDestination.y - VerticalGoal.ARRIVAL_TOLERANCE else pos.y <= finalDestination.y + VerticalGoal.ARRIVAL_TOLERANCE
                 } else {
                     distToFinal <= 1.2 || (isFinalNode && distToWaypoint <= 1.2)
                 }
@@ -840,7 +841,7 @@ object CentralMovementCoordinator {
                     MacroInputController.releaseS()
                 }
 
-                val isPureAltitudeAscent = ignoreHorizontalXZ && isFinalNode && (if (finalDestination.y >= startPos.y) pos.y >= waypoint.y - 0.5 else pos.y <= waypoint.y + 0.5)
+                val isPureAltitudeAscent = ignoreHorizontalXZ && isFinalNode && (if (finalDestination.y >= startPos.y) pos.y >= waypoint.y - VerticalGoal.ARRIVAL_TOLERANCE else pos.y <= waypoint.y + VerticalGoal.ARRIVAL_TOLERANCE)
 
                 if (isPureAltitudeAscent) {
                     MacroInputController.releaseSprint()

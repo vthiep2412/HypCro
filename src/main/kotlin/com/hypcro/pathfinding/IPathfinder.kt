@@ -24,16 +24,18 @@ interface IPathfinder {
  */
 object VerticalGoal {
 
-    /** Arrival tolerance: reaching within 0.5b below the target altitude counts as arrived. */
+    /** Arrival tolerance: reaching within 0.5b of the target altitude counts as arrived. */
     const val ARRIVAL_TOLERANCE = 0.5
 
     /** Soft penalty per block of horizontal drift away from the starting column, per expanded node. */
     const val DRIFT_WEIGHT = 0.12
 
-    fun isReached(y: Double, goalY: Double): Boolean = y >= goalY - ARRIVAL_TOLERANCE
+    fun isReached(y: Double, goalY: Double, ascending: Boolean = true): Boolean =
+        if (ascending) y >= goalY - ARRIVAL_TOLERANCE else y <= goalY + ARRIVAL_TOLERANCE
 
-    /** Remaining vertical climb, the only distance metric that matters in altitude-only mode. */
-    fun heuristic(y: Double, goalY: Double): Double = max(0.0, goalY - y)
+    /** Remaining vertical climb or descent, the only distance metric that matters in altitude-only mode. */
+    fun heuristic(y: Double, goalY: Double, ascending: Boolean = true): Double =
+        if (ascending) max(0.0, goalY - y) else max(0.0, y - goalY)
 
     fun horizontalDrift(px: Double, pz: Double, originX: Double, originZ: Double): Double {
         val dx = px - originX
@@ -51,9 +53,9 @@ object VerticalGoal {
      * This removes any trailing nodes that would drag the player back horizontally after
      * it has already popped out into the sky.
      */
-    fun truncateAtAltitude(path: List<Vec3>, goalY: Double): List<Vec3> {
+    fun truncateAtAltitude(path: List<Vec3>, goalY: Double, ascending: Boolean = true): List<Vec3> {
         if (path.isEmpty()) return path
-        val idx = path.indexOfFirst { isReached(it.y, goalY) }
+        val idx = path.indexOfFirst { isReached(it.y, goalY, ascending) }
         return if (idx >= 0) ArrayList(path.subList(0, idx + 1)) else path
     }
 }

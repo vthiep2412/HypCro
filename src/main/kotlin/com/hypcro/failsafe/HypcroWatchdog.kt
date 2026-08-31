@@ -210,13 +210,13 @@ object HypcroWatchdog {
     }
 
     fun onPacketTeleport(packet: net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket) {
-        try {
+        val (dist, targetPos) = try {
             val client = Minecraft.getInstance()
             val player = client.player
             val prev = player?.position()
 
             // Calculate target location from packet
-            val targetPos = if (prev != null) {
+            val target = if (prev != null) {
                 val changePos = packet.change().position()
                 val relatives = packet.relatives()
                 val x = if (relatives.contains(net.minecraft.world.entity.Relative.X)) prev.x + changePos.x else changePos.x
@@ -227,19 +227,21 @@ object HypcroWatchdog {
                 packet.change().position()
             }
 
-            val dist = if (prev != null) prev.distanceTo(targetPos) else 0.0
-
-            val isMacroRunning = com.hypcro.farming.MacroInputController.isAnyMacroRunning()
-            val isWatchdogChecking = isWatchdogActive && com.hypcro.config.ConfigManager.config.generalConfig.watchdog.checkTeleport
-
-            if (isMacroRunning && isWatchdogChecking) {
-                // While macroing: 6b+ threshold for failsafe staff check (automatically disables FreeLook in potentialStaffCheck)
-                if (dist > TELEPORT_DISTANCE_THRESHOLD) {
-                    potentialStaffCheck("Teleport Packet Received (instant move ${String.format("%.2f", dist)} blocks to $targetPos)")
-                }
-            }
+            val d = if (prev != null) prev.distanceTo(target) else 0.0
+            Pair(d, target)
         } catch (t: Throwable) {
             HypCroMod.logWarn("Teleport packet calculation failed safely: ${t.message}")
+            return
+        }
+
+        val isMacroRunning = com.hypcro.farming.MacroInputController.isAnyMacroRunning()
+        val isWatchdogChecking = isWatchdogActive && com.hypcro.config.ConfigManager.config.generalConfig.watchdog.checkTeleport
+
+        if (isMacroRunning && isWatchdogChecking) {
+            // While macroing: 6b+ threshold for failsafe staff check (automatically disables FreeLook in potentialStaffCheck)
+            if (dist > TELEPORT_DISTANCE_THRESHOLD) {
+                potentialStaffCheck("Teleport Packet Received (instant move ${String.format("%.2f", dist)} blocks to $targetPos)")
+            }
         }
     }
 
@@ -259,12 +261,20 @@ object HypcroWatchdog {
 
     fun potentialStaffCheck(reason: String) {
         val client = Minecraft.getInstance()
-        // Disable Free Look immediately so player returns to normal perspective
-        if (com.hypcro.camera.FreeLookManager.isFreeLookActive) {
-            com.hypcro.camera.FreeLookManager.disable(client)
+        try {
+            // Disable Free Look immediately so player returns to normal perspective
+            if (com.hypcro.camera.FreeLookManager.isFreeLookActive) {
+                com.hypcro.camera.FreeLookManager.disable(client)
+            }
+        } catch (t: Throwable) {
+            HypCroMod.logWarn("Failed to disable FreeLook during staff check: ${t.message}")
         }
-        // Disable Freecam immediately so detached camera mode is turned off
-        com.hypcro.camera.FreecamManager.disable(client)
+        try {
+            // Disable Freecam immediately so detached camera mode is turned off
+            com.hypcro.camera.FreecamManager.disable(client)
+        } catch (t: Throwable) {
+            HypCroMod.logWarn("Failed to disable Freecam during staff check: ${t.message}")
+        }
         com.hypcro.farming.MacroController.abortScript(reason)
         HypCroMod.logAlarmBanner(reason)
         playFailsafeAlarm()

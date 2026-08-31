@@ -20,9 +20,16 @@ public class ClientPacketListenerMixin {
         client.execute(() -> {
             try {
                 com.hypcro.failsafe.HypcroWatchdog.INSTANCE.onPacketTeleport(packet);
+            } catch (Throwable t) {
+                HypCroMod.INSTANCE.logWarn("Error processing MovePlayer packet safely: " + t.getMessage());
+            }
+            try {
                 if (com.hypcro.camera.FreecamManager.INSTANCE.isFreecamActive()) {
                     com.hypcro.camera.FreecamManager.INSTANCE.disable(client);
                 }
+            } catch (Throwable t) {
+                HypCroMod.INSTANCE.logWarn("Error disabling freecam after MovePlayer packet: " + t.getMessage());
+            }
             } catch (Throwable t) {
                 HypCroMod.INSTANCE.logWarn("Error processing MovePlayer packet safely: " + t.getMessage());
             }
