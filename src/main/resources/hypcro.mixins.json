@@ -11,6 +11,7 @@
     "CommandSuggestionsMixin",
     "EntityHitboxDebugRendererMixin",
     "GuiMixin",
+    "HudMixin",
     "KeyboardInputMixin",
     "KeyboardMixin",
     "KeyMappingAccessor",

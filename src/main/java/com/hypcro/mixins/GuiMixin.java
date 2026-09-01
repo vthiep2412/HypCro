@@ -1,41 +1,31 @@
 package com.hypcro.mixins;
 
-import com.hypcro.HypCroMod;
-import com.hypcro.gui.HudOverlayRenderer;
-import net.minecraft.client.DeltaTracker;
+import com.hypcro.failsafe.HypcroWatchdog;
+import com.hypcro.farming.MacroController;
 import net.minecraft.client.gui.Gui;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.ChatScreen;
+import net.minecraft.client.gui.screens.PauseScreen;
+import net.minecraft.client.gui.screens.Screen;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import org.spongepowered.asm.mixin.Unique;
-
 @Mixin(Gui.class)
 public class GuiMixin {
 
-    @Unique
-    private static boolean hypcro$hudRenderFailed = false;
-
-    @Inject(method = "extractHotbarAndDecorations", at = @At("HEAD"), cancellable = true)
-    private void hypcro$hideHotbarInFreecam(GuiGraphicsExtractor guiGraphics, DeltaTracker deltaTracker, CallbackInfo ci) {
-        if (com.hypcro.camera.FreecamManager.INSTANCE.isFreecamActive() &&
-            com.hypcro.config.ConfigManager.INSTANCE.getConfig().getQolConfig().getFreecamHideGui()) {
-            ci.cancel();
+    @Inject(method = "setScreen", at = @At("HEAD"), cancellable = true)
+    private void onSetScreen(Screen screen, CallbackInfo ci) {
+        // Allow the pause (ESC) menu and ChatScreen no matter what, for safety and user interaction!
+        if (screen instanceof PauseScreen || screen instanceof ChatScreen) {
+            return;
         }
-    }
 
-    @Inject(method = "extractRenderState", at = @At("TAIL"))
-    private void hypcro$renderHudOverlay(GuiGraphicsExtractor guiGraphics, DeltaTracker deltaTracker, CallbackInfo ci) {
-        try {
-            HudOverlayRenderer.INSTANCE.render(guiGraphics, deltaTracker);
-            hypcro$hudRenderFailed = false;
-        } catch (Throwable t) {
-            if (!hypcro$hudRenderFailed) {
-                hypcro$hudRenderFailed = true;
-                HypCroMod.INSTANCE.logError("HUD overlay render failed: " + t);
-            }
+        boolean checkUnfamiliarGui = com.hypcro.config.ConfigManager.INSTANCE.getConfig().getGeneralConfig().getWatchdog().getCheckUnfamiliarGui();
+        if (checkUnfamiliarGui && MacroController.INSTANCE.isFarmingActive() && screen != null) {
+            // A GUI is attempting to open while the macro is running and unfamiliar GUI check is enabled.
+            // We do NOT block the screen from opening so the user can see captchas/menus, but we trigger the staff alarm!
+            HypcroWatchdog.INSTANCE.potentialStaffCheck("Unfamiliar GUI opened: " + screen.getClass().getSimpleName());
         }
     }
 }

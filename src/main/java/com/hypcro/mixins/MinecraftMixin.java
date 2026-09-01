@@ -1,12 +1,9 @@
 package com.hypcro.mixins;
 
-import com.hypcro.failsafe.HypcroWatchdog;
 import com.hypcro.farming.MacroController;
 import com.hypcro.farming.MacroInputController;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.ChatScreen;
-import net.minecraft.client.gui.screens.PauseScreen;
-import net.minecraft.client.gui.screens.Screen;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.gen.Invoker;
@@ -34,21 +31,6 @@ public abstract class MinecraftMixin {
 
     @Accessor("rightClickDelay")
     public abstract void setRightClickDelay(int delay);
-
-    @Inject(method = "setScreen", at = @At("HEAD"), cancellable = true)
-    private void onSetScreen(Screen screen, CallbackInfo ci) {
-        // Allow the pause (ESC) menu and ChatScreen no matter what, for safety and user interaction!
-        if (screen instanceof PauseScreen || screen instanceof ChatScreen) {
-            return;
-        }
-
-        boolean checkUnfamiliarGui = com.hypcro.config.ConfigManager.INSTANCE.getConfig().getGeneralConfig().getWatchdog().getCheckUnfamiliarGui();
-        if (checkUnfamiliarGui && MacroController.INSTANCE.isFarmingActive() && screen != null) {
-            // A GUI is attempting to open while the macro is running and unfamiliar GUI check is enabled.
-            // We do NOT block the screen from opening so the user can see captchas/menus, but we trigger the staff alarm!
-            HypcroWatchdog.INSTANCE.potentialStaffCheck("Unfamiliar GUI opened: " + screen.getClass().getSimpleName());
-        }
-    }
 
     @Inject(method = "tick", at = @At("TAIL"))
     private void onTick(CallbackInfo ci) {

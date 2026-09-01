@@ -35,7 +35,7 @@ Key architectural highlights include:
 ### Ground Truth & Anti-Habit Verification Protocol
 - **Double-check EVERYTHING against the active codebase**: Never make assumptions, invent features, state unverified mechanics, or describe commands, keybinds, configs, or behaviors out of habit or general memory (e.g. never assume `.hypcro start` exists when execution actually goes through GUI keybinds). Every piece of code, architectural explanation, parameter, keybinding, and test instruction MUST be verified by reading the relevant source files before responding or modifying code.
 - **Never guess Mojang or Fabric API signatures**: Minecraft 26.2 contains substantial internal refactorings. Do not rely on outdated memory or search results from older releases (1.8 through 1.20).
-- **Inspect local Loom cache deobf bytecode**: When investigating vanilla classes, methods, or fields, always inspect the local deobfuscated JAR located in the Loom cache at `.gradle/loom-cache/minecraftMaven/net/minecraft/minecraft-merged-043a8b3edf/26.2/minecraft-merged-043a8b3edf-26.2.jar` using `javap -p` or class decompilation to obtain exact, guaranteed method signatures.
+- **Inspect local Loom cache deobf bytecode**: When investigating vanilla classes, methods, or fields, write the class name or javap flags into `inspect_query.txt` and execute `python inspect_bytecode.py` to inspect the local deobfuscated JAR located in `.gradle/loom-cache/minecraftMaven/net/minecraft/**/26.2/*merged*.jar` to obtain exact, guaranteed method signatures.
 
 ### DO NOT ATTEMPT TO REMOVE THESE
 - Correct comments, non-duplicated comments
