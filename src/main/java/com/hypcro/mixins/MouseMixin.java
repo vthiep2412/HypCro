@@ -21,7 +21,7 @@ public class MouseMixin {
 
     @Inject(method = "onScroll", at = @At("HEAD"), cancellable = true)
     private void onMouseScroll(long window, double horizontal, double vertical, CallbackInfo ci) {
-        if (Minecraft.getInstance().screen != null) {
+        if (Minecraft.getInstance().gui.screen() != null) {
             return;
         }
 

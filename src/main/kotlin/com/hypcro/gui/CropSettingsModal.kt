@@ -103,16 +103,16 @@ class CropSettingsModal(private val parent: Screen) : Screen(Component.literal("
             saveFieldValues()
             ConfigManager.config.activeMethod = if (activeModeIndex == 1) "VERTICAL" else "WS"
             ConfigManager.save()
-            minecraft.setScreen(parent)
+            minecraft.gui.setScreen(parent)
         }.bounds(modalX + modalW / 2 - btnW - 6, btnY, btnW, btnH).build())
 
         addRenderableWidget(Button.builder(Component.literal("Cancel")) {
-            minecraft.setScreen(parent)
+            minecraft.gui.setScreen(parent)
         }.bounds(modalX + modalW / 2 + 6, btnY, btnW, btnH).build())
 
         // Top right close [X]
         addRenderableWidget(Button.builder(Component.literal("X")) {
-            minecraft.setScreen(parent)
+            minecraft.gui.setScreen(parent)
         }.bounds(modalX + modalW - 22, modalY + 6, 16, 16).build())
 
         loadFieldValues()
@@ -250,7 +250,7 @@ class CropSettingsModal(private val parent: Screen) : Screen(Component.literal("
                 isCropDropdownOpen = false
                 return true
             }
-            minecraft.setScreen(parent)
+            minecraft.gui.setScreen(parent)
             return true
         }
         return super.keyPressed(event)

@@ -148,7 +148,7 @@ class HudEditScreen(private val parentScreen: Screen?) : Screen(Component.litera
 
     override fun onClose() {
         saveConfig()
-        minecraft.setScreen(parentScreen)
+        minecraft.gui.setScreen(parentScreen)
     }
 
     override fun keyPressed(event: KeyEvent): Boolean {

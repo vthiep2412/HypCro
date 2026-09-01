@@ -233,7 +233,7 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
 
         // 2. Crop Settings Button
         settingsBtn = Button.builder(Component.literal("⚙ Settings")) {
-            minecraft.setScreen(CropSettingsModal(this))
+            minecraft.gui.setScreen(CropSettingsModal(this))
         }.bounds(cardX + cardW - 130, cardY + 50, 118, 20).build()
         addRenderableWidget(settingsBtn)
 
@@ -726,7 +726,7 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         addRenderableWidget(pestRooftopPill)
 
         teleportablePlotsBtn = Button.builder(Component.literal("Edit Teleportable Plots...")) {
-            minecraft.setScreen(PlotGridModal("Teleportable Plots", ConfigManager.config.pestDestroyer.teleportablePlots, this) { savedPlots ->
+            minecraft.gui.setScreen(PlotGridModal("Teleportable Plots", ConfigManager.config.pestDestroyer.teleportablePlots, this) { savedPlots ->
                 ConfigManager.config.pestDestroyer.teleportablePlots = savedPlots.toMutableSet()
                 ConfigManager.save()
             })
@@ -755,7 +755,7 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         addRenderableWidget(keepPestPill)
 
         leavePlotsBtn = Button.builder(Component.literal("Select Plots to Leave Pest...")) {
-            minecraft.setScreen(PlotGridModal("Plots to Leave Pest", ConfigManager.config.pestDestroyer.leavePestPlots, this) { savedPlots ->
+            minecraft.gui.setScreen(PlotGridModal("Plots to Leave Pest", ConfigManager.config.pestDestroyer.leavePestPlots, this) { savedPlots ->
                 ConfigManager.config.pestDestroyer.leavePestPlots = savedPlots.toMutableSet()
                 if (ConfigManager.config.pestDestroyer.keepPest) {
                     val minRequired = (savedPlots.size + 1).coerceAtMost(30)
@@ -869,7 +869,7 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         addRenderableWidget(hudOpacitySlider)
 
         hudEditBtn = Button.builder(Component.literal("Edit")) {
-            minecraft.setScreen(HudEditScreen(this))
+            minecraft.gui.setScreen(HudEditScreen(this))
         }.bounds(cardX + 220, cardY + 64, 80, 18).build()
         addRenderableWidget(hudEditBtn)
 
@@ -1744,35 +1744,35 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
             if (selectedTab == "ESP" && mouseX in (cardX + 326) until (cardX + 346)) {
                 // Dungeon Card Swatches
                 if (mouseY in (effY + 20) until (effY + 36)) {
-                    minecraft.setScreen(ColorPickerModal(this, ConfigManager.config.dungeon.batEspColor) { newHex ->
+                    minecraft.gui.setScreen(ColorPickerModal(this, ConfigManager.config.dungeon.batEspColor) { newHex ->
                         ConfigManager.config.dungeon.batEspColor = newHex
                         ConfigManager.save()
                     })
                     return true
                 }
                 if (mouseY in (effY + 42) until (effY + 58)) {
-                    minecraft.setScreen(ColorPickerModal(this, ConfigManager.config.dungeon.starMobsEspColor) { newHex ->
+                    minecraft.gui.setScreen(ColorPickerModal(this, ConfigManager.config.dungeon.starMobsEspColor) { newHex ->
                         ConfigManager.config.dungeon.starMobsEspColor = newHex
                         ConfigManager.save()
                     })
                     return true
                 }
                 if (mouseY in (effY + 64) until (effY + 80)) {
-                    minecraft.setScreen(ColorPickerModal(this, ConfigManager.config.dungeon.lostAdventurerColor) { newHex ->
+                    minecraft.gui.setScreen(ColorPickerModal(this, ConfigManager.config.dungeon.lostAdventurerColor) { newHex ->
                         ConfigManager.config.dungeon.lostAdventurerColor = newHex
                         ConfigManager.save()
                     })
                     return true
                 }
                 if (mouseY in (effY + 86) until (effY + 102)) {
-                    minecraft.setScreen(ColorPickerModal(this, ConfigManager.config.dungeon.shadowAssassinColor) { newHex ->
+                    minecraft.gui.setScreen(ColorPickerModal(this, ConfigManager.config.dungeon.shadowAssassinColor) { newHex ->
                         ConfigManager.config.dungeon.shadowAssassinColor = newHex
                         ConfigManager.save()
                     })
                     return true
                 }
                 if (mouseY in (effY + 108) until (effY + 124)) {
-                    minecraft.setScreen(ColorPickerModal(this, ConfigManager.config.dungeon.diamondGuyColor) { newHex ->
+                    minecraft.gui.setScreen(ColorPickerModal(this, ConfigManager.config.dungeon.diamondGuyColor) { newHex ->
                         ConfigManager.config.dungeon.diamondGuyColor = newHex
                         ConfigManager.save()
                     })
@@ -1782,7 +1782,7 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
                 // Other ESP Card (Pest ESP) Swatch
                 val otherY = effY + SEC_DUNGEON_ESP_GAP
                 if (mouseY in (otherY + 20) until (otherY + 36)) {
-                    minecraft.setScreen(ColorPickerModal(this, ConfigManager.config.pestDestroyer.pestEspColor) { newHex ->
+                    minecraft.gui.setScreen(ColorPickerModal(this, ConfigManager.config.pestDestroyer.pestEspColor) { newHex ->
                         ConfigManager.config.pestDestroyer.pestEspColor = newHex
                         ConfigManager.save()
                     })
@@ -1792,7 +1792,7 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
 
             // Pester Config Color Swatch Click
             if (selectedTab == "Pester" && pesterSubTab == 1 && mouseX in (cardX + 326) until (cardX + 346) && mouseY in (effY + 20) until (effY + 36)) {
-                minecraft.setScreen(ColorPickerModal(this, ConfigManager.config.pestDestroyer.pestEspColor) { newHex ->
+                minecraft.gui.setScreen(ColorPickerModal(this, ConfigManager.config.pestDestroyer.pestEspColor) { newHex ->
                     ConfigManager.config.pestDestroyer.pestEspColor = newHex
                     ConfigManager.save()
                 })

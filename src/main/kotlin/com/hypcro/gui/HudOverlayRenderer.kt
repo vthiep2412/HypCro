@@ -41,8 +41,8 @@ object HudOverlayRenderer {
         val client = Minecraft.getInstance()
         val hudCfg = ConfigManager.config.hud
         if (!hudCfg.enabled) return
-        if (client.options.hideGui) return
-        if (client.screen is HudEditScreen) return
+        if (graphics.guiRenderState.isHudHidden) return
+        if (client.gui.screen() is HudEditScreen) return
 
         val window = client.window
         val screenWidth = window.guiScaledWidth

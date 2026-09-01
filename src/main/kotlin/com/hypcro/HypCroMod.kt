@@ -373,8 +373,8 @@ object HypCroMod : ClientModInitializer {
             logWarn("Macro stopped by user!")
             return
         }
-        if (client.screen == null) {
-            client.setScreen(com.hypcro.gui.MainFarmingScreen())
+        if (client.gui.screen() == null) {
+            client.gui.setScreen(com.hypcro.gui.MainFarmingScreen())
         }
     }
 

@@ -13,9 +13,9 @@ repositories {
 }
 
 dependencies {
-    minecraft("com.mojang:minecraft:26.1.2")
+    minecraft("com.mojang:minecraft:26.2")
     implementation("net.fabricmc:fabric-loader:0.16.0")
-    implementation("net.fabricmc.fabric-api:fabric-api:0.155.2+26.1.2")
+    implementation("net.fabricmc.fabric-api:fabric-api:0.158.0+26.2")
     implementation("net.fabricmc:fabric-language-kotlin:1.13.13+kotlin.2.4.10")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")

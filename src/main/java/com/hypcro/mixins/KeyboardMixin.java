@@ -14,7 +14,7 @@ public class KeyboardMixin {
 
     @Inject(method = "keyPress", at = @At("HEAD"), cancellable = true)
     private void onKeyPress(long window, int action, net.minecraft.client.input.KeyEvent event, CallbackInfo ci) {
-        if (Minecraft.getInstance().screen != null) {
+        if (Minecraft.getInstance().gui.screen() != null) {
             return;
         }
 

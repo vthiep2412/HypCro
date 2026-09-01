@@ -54,8 +54,8 @@ public abstract class MinecraftMixin {
     private void onTick(CallbackInfo ci) {
         Minecraft client = (Minecraft) (Object) this;
         if (MacroController.INSTANCE.isRunning()) {
-            boolean isChatOpen = client.screen instanceof ChatScreen;
-            boolean isGameActive = client.screen == null;
+            boolean isChatOpen = client.gui.screen() instanceof ChatScreen;
+            boolean isGameActive = client.gui.screen() == null;
 
             if (isChatOpen || isGameActive) {
                 boolean attack = MacroInputController.INSTANCE.getAttack();

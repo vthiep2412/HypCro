@@ -1,12 +1,12 @@
 # Project: HypCro
 
 ## Architecture
-HypCro is a Hypixel Skyblock Garden farming helper mod built natively for Minecraft 26.1.2 using Fabric Loader (0.16.0+) and Kotlin 2.4.10 on Java 25.
+HypCro is a Hypixel Skyblock Garden farming helper mod built natively for Minecraft 26.2 using Fabric Loader (0.16.0+) and Kotlin 2.4.10 on Java 25.
 
 ### Subsystem Boundaries and Data Flow
 1. **Toolchain & Runtime**:
    - Fabric Loom 1.15.5 with `fabric.loom.disableObfuscation=true`
-   - Minecraft 26.1.2 unobfuscated Mojang mappings (`com.mojang:minecraft:26.1.2`)
+   - Minecraft 26.2 unobfuscated Mojang mappings (`com.mojang:minecraft:26.2`)
    - Kotlin 2.4.10 (`fabric-language-kotlin:1.13.13+kotlin.2.4.10`)
    - JDK Runtime Azul Zulu 25 (`Java 25.0.1`) targeting JVM 25 across JavaCompile, KotlinCompile, and Mixin compatibility
    - Gradle 9.2.0 wrapper
@@ -26,7 +26,7 @@ HypCro is a Hypixel Skyblock Garden farming helper mod built natively for Minecr
 ## Feature Inventory
 | # | Feature | Description | Milestone | Source |
 |---|---------|-------------|-----------|--------|
-| 1 | Toolchain & Build Specification | Document exact Gradle 9.2.0, Java 25, Kotlin 2.4.10, Loom 1.15.5, and Minecraft 26.1.2 toolchain | M1 | survey |
+| 1 | Toolchain & Build Specification | Document exact Gradle 9.2.0, Java 25, Kotlin 2.4.10, Loom 1.15.5, and Minecraft 26.2 toolchain | M1 | survey |
 | 2 | Workspace Rules & Protocols | Document Minecraft API Research & Ground Truth Protocol, Loom cache deobf jar inspection, comment preservation, and strict guidelines | M1 | survey |
 | 3 | Comprehensive Directory Map | Exhaustive file and directory mapping for all root, gradle, src, resources, legacy, and reference directories | M1 | survey |
 | 4 | Architecture & Subsystem Specification | Complete architectural documentation of all 10 Kotlin packages, 9 Java Mixins, and reference Learn codebases | M1 | survey |
@@ -39,11 +39,11 @@ HypCro is a Hypixel Skyblock Garden farming helper mod built natively for Minecr
 
 ## Interface Contracts
 ### Ground Truth Protocol <-> Loom Cache
-- When inspecting vanilla Minecraft 26.1.2 classes, methods, or fields, inspect local deobfuscated JAR in Loom cache (`.gradle/loom-cache/minecraftMaven/net/minecraft/minecraft-merged-043a8b3edf/26.1.2/minecraft-merged-043a8b3edf-26.1.2.jar`) using `javap -p` or class decompilation.
+- When inspecting vanilla Minecraft 26.2 classes, methods, or fields, inspect local deobfuscated JAR in Loom cache (`.gradle/loom-cache/minecraftMaven/net/minecraft/minecraft-merged-043a8b3edf/26.2/minecraft-merged-043a8b3edf-26.2.jar`) using `javap -p` or class decompilation.
 
 ### Mod Loader <-> Mixin Compatibility
 - Compatibility level: `JAVA_25`
-- Target mappings: Mojang 26.1.2 unobfuscated (`fabric.loom.disableObfuscation=true`)
+- Target mappings: Mojang 26.2 unobfuscated (`fabric.loom.disableObfuscation=true`)
 
 ## Code Layout
 - `GEMINI.md`: Root configuration and rules reference

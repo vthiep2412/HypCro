@@ -108,7 +108,7 @@ object FreecamManager {
     }
 
     private fun isPhysicalKeyDown(client: Minecraft, keyMapping: net.minecraft.client.KeyMapping): Boolean {
-        if (client.screen != null) return false
+        if (client.gui.screen() != null) return false
         val boundKey = (keyMapping as com.hypcro.mixins.KeyMappingAccessor).key ?: return false
         val code = boundKey.value
         if (code == org.lwjgl.glfw.GLFW.GLFW_KEY_UNKNOWN) return false

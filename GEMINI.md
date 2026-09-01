@@ -3,9 +3,9 @@
 ## Project Specifications & Overview
 
 ### Toolchain & Runtime Specifications
-- **Target Minecraft Version**: `26.1.2` (Strictly 26.1.2 unobfuscated Mojang mappings)
+- **Target Minecraft Version**: `26.2` (Strictly 26.2 unobfuscated Mojang mappings)
 - **Mod Loader**: Fabric Loader (`0.16.0+`)
-- **Fabric API**: `0.155.2+26.1.2`
+- **Fabric API**: `0.155.2+26.2`
 - **Language**: Kotlin 2.4.10 (`fabric-language-kotlin:1.13.13+kotlin.2.4.10`, `org.jetbrains.kotlin.jvm:2.4.10`)
 - **Serialization**: `kotlinx-serialization-json:1.6.3`
 - **Concurrency**: `kotlinx-coroutines-core:1.8.1`
@@ -14,7 +14,7 @@
 - **Gradle Plugin**: `fabric-loom:1.15.5` with `fabric.loom.disableObfuscation=true` in `gradle.properties`
 
 ### Project Overview
-HypCro is a high-performance, client-side Hypixel SkyBlock Garden farming helper mod built natively for Fabric 26.1.2 on Java 25 and Kotlin 2.4.10. HypCro replaces legacy Forge 1.8.9 reflective hacks and external background injection tools with native Fabric mixins, non-blocking coroutines, humanized kinematics, autonomous 3D flight pathfinding, in-world Gizmo vector rendering, and real-time watchdog failsafes.
+HypCro is a high-performance, client-side Hypixel SkyBlock Garden farming helper mod built natively for Fabric 26.2 on Java 25 and Kotlin 2.4.10. HypCro replaces legacy Forge 1.8.9 reflective hacks and external background injection tools with native Fabric mixins, non-blocking coroutines, humanized kinematics, autonomous 3D flight pathfinding, in-world Gizmo vector rendering, and real-time watchdog failsafes.
 
 Key architectural highlights include:
 - **Macro Engine**: Centralized state machine automation for W/S linear farming and vertical crop layouts with automatic hoe selection and Squeaky Mousemat integration.
@@ -34,8 +34,8 @@ Key architectural highlights include:
 
 ### Ground Truth & Anti-Habit Verification Protocol
 - **Double-check EVERYTHING against the active codebase**: Never make assumptions, invent features, state unverified mechanics, or describe commands, keybinds, configs, or behaviors out of habit or general memory (e.g. never assume `.hypcro start` exists when execution actually goes through GUI keybinds). Every piece of code, architectural explanation, parameter, keybinding, and test instruction MUST be verified by reading the relevant source files before responding or modifying code.
-- **Never guess Mojang or Fabric API signatures**: Minecraft 26.1.2 contains substantial internal refactorings. Do not rely on outdated memory or search results from older releases (1.8 through 1.20).
-- **Inspect local Loom cache deobf bytecode**: When investigating vanilla classes, methods, or fields, always inspect the local deobfuscated JAR located in the Loom cache at `.gradle/loom-cache/minecraftMaven/net/minecraft/minecraft-merged-043a8b3edf/26.1.2/minecraft-merged-043a8b3edf-26.1.2.jar` using `javap -p` or class decompilation to obtain exact, guaranteed method signatures.
+- **Never guess Mojang or Fabric API signatures**: Minecraft 26.2 contains substantial internal refactorings. Do not rely on outdated memory or search results from older releases (1.8 through 1.20).
+- **Inspect local Loom cache deobf bytecode**: When investigating vanilla classes, methods, or fields, always inspect the local deobfuscated JAR located in the Loom cache at `.gradle/loom-cache/minecraftMaven/net/minecraft/minecraft-merged-043a8b3edf/26.2/minecraft-merged-043a8b3edf-26.2.jar` using `javap -p` or class decompilation to obtain exact, guaranteed method signatures.
 
 ### DO NOT ATTEMPT TO REMOVE THESE
 - Correct comments, non-duplicated comments
@@ -108,7 +108,7 @@ Key architectural highlights include:
    - `AntiStuckEngine` pulses sneak (Shift) for 200ms to 600ms to safely land flying or falling players before macro startup. Abort startup if ungrounded after 25 attempts.
 
 ### Vector Rendering Rules
-- **Use Vanilla Gizmos**: All in-world debug visuals, bounding boxes, trajectories, and search nodes must use Minecraft 26.1.2's `net.minecraft.gizmos.Gizmos` and `net.minecraft.gizmos.GizmoStyle` (`ARGB.color`).
+- **Use Vanilla Gizmos**: All in-world debug visuals, bounding boxes, trajectories, and search nodes must use Minecraft 26.2's `net.minecraft.gizmos.Gizmos` and `net.minecraft.gizmos.GizmoStyle` (`ARGB.color`).
 - **No Legacy Immediate Mode OpenGL**: Never use direct GL11, GL15, Tessellator, or BufferBuilder matrix manipulation.
 - **Pest ESP Styling**: Render red bounding cuboids with `setAlwaysOnTop()` enabled for x-ray visibility through blocks.
 - **Pathfinding Visualizer Styling**: Render active exploration trees with yellow for expanding nodes, green for open candidate nodes, red for obstructed nodes, and cyan for final selected flight paths.
@@ -132,7 +132,7 @@ Key architectural highlights include:
 | `settings.gradle.kts` | Gradle settings file | Declares root project name as `hypcro` and sets up Maven repository endpoints |
 | `gradle.properties` | JVM and Loom build properties | Sets `fabric.loom.disableObfuscation=true` for unobfuscated Mojang mappings |
 | `gradlew.bat` | Windows Gradle wrapper batch script | Enables reproducible Gradle builds without requiring pre-installed Gradle |
-| `GEMINI.md` | Workspace specifications, toolchain targets, and ground truth rules | Defines core architecture guidelines, JDK runtime (Azul Zulu 25), and Minecraft 26.1.2 protocol |
+| `GEMINI.md` | Workspace specifications, toolchain targets, and ground truth rules | Defines core architecture guidelines, JDK runtime (Azul Zulu 25), and Minecraft 26.2 protocol |
 | `PROJECT.md` | Project architecture and milestone roadmap | Tracks subsystem boundaries, interface contracts, feature inventory, and code layout |
 | `README.md` | Project documentation and feature overview | Explains features (GUI, mouse engine, pathfinding, pest destroyer), commands, and build steps |
 | `ICON.svg` | Scalable Vector Graphics mod icon | Vector artwork used for branding and UI design assets |
@@ -309,7 +309,7 @@ Legacy Forge 1.8.9 reference codebase containing patterns for crop handling, fai
 ##### `Learn/SkyHanni` (Forge 1.8.9 SkyHanni Mod)
 Modern SkyBlock helper mod reference containing rich text parsing, regex item filters, inventory detection, and island state tracking.
 
-##### `Learn/aether` (Fabric 26.1.2 / 1.21.x Aether Mod)
+##### `Learn/aether` (Fabric 26.2 / 1.21.x Aether Mod)
 Modern Fabric reference codebase demonstrating modern Java 25 architectural patterns, mixin hooks, and GUI rendering:
 - `dev.aether.bootstrap`: Mod initialization, command registrar, keybind registry, and client tick events
 - `dev.aether.config`: Profile-based configuration entries, farming presets, and humanization settings
@@ -359,7 +359,7 @@ Modern Fabric reference codebase demonstrating modern Java 25 architectural patt
                                KeyboardMixin, MinecraftMixin)
                                             │
                                             ▼
-                              [ Minecraft 26.1.2 Client ]
+                              [ Minecraft 26.2 Client ]
                                             │
                                             ▼
                               [ Shared Utilities Foundation ]

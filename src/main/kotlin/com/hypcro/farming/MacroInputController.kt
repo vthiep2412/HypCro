@@ -227,7 +227,7 @@ object MacroInputController {
     }
 
     fun canPenetrateScreen(): Boolean {
-        val screen = Minecraft.getInstance().screen
+        val screen = Minecraft.getInstance().gui.screen()
         return screen == null || screen is ChatScreen
     }
 
