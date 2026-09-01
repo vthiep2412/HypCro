@@ -41,3 +41,4 @@ test_*.kt
 /.agents/
 .marscode/deviceInfo.json
 .kilo/
+inspect_query.txt
