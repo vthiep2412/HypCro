@@ -5,7 +5,7 @@
 ### Toolchain & Runtime Specifications
 - **Target Minecraft Version**: `26.2` (Strictly 26.2 unobfuscated Mojang mappings)
 - **Mod Loader**: Fabric Loader (`0.16.0+`)
-- **Fabric API**: `0.155.2+26.2`
+- **Fabric API**: `0.158.0+26.2`
 - **Language**: Kotlin 2.4.10 (`fabric-language-kotlin:1.13.13+kotlin.2.4.10`, `org.jetbrains.kotlin.jvm:2.4.10`)
 - **Serialization**: `kotlinx-serialization-json:1.6.3`
 - **Concurrency**: `kotlinx-coroutines-core:1.8.1`

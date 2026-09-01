@@ -151,31 +151,33 @@ object HudOverlayRenderer {
         rightBorderColor: Int
     ) {
         graphics.pose().pushMatrix()
-        graphics.pose().translate(x, y)
-        if (scale != 1.0f) {
-            graphics.pose().scale(scale, scale)
+        try {
+            graphics.pose().translate(x, y)
+            if (scale != 1.0f) {
+                graphics.pose().scale(scale, scale)
+            }
+
+            val alpha = (opacity.coerceIn(0.10f, 1.00f) * 255).toInt()
+            val bgColor = ARGB.color(alpha, 16, 18, 22)
+
+            // Background sharp rectangular box
+            graphics.fill(0, 0, cardWidth, cardHeight, bgColor)
+
+            // Left vertical border (2px)
+            graphics.fill(0, 0, 2, cardHeight, leftBorderColor)
+
+            // Right vertical border (2px)
+            graphics.fill(cardWidth - 2, 0, cardWidth, cardHeight, rightBorderColor)
+
+            // Text lines rendering
+            var textY = 6
+            for (line in lines) {
+                graphics.text(font, line, 8, textY, 0xFFFFFFFF.toInt())
+                textY += 10
+            }
+        } finally {
+            graphics.pose().popMatrix()
         }
-
-        val alpha = (opacity.coerceIn(0.10f, 1.00f) * 255).toInt()
-        val bgColor = ARGB.color(alpha, 16, 18, 22)
-
-        // Background sharp rectangular box
-        graphics.fill(0, 0, cardWidth, cardHeight, bgColor)
-
-        // Left vertical border (2px)
-        graphics.fill(0, 0, 2, cardHeight, leftBorderColor)
-
-        // Right vertical border (2px)
-        graphics.fill(cardWidth - 2, 0, cardWidth, cardHeight, rightBorderColor)
-
-        // Text lines rendering
-        var textY = 6
-        for (line in lines) {
-            graphics.text(font, line, 8, textY, 0xFFFFFFFF.toInt())
-            textY += 10
-        }
-
-        graphics.pose().popMatrix()
     }
 
     fun formatElapsed(millis: Long): String {

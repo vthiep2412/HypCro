@@ -30,10 +30,10 @@ public class HudMixin {
         try {
             HudOverlayRenderer.INSTANCE.render(guiGraphics, deltaTracker);
             hypcro$hudRenderFailed = false;
-        } catch (Throwable t) {
+        } catch (Exception e) {
             if (!hypcro$hudRenderFailed) {
                 hypcro$hudRenderFailed = true;
-                HypCroMod.INSTANCE.logError("HUD overlay render failed: " + t);
+                HypCroMod.INSTANCE.logError("HUD overlay render failed: " + e);
             }
         }
     }

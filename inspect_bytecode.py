@@ -1,12 +1,27 @@
 import os
 import glob
+import re
 import subprocess
 import sys
 
+def get_minecraft_version():
+    build_gradle = "build.gradle.kts"
+    if os.path.exists(build_gradle):
+        with open(build_gradle, "r", encoding="utf-8") as f:
+            content = f.read()
+            match = re.search(r'minecraft\("com\.mojang:minecraft:([^"]+)"\)', content)
+            if match:
+                return match.group(1).strip()
+    return None
+
 def find_minecraft_jar():
-    candidates = glob.glob(os.path.join(".gradle", "loom-cache", "minecraftMaven", "net", "minecraft", "**", "26.2", "*merged*.jar"), recursive=True)
-    if not candidates:
-        candidates = glob.glob(os.path.join(".gradle", "loom-cache", "minecraftMaven", "net", "minecraft", "**", "*merged*.jar"), recursive=True)
+    version = get_minecraft_version()
+    if version:
+        candidates = glob.glob(os.path.join(".gradle", "loom-cache", "minecraftMaven", "net", "minecraft", "**", version, "*merged*.jar"), recursive=True)
+        if candidates:
+            return candidates[0]
+            
+    candidates = glob.glob(os.path.join(".gradle", "loom-cache", "minecraftMaven", "net", "minecraft", "**", "*merged*.jar"), recursive=True)
     if not candidates:
         raise FileNotFoundError("Could not find Loom merged Minecraft JAR in .gradle cache")
     return candidates[0]
