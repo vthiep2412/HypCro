@@ -40,3 +40,4 @@ test_*.kt
 
 /.agents/
 .marscode/deviceInfo.json
+.kilo/

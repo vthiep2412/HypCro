@@ -13,6 +13,7 @@ object PestESP {
     private var cachedPests: List<TrackedPest> = emptyList()
     private var lastGardenCheckMs: Long = 0L
     private var lastScanTimeMs: Long = 0L
+    private const val SCAN_INTERVAL_MS: Long = 11L // ~90 Hz refresh rate (1000ms / 90 ≈ 11.1ms)
 
     fun tick(client: Minecraft) {
         if (!ConfigManager.config.pestDestroyer.pestEsp) {
@@ -41,7 +42,11 @@ object PestESP {
             return
         }
 
-        // 2. Refresh entity positions every 50ms (client entity tracking distance up to 128 blocks)
+        // 2. Throttle entity positions scan to ~90 Hz (11ms)
+        if (now - lastScanTimeMs < SCAN_INTERVAL_MS) {
+            return
+        }
+        lastScanTimeMs = now
         cachedPests = PestTargetTracker.findPestsInRadius(client, player.position(), 128.0)
     }
 

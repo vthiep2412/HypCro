@@ -28,7 +28,7 @@ object DungeonESP {
     private var lastDungeonCheckMs: Long = 0L
     private var lastScanTimeMs: Long = 0L
 
-    private const val SCAN_INTERVAL_MS: Long = 22L // ~45 Hz refresh rate (1000ms / 45 ≈ 22.2ms)
+    private const val SCAN_INTERVAL_MS: Long = 11L // ~90 Hz refresh rate (1000ms / 90 ≈ 11.1ms)
     private const val MAX_DETECTION_RADIUS: Double = 128.0
 
     private fun isAnyFeatureEnabled(): Boolean {
@@ -68,7 +68,7 @@ object DungeonESP {
             return
         }
 
-        // 2. Throttle entity scan to ~45 Hz (22ms)
+        // 2. Throttle entity scan to ~90 Hz (11ms)
         if (now - lastScanTimeMs < SCAN_INTERVAL_MS) {
             return
         }
