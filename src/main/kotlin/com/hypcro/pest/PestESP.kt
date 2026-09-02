@@ -13,7 +13,6 @@ object PestESP {
     private var cachedPests: List<TrackedPest> = emptyList()
     private var lastGardenCheckMs: Long = 0L
     private var lastScanTimeMs: Long = 0L
-    private const val SCAN_INTERVAL_MS: Long = 11L // 90 Hz scan rate (1000ms / 90 ≈ 11.1ms) driven by render-loop callbacks
 
     fun tick(client: Minecraft) {
         if (!ConfigManager.config.pestDestroyer.pestEsp) {
@@ -42,8 +41,8 @@ object PestESP {
             return
         }
 
-        // 2. Throttle entity positions scan to ~90 Hz (11ms)
-        if (now - lastScanTimeMs < SCAN_INTERVAL_MS) {
+        // 2. Throttle entity positions scan to centralized interval (5ms / 200 Hz)
+        if (now - lastScanTimeMs < com.hypcro.util.EspHelper.SCAN_INTERVAL_MS) {
             return
         }
         lastScanTimeMs = now
@@ -66,9 +65,11 @@ object PestESP {
             ARGB.color(70, r, g, b)    // Translucent fill
         )
 
+        val partialTicks = com.hypcro.util.EspHelper.getPartialTicks()
+
         for (pest in cachedPests) {
             if (pest.entity.isRemoved) continue
-            val eyePos = pest.entity.eyePosition
+            val eyePos = com.hypcro.util.EspHelper.getInterpolatedEyePosition(pest.entity, partialTicks)
 
             // Expanded custom box wrapped around the pest head skull (2x size, renders through walls)
             val box = AABB(

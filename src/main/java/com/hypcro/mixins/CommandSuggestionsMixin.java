@@ -24,8 +24,10 @@ public abstract class CommandSuggestionsMixin {
 
     private static final List<String> ROOT_COMMANDS = List.of(
         ".hypcro",
+        ".hypcroinspectblock",
         ".hypcrobot",
         ".hypcrobitstar",
+        ".hypcroparty",
         ".hypcrogettablist",
         ".hypcrogetscoreboard",
         ".hypcropathfindverbose",

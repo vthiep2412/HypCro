@@ -26,3 +26,4 @@ object AngleUtils {
         return yawDifference(yaw1, yaw2) < tolerance && pitchDifference(pitch1, pitch2) < tolerance
     }
 }
+

@@ -20,7 +20,7 @@ A client-side Fabric mod for Hypixel SkyBlock Garden farming with zero memory in
 - **Auto Experiment Table Add-ons**:
   - Automated solver for Chronomatron and Ultrasequencer minigames before Superpairs.
   - Native table scanning within 4.5 blocks with humanized Bezier camera rotation via `MouseMovementEngine`.
-  - Automatic highest Stakes tier selection (Metaphysical down to High) with insufficient XP safety detection.
+  - Automatic highest Stakes tier selection (Metaphysical down to Beginner) with insufficient XP safety detection.
   - 100% focus-independent container slot clicking via Minecraft's native `slotClicked` invoker.
   - Configurable click speeds: Slow (250-350ms), Medium (130-200ms), and Fast (70-110ms) with randomized millisecond jitter.
   - **Maximize XP** toggle: stops at max bonus clicks cap (Round 12 Chrono, Round 10 Ultraseq) or solves continuously to maximize Enchanting XP.
@@ -33,6 +33,26 @@ A client-side Fabric mod for Hypixel SkyBlock Garden farming with zero memory in
   - Interactive **HUD Editor** (`HudEditScreen`) with drag-to-move repositioning across all screen corners and scroll-wheel scaling (50% to 250%).
   - Centralized `CropBpsTracker` measuring instantaneous crop breaking rates and session averages.
 - **Visuals & ESP Suite**:
+  - **Player ESP**:
+    - Automatic detection of party members via full chat regex matching (`PartyApi`).
+    - Party members highlighted in bright **Green** (`#00FF00`) with Gizmo bounding boxes and `[PARTY]` billboard nametags through walls.
+    - Other players highlighted in **Cyan** (`#00FFFF`) through walls with optional distance in meters `(24m)`.
+    - Dedicated **Player ESP** card in the ESP tab with toggles for Party Player, Other Player, `  └ Show Distance:`, and clickable color swatches.
+  - **Chest ESP & Crystal Hollows Lockpick Helper**:
+    - **Crystal Hollows Active**: Automatically checks scoreboard/tablist for `Area: Crystal Hollows` so chest scanning and lockpick rendering run exclusively in the Crystal Hollows.
+    - **Chest ESP**: Highlights nearby chests in **Warm Gold** (`#FFAA00`). Once opened by the player, normal chests are memorized in a blacklist so they stop rendering. Crystal Hollows lockpick chests automatically stay persistent.
+    - **Auto Lockpick Chest Detection**: Automatically detects lockpick chests whenever `CRIT` particles spawn near a chest within 20 blocks of the player.
+    - **Always-Visible Red Lockpick Helper**: Tracks `CRIT` particles from incoming packets and renders a small solid **Red** cube (`#FF0000`) on the exact sweet-spot aiming location with full X-ray visibility (`setAlwaysOnTop`).
+    - Dedicated **Chest & Lockpick ESP** card in the ESP tab with toggles for Chest ESP, Lockpick Helper, and clickable color swatches.
+  - **Jerry's Workshop White Gifts Waypoints**:
+    - **Jerry's Workshop Active**: Exclusively active when in `Area: Jerry's Workshop` on tablist or scoreboard.
+    - **20 Pre-Configured White Gift Locations**: Accurately pre-loaded with all 20 standard White Gift coordinates across rooftops, trees, cliffs, docks, and hidden alcoves.
+    - **Un-Capped Distance Scaling**: Waypoint text size scales directly with distance without a maximum cap (`(0.045f * dist).coerceAtLeast(0.28f)`), canceling perspective shrink and maintaining crystal-clear readability from 5 to 300+ blocks.
+    - **Auto-Hide on Collect**: Automatically marks gifts as collected when right-clicked or approached within 2 blocks so collected presents vanish from screen.
+    - Dedicated **Jerry's Workshop** card in the ESP tab with White Gifts toggle, White (`#FFFFFF`) color swatch, live collected counter `(Collected: X / 20)`, and `Reset Collected` button.
+  - **Party API**:
+    - Ported from SkyHanni with comprehensive regex pattern matching for joins, leaves, kicks, offline kicks, voluntary/leave transfers, disbands, and party lists.
+    - Dot-command query: `.hypcroparty`.
   - **Dungeon ESP**:
     - Dedicated Dungeon card in the ESP tab with 45Hz scan refresh and x-ray Gizmo vector bounding boxes up to 128 blocks away.
     - Independent toggles and customizable color swatches for Secret Bats (Brown default `#8B4513`), Starred Mobs (Orange default `#F57738`), Lost Adventurers (Gold Yellow default `#FEE15C`), Shadow Assassins (Purple default `#5B2CB2`), and Diamond Guys (Aqua default `#57C2F7`).
@@ -48,6 +68,7 @@ A client-side Fabric mod for Hypixel SkyBlock Garden farming with zero memory in
     - **Freecam**: Pure client-side no-clip camera flight through blocks via `U` keybind. Supports WASD movement, Space/Shift vertical flight, configurable flight speed (0.1x to 5.0x), and 1.2x sprint boost. Strictly zero angle snap on toggle off.
   - Dedicated **ESP**, **HUD**, and **Settings** navigation in the lower sidebar group.
 - **Testing Command Suite**:
+  - `.hypcroparty`: Prints all currently tracked party members and party leader status.
   - `.hypcrotest movecam <pitch> <yaw>`: Tests camera rotation to exact angles.
   - `.hypcrotest flyto <x> <y> <z> [pitch] [yaw]`: Executes 3D flight navigation (supports `~` for undefined coordinates).
   - `.hypcrotest pathfind <x> <y> <z>`: Computes path, benchmarks calculation time in milliseconds, and validates chunk boundaries.

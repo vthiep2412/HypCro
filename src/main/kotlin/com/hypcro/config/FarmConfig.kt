@@ -54,7 +54,8 @@ data class QOLConfig(
     var freeLookRespectInvertMouse: String = "ON", // "OFF", "ON", "ALWAYS"
     var freecamSpeed: Double = 1.0,
     var freecamHideGui: Boolean = false,
-    var autoSprint: Boolean = false
+    var autoSprint: Boolean = false,
+    var fasterRClick: Boolean = false
 )
 
 @Serializable
@@ -130,12 +131,8 @@ data class DungeonConfig(
     var batEspColor: String = "#8B4513",
     var starMobsEsp: Boolean = false,
     var starMobsEspColor: String = "#F57738",
-    var lostAdventurerEsp: Boolean = false,
-    var lostAdventurerColor: String = "#FEE15C",
-    var shadowAssassinEsp: Boolean = false,
-    var shadowAssassinColor: String = "#5B2CB2",
-    var diamondGuyEsp: Boolean = false,
-    var diamondGuyColor: String = "#57C2F7"
+    var minibossEsp: Boolean = false,
+    var minibossColor: String = "#FFFF00"
 )
 
 @Serializable
@@ -161,6 +158,35 @@ data class ExperimentAddonsConfig(
 )
 
 @Serializable
+data class PlayerEspConfig(
+    var enabled: Boolean = false,
+    var partyEsp: Boolean = false,
+    var partyColor: String = "#00FF00",
+    var otherPlayerEsp: Boolean = false,
+    var otherPlayerColor: String = "#00FFFF",
+    var showDistance: Boolean = true,
+    var renderNametags: Boolean = true
+)
+
+@Serializable
+data class ChestEspConfig(
+    var enabled: Boolean = false,
+    var chestEsp: Boolean = false,
+    var chestColor: String = "#FFAA00",
+    var lockpickHelper: Boolean = false,
+    var helperColor: String = "#FF0000"
+)
+
+@Serializable
+data class JerryGiftsConfig(
+    var enabled: Boolean = false,
+    var color: String = "#FFFFFF",
+    var lastSavedYear: Int = 0,
+    var discoveredCoords: MutableMap<String, List<Double>> = mutableMapOf(),
+    var collectedCoords: MutableSet<String> = mutableSetOf()
+)
+
+@Serializable
 data class FarmConfig(
     var activeMethod: String = "WS",
     var autoActivePest: Boolean = false,
@@ -175,6 +201,9 @@ data class FarmConfig(
     var bouncyBall: BouncyBallConfig = BouncyBallConfig(),
     var experimentAddons: ExperimentAddonsConfig = ExperimentAddonsConfig(),
     var dungeon: DungeonConfig = DungeonConfig(),
+    var playerEsp: PlayerEspConfig = PlayerEspConfig(),
+    var chestEsp: ChestEspConfig = ChestEspConfig(),
+    var jerryGifts: JerryGiftsConfig = JerryGiftsConfig(),
     var hud: HudConfig = HudConfig()
 )
 

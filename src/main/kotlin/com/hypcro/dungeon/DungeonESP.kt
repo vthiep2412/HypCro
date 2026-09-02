@@ -28,16 +28,86 @@ object DungeonESP {
     private var lastDungeonCheckMs: Long = 0L
     private var lastScanTimeMs: Long = 0L
 
-    private const val SCAN_INTERVAL_MS: Long = 11L // 90 Hz scan rate (1000ms / 90 ≈ 11.1ms) driven by render-loop callbacks
     private const val MAX_DETECTION_RADIUS: Double = 128.0
+
+    private val MINIBOSS_NAMES = setOf(
+        "Lost Adventurer",
+        "Diamond Guy",
+        "Shadow Assassin",
+        "King Midas",
+        "Spirit Bear"
+    )
 
     private fun isAnyFeatureEnabled(): Boolean {
         val cfg = ConfigManager.config.dungeon
-        return cfg.batEsp || cfg.starMobsEsp || cfg.lostAdventurerEsp || cfg.shadowAssassinEsp || cfg.diamondGuyEsp
+        return cfg.batEsp || cfg.starMobsEsp || cfg.minibossEsp
     }
 
     private fun isRealPlayer(player: Player): Boolean {
         return player.uuid.version() == 4
+    }
+
+    private fun isBaseHealth(entity: LivingEntity, health: Float): Boolean {
+        val current = entity.health
+        val difference = current - health
+        return current >= health && (current % health == 0f || (current - difference) % health == 0f)
+    }
+
+    private fun isSecretBat(bat: Bat, client: Minecraft): Boolean {
+        return isBaseHealth(bat, 100.0f) && !GardenStateReader.isInBossRoom(client, "4")
+    }
+
+    private fun isMiniboss(entity: Entity, client: Minecraft): Boolean {
+        if (entity is Player && !isRealPlayer(entity)) {
+            val name = entity.name.string.trim()
+            if (!MINIBOSS_NAMES.contains(name)) {
+                return false
+            }
+            return if (GardenStateReader.isInBossRoom(client, "4")) {
+                entity.position().y < 76.0
+            } else {
+                name != "Spirit Bear"
+            }
+        }
+        return false
+    }
+
+    private fun isStarred(name: String): Boolean {
+        val star = "✯"
+        val index = name.indexOf(star)
+        return index != -1 && index == name.lastIndexOf(star)
+    }
+
+    private fun isDungeonMob(entity: Entity, minibosses: Set<Entity>): Boolean {
+        if (entity is ArmorStand) return false
+        if (!entity.isAlive) return false
+        if (entity is Player) {
+            return !isRealPlayer(entity) && !minibosses.contains(entity)
+        }
+        return entity is LivingEntity && !minibosses.contains(entity)
+    }
+
+    private fun findNametagOwner(armorStand: ArmorStand, candidates: List<Entity>): Entity? {
+        var entity: Entity? = null
+        var lowestDist = 2.5f
+        val armorPos = armorStand.position()
+        val maxY = armorPos.y
+        for (ent in candidates) {
+            if (ent is ArmorStand) continue
+            val entPos = ent.position()
+            val dy = maxY - entPos.y
+            // Nametags float directly above the mob's feet (typically 0.5 to 2.5 blocks)
+            if (dy in 0.0..3.5) {
+                val dx = entPos.x - armorPos.x
+                val dz = entPos.z - armorPos.z
+                val dist3d = sqrt(dx * dx + dy * dy + dz * dz).toFloat()
+                if (dist3d < lowestDist) {
+                    entity = ent
+                    lowestDist = dist3d
+                }
+            }
+        }
+        return entity
     }
 
     fun tick(client: Minecraft) {
@@ -68,8 +138,8 @@ object DungeonESP {
             return
         }
 
-        // 2. Throttle entity scan to ~90 Hz (11ms)
-        if (now - lastScanTimeMs < SCAN_INTERVAL_MS) {
+        // 2. Throttle entity scan to centralized interval (5ms / 200 Hz)
+        if (now - lastScanTimeMs < com.hypcro.util.EspHelper.SCAN_INTERVAL_MS) {
             return
         }
         lastScanTimeMs = now
@@ -79,50 +149,38 @@ object DungeonESP {
         val radiusSq = MAX_DETECTION_RADIUS * MAX_DETECTION_RADIUS
         val renderedEntities = level.entitiesForRendering()
 
+        val minibossEntities = mutableSetOf<Entity>()
         val armorStandsWithStar = mutableListOf<ArmorStand>()
-        val candidateLivingMobs = mutableListOf<LivingEntity>()
+        val candidateLivingMobs = mutableListOf<Entity>()
         val results = mutableListOf<TrackedDungeonEntity>()
 
         for (entity in renderedEntities) {
             if (entity.isRemoved) continue
             if (entity.position().distanceToSqr(center) > radiusSq) continue
 
-            // Bat ESP (Secret Bats)
-            if (entity is Bat && cfg.batEsp) {
+            // 1. Miniboss checks
+            if (cfg.minibossEsp && isMiniboss(entity, client)) {
+                minibossEntities.add(entity)
+                results.add(TrackedDungeonEntity(entity, cfg.minibossColor))
+                continue
+            }
+
+            // 2. Secret Bat ESP
+            if (entity is Bat && cfg.batEsp && isSecretBat(entity, client)) {
                 results.add(TrackedDungeonEntity(entity, cfg.batEspColor))
                 continue
             }
 
-            // Miniboss checks (Lost Adventurer, Shadow Assassin, Diamond Guy)
-            if (entity is Player && !isRealPlayer(entity) && entity !is AbstractClientPlayer && entity != player) {
-                val name = entity.name.string.trim()
-                if (name.equals("Lost Adventurer", ignoreCase = true) && cfg.lostAdventurerEsp) {
-                    results.add(TrackedDungeonEntity(entity, cfg.lostAdventurerColor))
-                    continue
-                }
-                if (name.equals("Shadow Assassin", ignoreCase = true) && cfg.shadowAssassinEsp) {
-                    results.add(TrackedDungeonEntity(entity, cfg.shadowAssassinColor))
-                    continue
-                }
-                if (name.equals("Diamond Guy", ignoreCase = true) && cfg.diamondGuyEsp) {
-                    results.add(TrackedDungeonEntity(entity, cfg.diamondGuyColor))
-                    continue
-                }
-            }
-
-            // Collect ArmorStands and living mobs for Starred Mobs check
+            // 3. Collect ArmorStands and candidate living mobs for Starred Mobs check
             if (cfg.starMobsEsp) {
                 if (entity is ArmorStand) {
-                    val customName = entity.customName?.string ?: ""
-                    if (customName.contains("✯")) {
+                    val rawName = entity.customName?.string ?: ""
+                    val cleanName = GardenStateReader.stripColor(rawName)
+                    if (isStarred(cleanName)) {
                         armorStandsWithStar.add(entity)
                     }
-                } else if (entity is LivingEntity && entity !is ArmorStand) {
-                    if (entity is Player && isRealPlayer(entity)) {
-                        // Skip real players
-                    } else {
-                        candidateLivingMobs.add(entity)
-                    }
+                } else if (isDungeonMob(entity, minibossEntities)) {
+                    candidateLivingMobs.add(entity)
                 }
             }
         }
@@ -130,25 +188,9 @@ object DungeonESP {
         // Map Starred ArmorStands to closest living mob below them
         if (cfg.starMobsEsp && armorStandsWithStar.isNotEmpty() && candidateLivingMobs.isNotEmpty()) {
             for (stand in armorStandsWithStar) {
-                val standPos = stand.position()
-                var closestMob: LivingEntity? = null
-                var lowestDist = 2.0
-
-                for (mob in candidateLivingMobs) {
-                    val mobPos = mob.position()
-                    if (mobPos.y <= standPos.y + 0.5 && mobPos.y >= standPos.y - 2.8) {
-                        val dx = mobPos.x - standPos.x
-                        val dz = mobPos.z - standPos.z
-                        val horizDist = sqrt(dx * dx + dz * dz)
-                        if (horizDist < lowestDist) {
-                            lowestDist = horizDist
-                            closestMob = mob
-                        }
-                    }
-                }
-
-                if (closestMob != null && results.none { it.entity == closestMob }) {
-                    results.add(TrackedDungeonEntity(closestMob, cfg.starMobsEspColor))
+                val owner = findNametagOwner(stand, candidateLivingMobs)
+                if (owner != null && !minibossEntities.contains(owner) && results.none { it.entity == owner }) {
+                    results.add(TrackedDungeonEntity(owner, cfg.starMobsEspColor))
                 }
             }
         }
@@ -163,10 +205,9 @@ object DungeonESP {
             return
         }
 
-        if (!cachedIsInDungeons || cachedEntities.isEmpty()) return
-
+        val partialTicks = com.hypcro.util.EspHelper.getPartialTicks()
         val player = Minecraft.getInstance().player
-        val playerPos = player?.position()
+        val playerPos = if (player != null) com.hypcro.util.EspHelper.getInterpolatedPosition(player, partialTicks) else null
 
         for (tracked in cachedEntities) {
             if (tracked.entity.isRemoved) continue
@@ -178,9 +219,10 @@ object DungeonESP {
                 ARGB.color(70, r, g, b)
             )
 
+            val rawBox = com.hypcro.util.EspHelper.getInterpolatedBoundingBox(tracked.entity, partialTicks)
+
             if (tracked.entity is Bat) {
                 // Double the bounding box size around its center
-                val rawBox = tracked.entity.boundingBox
                 val box = AABB.ofSize(rawBox.center, rawBox.xsize * 2.0, rawBox.ysize * 2.0, rawBox.zsize * 2.0)
                 Gizmos.cuboid(box, espStyle).setAlwaysOnTop()
 
@@ -193,7 +235,7 @@ object DungeonESP {
                 // Render billboard text in the middle of the box, always facing the player and visible through walls
                 Gizmos.billboardText("§f§lBAT", box.center, textStyle).setAlwaysOnTop()
             } else {
-                Gizmos.cuboid(tracked.entity.boundingBox, espStyle).setAlwaysOnTop()
+                Gizmos.cuboid(rawBox, espStyle).setAlwaysOnTop()
             }
         }
     }

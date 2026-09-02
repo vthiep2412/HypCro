@@ -2,11 +2,15 @@
 
 ## High Priority & Core Improvements
 - [ ] Add humanization for W/S movement. Every 1–2 minutes, delay a reaction or direction switch by up to 1.2 s. Otherwise, choose a random delay from 0 to 800 ms.
-- [ ] Add white gift waypoint/esp for specificaly jerry workshop (as QOL)
-- [~] Add more ESP
-    - ESP player (party player and other player is different) (add Player card, add "ESP party", ESP non-party)
-    - crystal hollow chest (make sure only esp chest are not opened, and remember the chest that is opened by player already to not esp that chest anymore, use pos if you able to do that, remember to only do that if the chest is not lockpick chest)
-    - crystal hollow lockpick chest helper esp
+- [x] Add white gift waypoint/esp for specificaly jerry workshop (as QOL)
+- [x] Add more ESP
+    - ESP player (party player in green and other players in cyan with Gizmo bounding boxes and nametags)
+    - crystal hollow chest (normal chest ESP with opened pos memory blacklist)
+    - crystal hollow lockpick chest helper (always visible red sweet-spot aiming cube with full X-ray visibility)
+
+- [x] change bat esp, star mob, miniboss esp mob detection to use nofrills one, instead of current custom
+
+- add scan culling so it only scan esp for the player fov (for example scan star mob in only that specific range, NOT PLAYER)
 
 - [ ] raycast path? hmm still thinking
 ---
@@ -23,6 +27,10 @@
 ---
 
 ## Completed (Done)
+- [x] Complete Party API port from SkyHanni with chat pattern matching and live party tracking
+- [x] Player ESP (Green for Party members, Cyan for other players)
+- [x] Normal Chest ESP with opened position blacklist memory
+- [x] Crystal Hollows Lockpick Chest ESP (Magenta) & Red sweet-spot helper cube (always visible, X-ray through blocks)
 
 ---
 
