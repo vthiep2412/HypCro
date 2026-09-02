@@ -88,7 +88,7 @@ object DungeonESP {
 
     private fun findNametagOwner(armorStand: ArmorStand, candidates: List<Entity>): Entity? {
         var entity: Entity? = null
-        var lowestDist = 2.5f
+        var lowestDist = 4.0f
         val armorPos = armorStand.position()
         val maxY = armorPos.y
         for (ent in candidates) {
