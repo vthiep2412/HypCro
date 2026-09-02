@@ -762,8 +762,10 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
             cardX + 220, playerY + 42, 100, 16,
             listOf("OFF", "ON"), if (playerCfg.otherPlayerEsp) 1 else 0
         ) { idx ->
-            ConfigManager.config.playerEsp.otherPlayerEsp = (idx == 1)
-            ConfigManager.config.playerEsp.enabled = (idx == 1 || ConfigManager.config.playerEsp.partyEsp)
+            val on = (idx == 1)
+            ConfigManager.config.playerEsp.otherPlayerEsp = on
+            ConfigManager.config.playerEsp.enabled = (on || ConfigManager.config.playerEsp.partyEsp)
+            showDistancePill.active = on
             ConfigManager.save()
         }
         addRenderableWidget(otherPlayerEspPill)
@@ -775,6 +777,7 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
             ConfigManager.config.playerEsp.showDistance = (idx == 1)
             ConfigManager.save()
         }
+        showDistancePill.active = playerCfg.otherPlayerEsp
         addRenderableWidget(showDistancePill)
 
         // Chest ESP Widgets
@@ -1294,6 +1297,7 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         minibossesEspPill.visible = isEsp
         partyPlayerEspPill.visible = isEsp
         otherPlayerEspPill.visible = isEsp
+        showDistancePill.active = ConfigManager.config.playerEsp.otherPlayerEsp
         showDistancePill.visible = isEsp
         chestEspPill.visible = isEsp
         lockpickHelperPill.visible = isEsp

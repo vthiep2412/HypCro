@@ -167,7 +167,8 @@ object GardenStateReader {
             return false
         }
         val pos = player.position()
-        val floorNum = if (floor.isNotEmpty()) floor else if (currentFloor.length >= 2) currentFloor.substring(1) else currentFloor
+        val rawFloor = if (floor.isNotEmpty()) floor else currentFloor
+        val floorNum = rawFloor.trim().trimStart('F', 'M', 'f', 'm')
         return when (floorNum) {
             "1" -> pos.x in -72.0..-14.0 && pos.y in 55.0..146.0 && pos.z in -40.0..49.0
             "2" -> pos.x in -40.0..24.0 && pos.y in 54.0..99.0 && pos.z in -40.0..54.0

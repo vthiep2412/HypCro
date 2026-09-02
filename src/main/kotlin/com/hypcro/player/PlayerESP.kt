@@ -32,6 +32,24 @@ object PlayerESP {
         val partialTicks = com.hypcro.util.EspHelper.getPartialTicks()
         val localPos = com.hypcro.util.EspHelper.getInterpolatedPosition(localPlayer, partialTicks)
 
+        val partyStyle = if (cfg.partyEsp) {
+            val (pr, pg, pb) = parseRgb(cfg.partyColor)
+            GizmoStyle.strokeAndFill(
+                ARGB.color(255, pr, pg, pb),
+                2.0f,
+                ARGB.color(60, pr, pg, pb)
+            )
+        } else null
+
+        val otherStyle = if (cfg.otherPlayerEsp) {
+            val (or, og, ob) = parseRgb(cfg.otherPlayerColor)
+            GizmoStyle.strokeAndFill(
+                ARGB.color(255, or, og, ob),
+                2.0f,
+                ARGB.color(60, or, og, ob)
+            )
+        } else null
+
         for (entity in level.entitiesForRendering()) {
             if (entity !is Player || entity == localPlayer) continue
             if (entity.isRemoved) continue
@@ -40,16 +58,7 @@ object PlayerESP {
             val name = entity.gameProfile.name
             val isParty = PartyApi.isPartyMember(name)
 
-            if (isParty && !cfg.partyEsp) continue
-            if (!isParty && !cfg.otherPlayerEsp) continue
-
-            val colorHex = if (isParty) cfg.partyColor else cfg.otherPlayerColor
-            val (r, g, b) = parseRgb(colorHex)
-            val style = GizmoStyle.strokeAndFill(
-                ARGB.color(255, r, g, b),
-                2.0f,
-                ARGB.color(60, r, g, b)
-            )
+            val style = if (isParty) partyStyle ?: continue else otherStyle ?: continue
 
             // Interpolate position with partial ticks for 100% framerate sync
             val box = com.hypcro.util.EspHelper.getInterpolatedBoundingBox(entity, partialTicks)

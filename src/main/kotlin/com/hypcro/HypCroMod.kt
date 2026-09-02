@@ -242,10 +242,12 @@ object HypCroMod : ClientModInitializer {
             ".hypcroparty" -> {
                 val members = com.hypcro.party.PartyApi.getPartyMembers()
                 val leader = com.hypcro.party.PartyApi.partyLeader
-                log("=== Tracked Party Members (${members.size}) ===")
+                log("=== Tracked Party Info ===")
+                log("Leader: " + (leader ?: "None / Unknown"))
                 if (members.isEmpty()) {
-                    log("Not in a party / No members tracked.")
+                    log("Tracked Members (0): None")
                 } else {
+                    log("Tracked Members (${members.size}):")
                     for (m in members) {
                         log(" - $m" + if (m.equals(leader, ignoreCase = true)) " [Leader]" else "")
                     }

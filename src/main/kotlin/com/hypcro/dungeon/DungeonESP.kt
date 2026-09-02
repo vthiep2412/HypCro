@@ -49,8 +49,7 @@ object DungeonESP {
 
     private fun isBaseHealth(entity: LivingEntity, health: Float): Boolean {
         val current = entity.health
-        val difference = current - health
-        return current >= health && (current % health == 0f || (current - difference) % health == 0f)
+        return current >= health && current % health == 0f
     }
 
     private fun isSecretBat(bat: Bat, client: Minecraft): Boolean {
@@ -96,7 +95,7 @@ object DungeonESP {
             if (ent is ArmorStand) continue
             val entPos = ent.position()
             val dy = maxY - entPos.y
-            // Nametags float directly above the mob's feet (typically 0.5 to 2.5 blocks)
+            // Nametags float directly above the mob's feet (0.0 through 3.5 blocks)
             if (dy in 0.0..3.5) {
                 val dx = entPos.x - armorPos.x
                 val dz = entPos.z - armorPos.z

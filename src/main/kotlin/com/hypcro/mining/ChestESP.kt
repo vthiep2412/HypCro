@@ -31,7 +31,6 @@ object ChestESP {
     private var cachedNormalChests: List<BlockPos> = emptyList()
     private var waitingForChest: Int = 0
     private var currentLockCount: Int = 0
-    private var neededLockCount: Int = 0
     private var lastScanTimeMs: Long = 0L
 
     fun reset() {
@@ -41,7 +40,6 @@ object ChestESP {
         cachedNormalChests = emptyList()
         waitingForChest = 0
         currentLockCount = 0
-        neededLockCount = 0
     }
 
     fun onChatMessage(rawMessage: String) {
@@ -119,7 +117,6 @@ object ChestESP {
         }
         // 3. Chest unlocked/opened (Chest Open)
         else if (soundLocation == SoundEvents.CHEST_OPEN.location().toString()) {
-            neededLockCount = currentLockCount.coerceIn(1, 5)
             currentLockCount = 0
             activeParticles.clear()
 
@@ -139,7 +136,7 @@ object ChestESP {
 
     fun tick(client: Minecraft) {
         val cfg = ConfigManager.config.chestEsp
-        if (!cfg.enabled && !cfg.chestEsp && !cfg.lockpickHelper) {
+        if (!cfg.enabled || (!cfg.chestEsp && !cfg.lockpickHelper)) {
             cachedNormalChests = emptyList()
             activeParticles.clear()
             return
@@ -190,7 +187,7 @@ object ChestESP {
 
     fun renderWorld() {
         val cfg = ConfigManager.config.chestEsp
-        if (!cfg.enabled && !cfg.chestEsp && !cfg.lockpickHelper) return
+        if (!cfg.enabled || (!cfg.chestEsp && !cfg.lockpickHelper)) return
 
         val client = Minecraft.getInstance()
         if (!GardenStateReader.isInCrystalHollows(client)) return

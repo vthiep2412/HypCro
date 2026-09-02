@@ -1,6 +1,7 @@
 package com.hypcro.qol
 
 import com.hypcro.config.ConfigManager
+import com.hypcro.farming.MacroController
 import com.hypcro.mixins.MinecraftAccessor
 import net.minecraft.client.Minecraft
 import net.minecraft.core.component.DataComponents
@@ -22,7 +23,12 @@ object FasterRClickHelper {
      * "SWORD" and "RIGHT CLICK" keywords. Caches the result per slot/item hash.
      */
     private fun checkWeaponEligibility(stack: ItemStack, slot: Int): Boolean {
-        if (stack.isEmpty) return false
+        if (stack.isEmpty) {
+            cachedSlot = -1
+            cachedStackHash = 0
+            isWeaponEligible = false
+            return false
+        }
         val stackHash = stack.hashCode()
         if (slot == cachedSlot && stackHash == cachedStackHash) {
             return isWeaponEligible
@@ -59,6 +65,12 @@ object FasterRClickHelper {
 
         // Only active in-game without open GUI screens
         if (client.screen != null) {
+            holdStartTime = 0L
+            return
+        }
+
+        // Pause while any bot macro is running to prevent conflict
+        if (MacroController.isAnyMacroActive()) {
             holdStartTime = 0L
             return
         }

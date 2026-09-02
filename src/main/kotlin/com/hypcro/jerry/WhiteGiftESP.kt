@@ -86,16 +86,12 @@ object WhiteGiftESP {
         if (!GardenStateReader.isInJerryWorkshop(client)) return
 
         if (entity is ArmorStand && !entity.isRemoved) {
-            val headItem = entity.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.HEAD)
-            if (!headItem.isEmpty) {
-                val customData = headItem.get(net.minecraft.core.component.DataComponents.PROFILE)
-                val texture = extractProfileTexture(customData?.partialProfile()?.properties)
-                if (matchesWhiteGift(texture)) {
-                    val pos = entity.blockPosition()
-                    val key = "${pos.x},${pos.y},${pos.z}"
-                    val matchingKey = discoveredGifts.entries.find { it.key == key || it.value.distanceTo(entity.eyePosition) < 0.5 }?.key ?: key
-                    markGiftCollected(matchingKey, entity.eyePosition)
-                }
+            val texture = extractArmorStandTexture(entity)
+            if (matchesWhiteGift(texture)) {
+                val pos = entity.blockPosition()
+                val key = "${pos.x},${pos.y},${pos.z}"
+                val matchingKey = discoveredGifts.entries.find { it.key == key || it.value.distanceTo(entity.eyePosition) < 0.5 }?.key ?: key
+                markGiftCollected(matchingKey, entity.eyePosition)
             }
         }
     }
@@ -162,19 +158,15 @@ object WhiteGiftESP {
         // Check ArmorStands in render distance
         for (entity in level.entitiesForRendering()) {
             if (entity is ArmorStand && !entity.isRemoved) {
-                val headItem = entity.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.HEAD)
-                if (!headItem.isEmpty) {
-                    val customData = headItem.get(net.minecraft.core.component.DataComponents.PROFILE)
-                    val texture = extractProfileTexture(customData?.partialProfile()?.properties)
-                    if (matchesWhiteGift(texture)) {
-                        val pos = entity.blockPosition()
-                        val key = "${pos.x},${pos.y},${pos.z}"
-                        val center = entity.eyePosition
-                        if (!discoveredGifts.containsKey(key)) {
-                            discoveredGifts[key] = center
-                            cfg.discoveredCoords[key] = listOf(center.x, center.y, center.z)
-                            newDiscovered = true
-                        }
+                val texture = extractArmorStandTexture(entity)
+                if (matchesWhiteGift(texture)) {
+                    val pos = entity.blockPosition()
+                    val key = "${pos.x},${pos.y},${pos.z}"
+                    val center = entity.eyePosition
+                    if (!discoveredGifts.containsKey(key)) {
+                        discoveredGifts[key] = center
+                        cfg.discoveredCoords[key] = listOf(center.x, center.y, center.z)
+                        newDiscovered = true
                     }
                 }
             }
@@ -240,19 +232,28 @@ object WhiteGiftESP {
         return extractProfileTexture(profile.partialProfile().properties)
     }
 
+    private fun extractArmorStandTexture(entity: ArmorStand): String? {
+        val headItem = entity.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.HEAD)
+        if (headItem.isEmpty) return null
+        val customData = headItem.get(net.minecraft.core.component.DataComponents.PROFILE)
+        return extractProfileTexture(customData?.partialProfile()?.properties)
+    }
+
     fun extractProfileTexture(properties: com.mojang.authlib.properties.PropertyMap?): String? {
         if (properties == null) return null
         val textureProps = properties.get("textures")
+        var fallbackValue: String? = null
         for (prop in textureProps) {
             val value = prop.value()
             try {
-                val decoded = String(Base64.getDecoder().decode(value), StandardCharsets.UTF_8)
-                return decoded
+                return String(Base64.getDecoder().decode(value), StandardCharsets.UTF_8)
             } catch (_: Exception) {
-                return value
+                if (fallbackValue == null) {
+                    fallbackValue = value
+                }
             }
         }
-        return null
+        return fallbackValue
     }
 
     fun inspectLookTarget(client: Minecraft): String {
@@ -283,8 +284,7 @@ object WhiteGiftESP {
             val entity = hit.entity
             if (entity is ArmorStand) {
                 val headItem = entity.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.HEAD)
-                val customData = headItem.get(net.minecraft.core.component.DataComponents.PROFILE)
-                val texture = extractProfileTexture(customData?.partialProfile()?.properties)
+                val texture = extractArmorStandTexture(entity)
                 val hash = extractHashFromDecoded(texture)
                 return "§a§l[ARMORSTAND INSPECT]§r Entity: §e${entity.type.description.string}§r\n" +
                         "§bHead Item: §f${headItem.hoverName.string}\n" +
