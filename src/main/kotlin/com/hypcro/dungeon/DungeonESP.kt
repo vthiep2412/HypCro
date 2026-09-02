@@ -28,7 +28,7 @@ object DungeonESP {
     private var lastDungeonCheckMs: Long = 0L
     private var lastScanTimeMs: Long = 0L
 
-    private const val SCAN_INTERVAL_MS: Long = 11L // ~90 Hz refresh rate (1000ms / 90 ≈ 11.1ms)
+    private const val SCAN_INTERVAL_MS: Long = 11L // 90 Hz scan rate (1000ms / 90 ≈ 11.1ms) driven by render-loop callbacks
     private const val MAX_DETECTION_RADIUS: Double = 128.0
 
     private fun isAnyFeatureEnabled(): Boolean {

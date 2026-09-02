@@ -3,12 +3,10 @@
 ## High Priority & Core Improvements
 - [ ] Add humanization for W/S movement. Every 1–2 minutes, delay a reaction or direction switch by up to 1.2 s. Otherwise, choose a random delay from 0 to 800 ms.
 - [ ] Add white gift waypoint/esp for specificaly jerry workshop (as QOL)
-- [~] Add more ESP settings tab above Settings tab and in the second group which bound down
-    - ESP player (party color), ESP bats and Important Entites in Dungeon (learn dungeon bats glow to add the esp to that bat)
-    - Add color selection, typical right next to the On oFF
-    - Add the pest back to that esp, and it will sync with the pest esp in pest
-
-
+- [~] Add more ESP
+    - ESP player (party player and other player is different) (add Player card, add "ESP party", ESP non-party)
+    - crystal hollow chest (make sure only esp chest are not opened, and remember the chest that is opened by player already to not esp that chest anymore, use pos if you able to do that, remember to only do that if the chest is not lockpick chest)
+    - crystal hollow lockpick chest helper esp
 
 - [ ] raycast path? hmm still thinking
 ---

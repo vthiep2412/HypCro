@@ -17,6 +17,14 @@ A client-side Fabric mod for Hypixel SkyBlock Garden farming with zero memory in
   - Universal ArmorStand skull marker tracking for all pest variants.
   - Multi-layer kill confirmation, Vacuum hotbar management, keep-pest radial repositioning to prevent collateral multi-kills, and automatic `/warp garden` return with crop engine restoration.
   - 5x5 Garden Plot selector modals for teleportable plots and preserved pest plots.
+- **Auto Experiment Table Add-ons**:
+  - Automated solver for Chronomatron and Ultrasequencer minigames before Superpairs.
+  - Native table scanning within 4.5 blocks with humanized Bezier camera rotation via `MouseMovementEngine`.
+  - Automatic highest Stakes tier selection (Metaphysical down to High) with insufficient XP safety detection.
+  - 100% focus-independent container slot clicking via Minecraft's native `slotClicked` invoker.
+  - Configurable click speeds: Slow (250-350ms), Medium (130-200ms), and Fast (70-110ms) with randomized millisecond jitter.
+  - **Maximize XP** toggle: stops at max bonus clicks cap (Round 12 Chrono, Round 10 Ultraseq) or solves continuously to maximize Enchanting XP.
+  - Clean completion alert: closes all menus and plays 3 loud bell chimes (100ms apart at 1.5 volume) so you can roll Superpairs manually.
 - **Persistent On-Screen HUD & BPS Tracker**:
   - Live in-game status card rendering current macro engine, active crop, uptime duration, instantaneous BPS, average BPS, and direction.
   - State-specific layouts for Farming, Auto Pester sweeps, Manual Pester, and Auto Bouncy Ball.

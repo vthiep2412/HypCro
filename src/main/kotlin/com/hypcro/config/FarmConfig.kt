@@ -148,6 +148,19 @@ data class HudConfig(
 )
 
 @Serializable
+enum class ExperimentSpeed {
+    SLOW,
+    MEDIUM,
+    FAST
+}
+
+@Serializable
+data class ExperimentAddonsConfig(
+    var speed: ExperimentSpeed = ExperimentSpeed.MEDIUM,
+    var maximizeXp: Boolean = false
+)
+
+@Serializable
 data class FarmConfig(
     var activeMethod: String = "WS",
     var autoActivePest: Boolean = false,
@@ -160,6 +173,7 @@ data class FarmConfig(
     var generalConfig: GeneralConfig = GeneralConfig(),
     var pestDestroyer: PestDestroyerConfig = PestDestroyerConfig(),
     var bouncyBall: BouncyBallConfig = BouncyBallConfig(),
+    var experimentAddons: ExperimentAddonsConfig = ExperimentAddonsConfig(),
     var dungeon: DungeonConfig = DungeonConfig(),
     var hud: HudConfig = HudConfig()
 )

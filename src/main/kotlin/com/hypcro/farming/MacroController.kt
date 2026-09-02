@@ -35,6 +35,7 @@ object MacroController {
         return isRunning ||
             com.hypcro.pest.PestDestroyerEngine.isRunning ||
             com.hypcro.bouncy.AutoBouncyBall.isRunning ||
+            com.hypcro.experiment.AutoExperimentAddons.isRunning ||
             com.hypcro.movement.CentralMovementCoordinator.isNavigating ||
             com.hypcro.movement.CentralMovementCoordinator.isPathfinding ||
             com.hypcro.HypCroMod.hasActiveTest()
@@ -135,6 +136,10 @@ object MacroController {
         }
         if (com.hypcro.bouncy.AutoBouncyBall.isRunning) {
             com.hypcro.bouncy.AutoBouncyBall.stop()
+            stoppedAny = true
+        }
+        if (com.hypcro.experiment.AutoExperimentAddons.isRunning) {
+            com.hypcro.experiment.AutoExperimentAddons.stop(reason)
             stoppedAny = true
         }
         if (isRunning) {

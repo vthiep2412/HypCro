@@ -164,6 +164,11 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
     private lateinit var derpyPill: PillToggleWidget
 
     // Misc General Config Widgets
+    private lateinit var expSpeedPill: PillToggleWidget
+    private lateinit var expSpeedInfo: InfoIconWidget
+    private lateinit var expMaximizeXpPill: PillToggleWidget
+    private lateinit var expMaximizeXpInfo: InfoIconWidget
+
     private lateinit var bouncyModePill: PillToggleWidget
     private lateinit var bouncyModeInfo: InfoIconWidget
     private lateinit var targetBouncesSlider: SingleSliderWidget
@@ -779,6 +784,49 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         addRenderableWidget(derpyPill)
 
         // Misc Config Widgets
+        val expCfg = ConfigManager.config.experimentAddons
+
+        expSpeedInfo = InfoIconWidget(
+            cardX + 12 + font.width(Component.literal("Mouse Speed:")) + 6,
+            cardY + 22,
+            "§eMouse Speed\n§bSlow§7: 250-350ms per click (natural human pace).\n§aMedium§7: 130-200ms per click (fast standard rhythm).\n§cFast§7: 70-110ms per click (snappy anticheat limit)."
+        )
+        addRenderableWidget(expSpeedInfo)
+
+        val expSpeedIdx = when (expCfg.speed) {
+            com.hypcro.config.ExperimentSpeed.SLOW -> 0
+            com.hypcro.config.ExperimentSpeed.MEDIUM -> 1
+            com.hypcro.config.ExperimentSpeed.FAST -> 2
+        }
+        expSpeedPill = PillToggleWidget(
+            cardX + 140, cardY + 20, 180, 16,
+            listOf("SLOW", "MEDIUM", "FAST"), expSpeedIdx
+        ) { idx ->
+            ConfigManager.config.experimentAddons.speed = when (idx) {
+                0 -> com.hypcro.config.ExperimentSpeed.SLOW
+                1 -> com.hypcro.config.ExperimentSpeed.MEDIUM
+                else -> com.hypcro.config.ExperimentSpeed.FAST
+            }
+            ConfigManager.save()
+        }
+        addRenderableWidget(expSpeedPill)
+
+        expMaximizeXpInfo = InfoIconWidget(
+            cardX + 12 + font.width(Component.literal("Maximize XP:")) + 6,
+            cardY + 42,
+            "§eMaximize XP\n§cOFF§7: Stops immediately once max bonus clicks are reached (Round 12 Chrono, Round 10 Ultraseq).\n§aON§7: Solves every round continuously to earn maximum Enchanting XP."
+        )
+        addRenderableWidget(expMaximizeXpInfo)
+
+        expMaximizeXpPill = PillToggleWidget(
+            cardX + 220, cardY + 40, 100, 16,
+            listOf("OFF", "ON"), if (expCfg.maximizeXp) 1 else 0
+        ) { idx ->
+            ConfigManager.config.experimentAddons.maximizeXp = (idx == 1)
+            ConfigManager.save()
+        }
+        addRenderableWidget(expMaximizeXpPill)
+
         val bouncyCfg = ConfigManager.config.bouncyBall
 
         bouncyModeInfo = InfoIconWidget(
@@ -887,7 +935,7 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
             }
             "Farming" -> if (farmingSubTab == 1) SEC_FARM_FLY_GAP + SEC_FARM_PEST_GAP + 20 else cardH + 20
             "Pester" -> if (pesterSubTab == 1) SEC_PEST_CONF_GAP + 20 else cardH + 20
-            "Misc" -> if (miscSubTab == 1) SEC_MISC_CONF_GAP + 20 else cardH + 20
+            "Misc" -> if (miscSubTab == 1) 74 + SEC_MISC_CONF_GAP + 20 else (cardH * 2 + 10 + 20)
             "ESP" -> SEC_DUNGEON_ESP_GAP + SEC_OTHER_ESP_H + 20
             "HUD" -> SEC_HUD_H + 20
             else -> 100
@@ -984,12 +1032,19 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         derpyPill.y = pdY + 132
 
         // Misc Config Widgets
-        bouncyModeInfo.y = effectiveCardY + 22
-        bouncyModePill.y = effectiveCardY + 20
-        targetBouncesInfo.y = effectiveCardY + 42
-        targetBouncesSlider.y = effectiveCardY + 40
-        goBackToStartInfo.y = effectiveCardY + 64
-        goBackToStartPill.y = effectiveCardY + 62
+        val expSecY = effectiveCardY
+        expSpeedInfo.y = expSecY + 22
+        expSpeedPill.y = expSecY + 20
+        expMaximizeXpInfo.y = expSecY + 42
+        expMaximizeXpPill.y = expSecY + 40
+
+        val bouncySecY = expSecY + 74
+        bouncyModeInfo.y = bouncySecY + 22
+        bouncyModePill.y = bouncySecY + 20
+        targetBouncesInfo.y = bouncySecY + 42
+        targetBouncesSlider.y = bouncySecY + 40
+        goBackToStartInfo.y = bouncySecY + 64
+        goBackToStartPill.y = bouncySecY + 62
 
         // HUD Config Widgets
         val hudSecY = effectiveCardY
@@ -1129,6 +1184,11 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         derpyPill.visible = isPesterConfig
 
         // Misc - General Config
+        expSpeedInfo.visible = isMiscConfig
+        expSpeedPill.visible = isMiscConfig
+        expMaximizeXpInfo.visible = isMiscConfig
+        expMaximizeXpPill.visible = isMiscConfig
+
         bouncyModeInfo.visible = isMiscConfig
         bouncyModePill.visible = isMiscConfig
         targetBouncesSlider.visible = isMiscConfig
@@ -1409,34 +1469,61 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
     }
 
     private fun renderMiscMacroCard(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
-        val effY = cardY - scrollOffset
-        val isHovered = mouseX in cardX until (cardX + cardW) && mouseY in effY until (effY + cardH)
+        val card1Y = cardY - scrollOffset
+        val isCard1Hovered = mouseX in cardX until (cardX + cardW) && mouseY in card1Y until (card1Y + cardH)
 
-        val cardBg = if (isHovered) 0xFF1E293B.toInt() else 0xFF141D2D.toInt()
-        val cardBorder = if (isHovered) 0xFF38BDF8.toInt() else 0xFF334155.toInt()
+        val card1Bg = if (isCard1Hovered) 0xFF1E293B.toInt() else 0xFF141D2D.toInt()
+        val card1Border = if (isCard1Hovered) 0xFF38BDF8.toInt() else 0xFF334155.toInt()
 
-        graphics.fill(cardX - 1, effY - 1, cardX + cardW + 1, effY + cardH + 1, cardBorder)
-        graphics.fill(cardX, effY, cardX + cardW, effY + cardH, cardBg)
+        graphics.fill(cardX - 1, card1Y - 1, cardX + cardW + 1, card1Y + cardH + 1, card1Border)
+        graphics.fill(cardX, card1Y, cardX + cardW, card1Y + cardH, card1Bg)
 
-        val headerBg = if (isHovered) 0xFF334155.toInt() else 0xFF1E293B.toInt()
-        graphics.fill(cardX, effY, cardX + cardW, effY + 20, headerBg)
-        graphics.text(font, "§b§lAuto Bouncy Ball", cardX + 12, effY + 6, 0xFF38BDF8.toInt())
+        val header1Bg = if (isCard1Hovered) 0xFF334155.toInt() else 0xFF1E293B.toInt()
+        graphics.fill(cardX, card1Y, cardX + cardW, card1Y + 20, header1Bg)
+        graphics.text(font, "§b§lAuto Experiment Table Add-ons", cardX + 12, card1Y + 6, 0xFF38BDF8.toInt())
 
-        val actionText = "§lClick to Start Auto Bouncy Ball"
-        val actionColor = if (isHovered) 0xFF4ADE80.toInt() else 0xFFFFFFFF.toInt()
-        graphics.text(font, actionText, cardX + 14, effY + 44, actionColor)
+        val action1Text = if (com.hypcro.experiment.AutoExperimentAddons.isRunning) "§c§lClick to Stop Auto Add-ons" else "§a§lClick to Start Auto Add-ons"
+        val action1Color = if (isCard1Hovered) 0xFF4ADE80.toInt() else 0xFFFFFFFF.toInt()
+        graphics.text(font, action1Text, cardX + 14, card1Y + 44, action1Color)
+
+        // Card 2: Auto Bouncy Ball
+        val card2Y = card1Y + cardH + 10
+        val isCard2Hovered = mouseX in cardX until (cardX + cardW) && mouseY in card2Y until (card2Y + cardH)
+
+        val card2Bg = if (isCard2Hovered) 0xFF1E293B.toInt() else 0xFF141D2D.toInt()
+        val card2Border = if (isCard2Hovered) 0xFF38BDF8.toInt() else 0xFF334155.toInt()
+
+        graphics.fill(cardX - 1, card2Y - 1, cardX + cardW + 1, card2Y + cardH + 1, card2Border)
+        graphics.fill(cardX, card2Y, cardX + cardW, card2Y + cardH, card2Bg)
+
+        val header2Bg = if (isCard2Hovered) 0xFF334155.toInt() else 0xFF1E293B.toInt()
+        graphics.fill(cardX, card2Y, cardX + cardW, card2Y + 20, header2Bg)
+        graphics.text(font, "§b§lAuto Bouncy Ball", cardX + 12, card2Y + 6, 0xFF38BDF8.toInt())
+
+        val action2Text = if (com.hypcro.bouncy.AutoBouncyBall.isRunning) "§c§lClick to Stop Auto Bouncy Ball" else "§a§lClick to Start Auto Bouncy Ball"
+        val action2Color = if (isCard2Hovered) 0xFF4ADE80.toInt() else 0xFFFFFFFF.toInt()
+        graphics.text(font, action2Text, cardX + 14, card2Y + 44, action2Color)
     }
 
     private fun renderMiscConfig(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
         val sec1Y = cardY - scrollOffset
-        val sec1H = 88
+        val sec1H = 64
         graphics.fill(cardX - 1, sec1Y - 1, cardX + cardW + 1, sec1Y + sec1H + 1, 0xFF334155.toInt())
         graphics.fill(cardX, sec1Y, cardX + cardW, sec1Y + sec1H, 0xFF1E293B.toInt())
         graphics.fill(cardX, sec1Y, cardX + cardW, sec1Y + 18, 0xFF334155.toInt())
-        graphics.text(font, "§b§lBouncy Beach Ball", cardX + 10, sec1Y + 5, 0xFF38BDF8.toInt())
-        graphics.text(font, "Movement Mode:", cardX + 12, sec1Y + 25, 0xFF94A3B8.toInt())
-        graphics.text(font, "Target Bounces:", cardX + 12, sec1Y + 45, 0xFF94A3B8.toInt())
-        graphics.text(font, "Go back to Start:", cardX + 12, sec1Y + 67, 0xFF94A3B8.toInt())
+        graphics.text(font, "§b§lAuto Experiment Table Add-ons", cardX + 10, sec1Y + 5, 0xFF38BDF8.toInt())
+        graphics.text(font, "Mouse Speed:", cardX + 12, sec1Y + 25, 0xFF94A3B8.toInt())
+        graphics.text(font, "Maximize XP:", cardX + 12, sec1Y + 45, 0xFF94A3B8.toInt())
+
+        val sec2Y = sec1Y + sec1H + 10
+        val sec2H = 88
+        graphics.fill(cardX - 1, sec2Y - 1, cardX + cardW + 1, sec2Y + sec2H + 1, 0xFF334155.toInt())
+        graphics.fill(cardX, sec2Y, cardX + cardW, sec2Y + sec2H, 0xFF1E293B.toInt())
+        graphics.fill(cardX, sec2Y, cardX + cardW, sec2Y + 18, 0xFF334155.toInt())
+        graphics.text(font, "§b§lBouncy Beach Ball", cardX + 10, sec2Y + 5, 0xFF38BDF8.toInt())
+        graphics.text(font, "Movement Mode:", cardX + 12, sec2Y + 25, 0xFF94A3B8.toInt())
+        graphics.text(font, "Target Bounces:", cardX + 12, sec2Y + 45, 0xFF94A3B8.toInt())
+        graphics.text(font, "Go back to Start:", cardX + 12, sec2Y + 67, 0xFF94A3B8.toInt())
     }
 
     private fun renderHudView(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
@@ -1729,15 +1816,30 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
                 return true
             }
 
-            // Misc Macro Card Click
-            if (selectedTab == "Misc" && miscSubTab == 0 && mouseX in cardX until (cardX + cardW) && mouseY in effY until (effY + cardH)) {
-                if (com.hypcro.bouncy.AutoBouncyBall.isRunning) {
-                    com.hypcro.bouncy.AutoBouncyBall.stop()
-                } else {
-                    com.hypcro.bouncy.AutoBouncyBall.start()
+            // Misc Macro Card Clicks
+            if (selectedTab == "Misc" && miscSubTab == 0 && mouseX in cardX until (cardX + cardW)) {
+                val card1Y = effY
+                val card2Y = card1Y + cardH + 10
+
+                if (mouseY in card1Y until (card1Y + cardH)) {
+                    if (com.hypcro.experiment.AutoExperimentAddons.isRunning) {
+                        com.hypcro.experiment.AutoExperimentAddons.stop(reason = "GUI Toggle")
+                    } else {
+                        com.hypcro.experiment.AutoExperimentAddons.start()
+                    }
+                    onClose()
+                    return true
                 }
-                onClose()
-                return true
+
+                if (mouseY in card2Y until (card2Y + cardH)) {
+                    if (com.hypcro.bouncy.AutoBouncyBall.isRunning) {
+                        com.hypcro.bouncy.AutoBouncyBall.stop()
+                    } else {
+                        com.hypcro.bouncy.AutoBouncyBall.start()
+                    }
+                    onClose()
+                    return true
+                }
             }
 
             // ESP Tab Color Swatch Clicks

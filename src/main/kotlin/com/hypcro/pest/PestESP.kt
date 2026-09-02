@@ -13,7 +13,7 @@ object PestESP {
     private var cachedPests: List<TrackedPest> = emptyList()
     private var lastGardenCheckMs: Long = 0L
     private var lastScanTimeMs: Long = 0L
-    private const val SCAN_INTERVAL_MS: Long = 11L // ~90 Hz refresh rate (1000ms / 90 ≈ 11.1ms)
+    private const val SCAN_INTERVAL_MS: Long = 11L // 90 Hz scan rate (1000ms / 90 ≈ 11.1ms) driven by render-loop callbacks
 
     fun tick(client: Minecraft) {
         if (!ConfigManager.config.pestDestroyer.pestEsp) {
