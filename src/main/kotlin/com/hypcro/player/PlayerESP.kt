@@ -91,10 +91,10 @@ object PlayerESP {
     private fun parseRgb(hex: String): Triple<Int, Int, Int> {
         val clean = hex.removePrefix("#").trim()
         return try {
-            val num = clean.toInt(16)
-            val r = (num shr 16) and 0xFF
-            val g = (num shr 8) and 0xFF
-            val b = num and 0xFF
+            val num = clean.toLong(16)
+            val r = ((num shr 16) and 0xFF).toInt()
+            val g = ((num shr 8) and 0xFF).toInt()
+            val b = (num and 0xFF).toInt()
             Triple(r, g, b)
         } catch (_: Exception) {
             Triple(0, 255, 255)

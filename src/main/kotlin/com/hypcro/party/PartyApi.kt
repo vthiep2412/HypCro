@@ -37,7 +37,7 @@ object PartyApi {
         return members.contains(clean)
     }
 
-    fun getPartyMembers(): Set<String> = members
+    fun getPartyMembers(): Set<String> = members.toSet()
 
     fun reset() {
         members.clear()

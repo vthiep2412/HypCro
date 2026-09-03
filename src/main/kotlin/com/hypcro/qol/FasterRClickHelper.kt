@@ -16,7 +16,6 @@ object FasterRClickHelper {
 
     private var holdStartTime: Long = 0L
     private var lastClickTime: Long = 0L
-    private var nextIntervalMs: Long = 100L
 
     /**
      * Inspects the currently held item's tooltip/lore for case-sensitive
@@ -75,7 +74,10 @@ object FasterRClickHelper {
             return
         }
 
-        val player = client.player ?: return
+        val player = client.player ?: run {
+            holdStartTime = 0L
+            return
+        }
         val currentSlot = player.inventory.selectedSlot
         val heldItem = player.mainHandItem
 
@@ -97,7 +99,6 @@ object FasterRClickHelper {
         if (holdStartTime == 0L) {
             holdStartTime = now
             lastClickTime = now
-            nextIntervalMs = 105L
             return
         }
 
@@ -119,9 +120,9 @@ object FasterRClickHelper {
             Random.nextDouble(9.0, 13.0)
         }
 
-        if (now - lastClickTime >= nextIntervalMs) {
+        val currentIntervalMs = (1000.0 / targetCps).toLong()
+        if (now - lastClickTime >= currentIntervalMs) {
             lastClickTime = now
-            nextIntervalMs = (1000.0 / targetCps).toLong()
 
             val accessor = client as? com.hypcro.mixins.MinecraftAccessor ?: return
             accessor.rightClickDelay = 0

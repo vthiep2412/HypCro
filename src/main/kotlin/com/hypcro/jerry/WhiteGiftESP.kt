@@ -25,6 +25,7 @@ object WhiteGiftESP {
     // (Obtained from Jerry's Workshop ArmorStand inspect)
     // =========================================================================
     const val WHITE_GIFT_TEXTURE_HASH: String = "10f5398510b1a05afc5b201ead8bfc583e57d7202f5193b0b761fcbd0ae2"
+    private const val DISCOVERY_INTERVAL_MS: Long = 500L
 
     private val discoveredGifts = mutableMapOf<String, Vec3>()
     private var lastScanTimeMs: Long = 0L
@@ -126,7 +127,7 @@ object WhiteGiftESP {
         if (discoveredGifts.size >= 20) return
 
         val now = System.currentTimeMillis()
-        if (now - lastScanTimeMs < com.hypcro.util.EspHelper.SCAN_INTERVAL_MS) return
+        if (now - lastScanTimeMs < DISCOVERY_INTERVAL_MS) return
         lastScanTimeMs = now
 
         val playerChunkX = player.blockX shr 4

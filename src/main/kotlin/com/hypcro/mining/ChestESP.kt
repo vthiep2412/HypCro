@@ -17,46 +17,62 @@ import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.BlockHitResult
 import net.minecraft.world.phys.Vec3
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CopyOnWriteArraySet
 
 object ChestESP {
 
     private const val CHEST_SPAWN_MESSAGE = "You uncovered a treasure chest!"
     private const val MAX_PARTICLE_LIFETIME_MS = 250L
+    private const val CHEST_SPAWN_TIMEOUT_MS = 5000L
 
     val openedChests: MutableSet<BlockPos> = CopyOnWriteArraySet()
     val activeLockpickChests: MutableSet<BlockPos> = CopyOnWriteArraySet()
     private val activeParticles = ConcurrentHashMap<Vec3, Long>()
 
     private var cachedNormalChests: List<BlockPos> = emptyList()
-    private var waitingForChest: Int = 0
+    private val pendingChestSpawns = ConcurrentLinkedQueue<Long>()
     private var currentLockCount: Int = 0
     private var lastScanTimeMs: Long = 0L
+
+    private fun pruneExpiredPendingSpawns(now: Long) {
+        while (true) {
+            val oldest = pendingChestSpawns.peek() ?: break
+            if (now - oldest > CHEST_SPAWN_TIMEOUT_MS) {
+                pendingChestSpawns.poll()
+            } else {
+                break
+            }
+        }
+    }
 
     fun reset() {
         openedChests.clear()
         activeLockpickChests.clear()
         activeParticles.clear()
         cachedNormalChests = emptyList()
-        waitingForChest = 0
+        pendingChestSpawns.clear()
         currentLockCount = 0
     }
 
     fun onChatMessage(rawMessage: String) {
         val stripped = GardenStateReader.stripColor(rawMessage).trim()
         if (stripped.contains(CHEST_SPAWN_MESSAGE)) {
-            waitingForChest++
+            pendingChestSpawns.add(System.currentTimeMillis())
         }
     }
 
     fun onBlockUpdate(pos: BlockPos, newState: BlockState) {
         val client = Minecraft.getInstance()
         val player = client.player ?: return
+        val now = System.currentTimeMillis()
 
-        if (waitingForChest > 0 && newState.`is`(Blocks.CHEST)) {
+        pruneExpiredPendingSpawns(now)
+
+        if (pendingChestSpawns.isNotEmpty() && newState.`is`(Blocks.CHEST)) {
             if (pos.distToCenterSqr(player.position()) <= 100.0) { // Within 10 blocks
                 activeLockpickChests.add(pos)
-                waitingForChest = (waitingForChest - 1).coerceAtLeast(0)
+                pendingChestSpawns.poll()
                 currentLockCount = 0
             }
         } else if (newState.isAir) {
@@ -74,25 +90,30 @@ object ChestESP {
             val client = Minecraft.getInstance()
             val player = client.player
             val level = client.level
-            if (player != null && level != null) {
-                // If particle is within 20 blocks of player, scan 1-block neighborhood for chest
+            if (player != null && level != null && activeLockpickChests.isNotEmpty()) {
+                // If particle is within 20 blocks of player, verify it is associated with an identified lockpick chest
                 if (particlePos.closerThan(player.position(), 20.0)) {
-                    activeParticles[particlePos] = System.currentTimeMillis()
                     val bx = net.minecraft.util.Mth.floor(x)
                     val by = net.minecraft.util.Mth.floor(y)
                     val bz = net.minecraft.util.Mth.floor(z)
 
+                    var isLockpickChestParticle = false
                     for (dx in -1..1) {
                         for (dy in -1..1) {
                             for (dz in -1..1) {
                                 val checkPos = BlockPos(bx + dx, by + dy, bz + dz)
-                                val state = level.getBlockState(checkPos)
-                                if (state.`is`(Blocks.CHEST) || state.`is`(Blocks.TRAPPED_CHEST)) {
-                                    activeLockpickChests.add(checkPos)
-                                    openedChests.remove(checkPos)
+                                if (activeLockpickChests.contains(checkPos)) {
+                                    isLockpickChestParticle = true
+                                    break
                                 }
                             }
+                            if (isLockpickChestParticle) break
                         }
+                        if (isLockpickChestParticle) break
+                    }
+
+                    if (isLockpickChestParticle) {
+                        activeParticles[particlePos] = System.currentTimeMillis()
                     }
                 }
             }
@@ -145,6 +166,8 @@ object ChestESP {
         if (!GardenStateReader.isInCrystalHollows(client)) {
             cachedNormalChests = emptyList()
             activeParticles.clear()
+            activeLockpickChests.clear()
+            pendingChestSpawns.clear()
             return
         }
 
@@ -152,6 +175,8 @@ object ChestESP {
         val player = client.player ?: return
 
         val now = System.currentTimeMillis()
+        pruneExpiredPendingSpawns(now)
+
         if (now - lastScanTimeMs < com.hypcro.util.EspHelper.SCAN_INTERVAL_MS) {
             return
         }
