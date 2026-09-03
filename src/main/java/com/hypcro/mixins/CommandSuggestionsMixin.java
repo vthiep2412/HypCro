@@ -24,6 +24,7 @@ public abstract class CommandSuggestionsMixin {
 
     private static final List<String> ROOT_COMMANDS = List.of(
         ".hypcro",
+        ".hypcroinspectblock",
         ".hypcrobot",
         ".hypcrobitstar",
         ".hypcrogettablist",
@@ -33,7 +34,7 @@ public abstract class CommandSuggestionsMixin {
     );
 
     private static final Map<String, List<String>> SUB_ARGUMENTS = Map.of(
-        ".hypcrotest", List.of("movecam", "flyto", "pathfind"),
+        ".hypcrotest", List.of("movecam", "flyto", "pathfind", "party", "currentyear"),
         ".hypcropathfindverbose", List.of("true", "false", "on", "off"),
         ".hypcrobot", List.of("v2", "classic", "new", "old")
     );

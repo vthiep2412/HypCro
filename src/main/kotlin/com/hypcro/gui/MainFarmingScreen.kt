@@ -51,6 +51,8 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         private const val SEC_FREECAM_H = 68
         private const val SEC_FREECAM_GAP = 74
         private const val SEC_AUTOSPRINT_H = 46
+        private const val SEC_AUTOSPRINT_GAP = 52
+        private const val SEC_FASTER_RCLICK_H = 46
         private const val SEC_WATCHDOG_H = 164
         private const val SEC_WATCHDOG_GAP = 170
         private const val SEC_LOCK_H = 124
@@ -60,9 +62,23 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         private const val SEC_PEST_CONF_GAP = 156
         private const val SEC_MISC_CONF_GAP = 88
         private const val SEC_HUD_H = 88
-        private const val SEC_DUNGEON_ESP_H = 130
-        private const val SEC_DUNGEON_ESP_GAP = 136
+        private const val SEC_DUNGEON_ESP_H = 86
+        private const val SEC_DUNGEON_ESP_GAP = 92
+        private const val SEC_PLAYER_ESP_H = 86
+        private const val SEC_PLAYER_ESP_GAP = 92
+        private const val SEC_CHEST_ESP_H = 64
+        private const val SEC_CHEST_ESP_GAP = 70
+        private const val SEC_JERRY_ESP_H = 64
+        private const val SEC_JERRY_ESP_GAP = 70
         private const val SEC_OTHER_ESP_H = 46
+
+        private const val REMEMBER_TIMEOUT_MS = 5 * 60 * 1000L // 5 minutes
+        private var lastTab: String = "Farming"
+        private var lastFarmingSubTab: Int = 0
+        private var lastPesterSubTab: Int = 0
+        private var lastMiscSubTab: Int = 0
+        private var lastSettingsSubTab: Int = 0
+        private var lastCloseTimeMs: Long = 0L
     }
 
     private val sidebarWidth = 110
@@ -97,9 +113,14 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
     // ESP View Widgets
     private lateinit var batEspPill: PillToggleWidget
     private lateinit var starMobsEspPill: PillToggleWidget
-    private lateinit var lostAdventurerEspPill: PillToggleWidget
-    private lateinit var shadowAssassinEspPill: PillToggleWidget
-    private lateinit var diamondGuyEspPill: PillToggleWidget
+    private lateinit var minibossesEspPill: PillToggleWidget
+    private lateinit var partyPlayerEspPill: PillToggleWidget
+    private lateinit var otherPlayerEspPill: PillToggleWidget
+    private lateinit var showDistancePill: PillToggleWidget
+    private lateinit var chestEspPill: PillToggleWidget
+    private lateinit var lockpickHelperPill: PillToggleWidget
+    private lateinit var whiteGiftsEspPill: PillToggleWidget
+    private lateinit var resetGiftsBtn: Button
     private lateinit var espTabPestPill: PillToggleWidget
 
     // Settings - Mouse Movement
@@ -128,6 +149,8 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
     private lateinit var freecamHideGuiInfo: InfoIconWidget
     private lateinit var autoSprintPill: PillToggleWidget
     private lateinit var autoSprintInfo: InfoIconWidget
+    private lateinit var fasterRClickPill: PillToggleWidget
+    private lateinit var fasterRClickInfo: InfoIconWidget
 
     // Settings - Key and Mouse Lock Widgets
     private lateinit var keyMouseLockHeaderInfo: InfoIconWidget
@@ -164,6 +187,11 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
     private lateinit var derpyPill: PillToggleWidget
 
     // Misc General Config Widgets
+    private lateinit var expSpeedPill: PillToggleWidget
+    private lateinit var expSpeedInfo: InfoIconWidget
+    private lateinit var expMaximizeXpPill: PillToggleWidget
+    private lateinit var expMaximizeXpInfo: InfoIconWidget
+
     private lateinit var bouncyModePill: PillToggleWidget
     private lateinit var bouncyModeInfo: InfoIconWidget
     private lateinit var targetBouncesSlider: SingleSliderWidget
@@ -177,6 +205,21 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
     private lateinit var hudEditBtn: Button
 
     override fun init() {
+        val now = System.currentTimeMillis()
+        if (lastCloseTimeMs > 0L && (now - lastCloseTimeMs) < REMEMBER_TIMEOUT_MS) {
+            selectedTab = lastTab
+            farmingSubTab = lastFarmingSubTab
+            pesterSubTab = lastPesterSubTab
+            miscSubTab = lastMiscSubTab
+            settingsSubTab = lastSettingsSubTab
+        } else {
+            selectedTab = "Farming"
+            farmingSubTab = 0
+            pesterSubTab = 0
+            miscSubTab = 0
+            settingsSubTab = 0
+        }
+
         cardX = sidebarWidth + 16
         cardY = headerLineY + 14
         cardW = width - cardX - 24
@@ -190,6 +233,7 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
             listOf("Macro", "General Config"), farmingSubTab
         ) { idx ->
             farmingSubTab = idx
+            lastFarmingSubTab = idx
             scrollOffset = 0
             updateWidgetVisibility()
         }
@@ -200,6 +244,7 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
             listOf("Macro", "General Config"), pesterSubTab
         ) { idx ->
             pesterSubTab = idx
+            lastPesterSubTab = idx
             scrollOffset = 0
             updateWidgetVisibility()
         }
@@ -210,6 +255,7 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
             listOf("Macro", "General Config"), miscSubTab
         ) { idx ->
             miscSubTab = idx
+            lastMiscSubTab = idx
             scrollOffset = 0
             updateWidgetVisibility()
         }
@@ -220,6 +266,7 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
             listOf("Movement", "Failsafe", "QOL"), settingsSubTab
         ) { idx ->
             settingsSubTab = idx
+            lastSettingsSubTab = idx
             scrollOffset = 0
             updateWidgetVisibility()
         }
@@ -447,6 +494,19 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
 
         autoSprintInfo = InfoIconWidget(cardX + 12 + font.width(Component.literal("Auto Sprint:")) + 6, asY + 22, "§eAuto Sprint QOL\n\nAutomatically sprints when moving forward with W.\nPauses while farming macros are active.")
         addRenderableWidget(autoSprintInfo)
+
+        val frcY = asY + SEC_AUTOSPRINT_GAP
+        fasterRClickPill = PillToggleWidget(
+            cardX + 220, frcY + 20, 100, 16,
+            listOf("OFF", "ON"), if (ConfigManager.config.qolConfig.fasterRClick) 1 else 0
+        ) { idx ->
+            ConfigManager.config.qolConfig.fasterRClick = (idx == 1)
+            ConfigManager.save()
+        }
+        addRenderableWidget(fasterRClickPill)
+
+        fasterRClickInfo = InfoIconWidget(cardX + 12 + font.width(Component.literal("Faster R-click:")) + 6, frcY + 22, "§eFaster R-click QOL\n\nHold Right Click with a weapon containing 'SWORD' and 'RIGHT CLICK' to burst at 9–13 CPS with humanized jitter and acceleration.\nSingle clicks and manual taps are ignored.")
+        addRenderableWidget(fasterRClickInfo)
 
         // 6. Settings View - Failsafe Sub-Tab: WatchDog
         val genCfg = ConfigManager.config.generalConfig
@@ -676,35 +736,94 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         }
         addRenderableWidget(starMobsEspPill)
 
-        lostAdventurerEspPill = PillToggleWidget(
+        minibossesEspPill = PillToggleWidget(
             cardX + 220, cardY + 64, 100, 16,
-            listOf("OFF", "ON"), if (dngCfg.lostAdventurerEsp) 1 else 0
+            listOf("OFF", "ON"), if (dngCfg.minibossEsp) 1 else 0
         ) { idx ->
-            ConfigManager.config.dungeon.lostAdventurerEsp = (idx == 1)
+            ConfigManager.config.dungeon.minibossEsp = (idx == 1)
             ConfigManager.save()
         }
-        addRenderableWidget(lostAdventurerEspPill)
+        addRenderableWidget(minibossesEspPill)
 
-        shadowAssassinEspPill = PillToggleWidget(
-            cardX + 220, cardY + 86, 100, 16,
-            listOf("OFF", "ON"), if (dngCfg.shadowAssassinEsp) 1 else 0
+        // Player ESP Widgets
+        val playerCfg = ConfigManager.config.playerEsp
+        val playerY = cardY + SEC_DUNGEON_ESP_GAP
+        partyPlayerEspPill = PillToggleWidget(
+            cardX + 220, playerY + 20, 100, 16,
+            listOf("OFF", "ON"), if (playerCfg.partyEsp) 1 else 0
         ) { idx ->
-            ConfigManager.config.dungeon.shadowAssassinEsp = (idx == 1)
+            ConfigManager.config.playerEsp.partyEsp = (idx == 1)
+            ConfigManager.config.playerEsp.enabled = (idx == 1 || ConfigManager.config.playerEsp.otherPlayerEsp)
             ConfigManager.save()
         }
-        addRenderableWidget(shadowAssassinEspPill)
+        addRenderableWidget(partyPlayerEspPill)
 
-        diamondGuyEspPill = PillToggleWidget(
-            cardX + 220, cardY + 108, 100, 16,
-            listOf("OFF", "ON"), if (dngCfg.diamondGuyEsp) 1 else 0
+        otherPlayerEspPill = PillToggleWidget(
+            cardX + 220, playerY + 42, 100, 16,
+            listOf("OFF", "ON"), if (playerCfg.otherPlayerEsp) 1 else 0
         ) { idx ->
-            ConfigManager.config.dungeon.diamondGuyEsp = (idx == 1)
+            val on = (idx == 1)
+            ConfigManager.config.playerEsp.otherPlayerEsp = on
+            ConfigManager.config.playerEsp.enabled = (on || ConfigManager.config.playerEsp.partyEsp)
+            showDistancePill.active = on
             ConfigManager.save()
         }
-        addRenderableWidget(diamondGuyEspPill)
+        addRenderableWidget(otherPlayerEspPill)
 
+        showDistancePill = PillToggleWidget(
+            cardX + 220, playerY + 64, 100, 16,
+            listOf("OFF", "ON"), if (playerCfg.showDistance) 1 else 0
+        ) { idx ->
+            ConfigManager.config.playerEsp.showDistance = (idx == 1)
+            ConfigManager.save()
+        }
+        showDistancePill.active = playerCfg.otherPlayerEsp
+        addRenderableWidget(showDistancePill)
+
+        // Chest ESP Widgets
+        val chestCfg = ConfigManager.config.chestEsp
+        val chestY = playerY + SEC_PLAYER_ESP_GAP
+        chestEspPill = PillToggleWidget(
+            cardX + 220, chestY + 20, 100, 16,
+            listOf("OFF", "ON"), if (chestCfg.chestEsp) 1 else 0
+        ) { idx ->
+            ConfigManager.config.chestEsp.chestEsp = (idx == 1)
+            ConfigManager.config.chestEsp.enabled = (idx == 1 || ConfigManager.config.chestEsp.lockpickHelper)
+            ConfigManager.save()
+        }
+        addRenderableWidget(chestEspPill)
+
+        lockpickHelperPill = PillToggleWidget(
+            cardX + 220, chestY + 42, 100, 16,
+            listOf("OFF", "ON"), if (chestCfg.lockpickHelper) 1 else 0
+        ) { idx ->
+            ConfigManager.config.chestEsp.lockpickHelper = (idx == 1)
+            ConfigManager.config.chestEsp.enabled = (idx == 1 || ConfigManager.config.chestEsp.chestEsp)
+            ConfigManager.save()
+        }
+        addRenderableWidget(lockpickHelperPill)
+
+        // Jerry's Workshop Gifts Widgets
+        val jerryCfg = ConfigManager.config.jerryGifts
+        val jerryY = chestY + SEC_CHEST_ESP_GAP
+        whiteGiftsEspPill = PillToggleWidget(
+            cardX + 220, jerryY + 20, 100, 16,
+            listOf("OFF", "ON"), if (jerryCfg.enabled) 1 else 0
+        ) { idx ->
+            ConfigManager.config.jerryGifts.enabled = (idx == 1)
+            ConfigManager.save()
+        }
+        addRenderableWidget(whiteGiftsEspPill)
+
+        resetGiftsBtn = Button.builder(Component.literal("Reset Collected")) {
+            com.hypcro.jerry.WhiteGiftESP.resetCollected()
+        }.bounds(cardX + 220, jerryY + 42, 100, 16).build()
+        addRenderableWidget(resetGiftsBtn)
+
+        // Other ESP (Pest ESP)
+        val otherEspY = jerryY + SEC_JERRY_ESP_GAP
         espTabPestPill = PillToggleWidget(
-            cardX + 220, cardY + SEC_DUNGEON_ESP_GAP + 20, 100, 16,
+            cardX + 220, otherEspY + 20, 100, 16,
             listOf("OFF", "ON"), if (pestDestroyerCfg.pestEsp) 1 else 0
         ) { idx ->
             val active = (idx == 1)
@@ -779,6 +898,49 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         addRenderableWidget(derpyPill)
 
         // Misc Config Widgets
+        val expCfg = ConfigManager.config.experimentAddons
+
+        expSpeedInfo = InfoIconWidget(
+            cardX + 12 + font.width(Component.literal("Mouse Speed:")) + 6,
+            cardY + 22,
+            "§eMouse Speed\n§bSlow§7: 250-350ms per click (natural human pace).\n§aMedium§7: 130-200ms per click (fast standard rhythm).\n§cFast§7: 70-110ms per click (snappy anticheat limit)."
+        )
+        addRenderableWidget(expSpeedInfo)
+
+        val expSpeedIdx = when (expCfg.speed) {
+            com.hypcro.config.ExperimentSpeed.SLOW -> 0
+            com.hypcro.config.ExperimentSpeed.MEDIUM -> 1
+            com.hypcro.config.ExperimentSpeed.FAST -> 2
+        }
+        expSpeedPill = PillToggleWidget(
+            cardX + 140, cardY + 20, 180, 16,
+            listOf("SLOW", "MEDIUM", "FAST"), expSpeedIdx
+        ) { idx ->
+            ConfigManager.config.experimentAddons.speed = when (idx) {
+                0 -> com.hypcro.config.ExperimentSpeed.SLOW
+                1 -> com.hypcro.config.ExperimentSpeed.MEDIUM
+                else -> com.hypcro.config.ExperimentSpeed.FAST
+            }
+            ConfigManager.save()
+        }
+        addRenderableWidget(expSpeedPill)
+
+        expMaximizeXpInfo = InfoIconWidget(
+            cardX + 12 + font.width(Component.literal("Maximize XP:")) + 6,
+            cardY + 42,
+            "§eMaximize XP\n§cOFF§7: Stops immediately once max bonus clicks are reached (Round 12 Chrono, Round 10 Ultraseq).\n§aON§7: Solves every round continuously to earn maximum Enchanting XP."
+        )
+        addRenderableWidget(expMaximizeXpInfo)
+
+        expMaximizeXpPill = PillToggleWidget(
+            cardX + 220, cardY + 40, 100, 16,
+            listOf("OFF", "ON"), if (expCfg.maximizeXp) 1 else 0
+        ) { idx ->
+            ConfigManager.config.experimentAddons.maximizeXp = (idx == 1)
+            ConfigManager.save()
+        }
+        addRenderableWidget(expMaximizeXpPill)
+
         val bouncyCfg = ConfigManager.config.bouncyBall
 
         bouncyModeInfo = InfoIconWidget(
@@ -882,13 +1044,13 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
             "Settings" -> when (settingsSubTab) {
                 0 -> SEC_MOUSE_GAP + SEC_PATHFINDING_H + 20
                 1 -> SEC_WATCHDOG_GAP + SEC_LOCK_H + 20
-                2 -> SEC_FREELOOK_GAP + SEC_FREECAM_GAP + SEC_AUTOSPRINT_H + 20
+                2 -> SEC_FREELOOK_GAP + SEC_FREECAM_GAP + SEC_AUTOSPRINT_GAP + SEC_FASTER_RCLICK_H + 20
                 else -> 100
             }
             "Farming" -> if (farmingSubTab == 1) SEC_FARM_FLY_GAP + SEC_FARM_PEST_GAP + 20 else cardH + 20
             "Pester" -> if (pesterSubTab == 1) SEC_PEST_CONF_GAP + 20 else cardH + 20
-            "Misc" -> if (miscSubTab == 1) SEC_MISC_CONF_GAP + 20 else cardH + 20
-            "ESP" -> SEC_DUNGEON_ESP_GAP + SEC_OTHER_ESP_H + 20
+            "Misc" -> if (miscSubTab == 1) 74 + SEC_MISC_CONF_GAP + 20 else (cardH * 2 + 10 + 20)
+            "ESP" -> SEC_DUNGEON_ESP_GAP + SEC_PLAYER_ESP_GAP + SEC_CHEST_ESP_GAP + SEC_JERRY_ESP_GAP + SEC_OTHER_ESP_H + 20
             "HUD" -> SEC_HUD_H + 20
             else -> 100
         }
@@ -954,15 +1116,30 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         autoSprintPill.y = asY + 20
         autoSprintInfo.y = asY + 22
 
+        val frcY = asY + SEC_AUTOSPRINT_GAP
+        fasterRClickPill.y = frcY + 20
+        fasterRClickInfo.y = frcY + 22
+
         // ESP Tab Widgets
         val dngY = effectiveCardY
         batEspPill.y = dngY + 20
         starMobsEspPill.y = dngY + 42
-        lostAdventurerEspPill.y = dngY + 64
-        shadowAssassinEspPill.y = dngY + 86
-        diamondGuyEspPill.y = dngY + 108
+        minibossesEspPill.y = dngY + 64
 
-        val otherEspY = dngY + SEC_DUNGEON_ESP_GAP
+        val playerY = dngY + SEC_DUNGEON_ESP_GAP
+        partyPlayerEspPill.y = playerY + 20
+        otherPlayerEspPill.y = playerY + 42
+        showDistancePill.y = playerY + 64
+
+        val chestY = playerY + SEC_PLAYER_ESP_GAP
+        chestEspPill.y = chestY + 20
+        lockpickHelperPill.y = chestY + 42
+
+        val jerryY = chestY + SEC_CHEST_ESP_GAP
+        whiteGiftsEspPill.y = jerryY + 20
+        resetGiftsBtn.y = jerryY + 42
+
+        val otherEspY = jerryY + SEC_JERRY_ESP_GAP
         espTabPestPill.y = otherEspY + 20
 
         // Farming Config Widgets
@@ -984,12 +1161,19 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         derpyPill.y = pdY + 132
 
         // Misc Config Widgets
-        bouncyModeInfo.y = effectiveCardY + 22
-        bouncyModePill.y = effectiveCardY + 20
-        targetBouncesInfo.y = effectiveCardY + 42
-        targetBouncesSlider.y = effectiveCardY + 40
-        goBackToStartInfo.y = effectiveCardY + 64
-        goBackToStartPill.y = effectiveCardY + 62
+        val expSecY = effectiveCardY
+        expSpeedInfo.y = expSecY + 22
+        expSpeedPill.y = expSecY + 20
+        expMaximizeXpInfo.y = expSecY + 42
+        expMaximizeXpPill.y = expSecY + 40
+
+        val bouncySecY = expSecY + 74
+        bouncyModeInfo.y = bouncySecY + 22
+        bouncyModePill.y = bouncySecY + 20
+        targetBouncesInfo.y = bouncySecY + 42
+        targetBouncesSlider.y = bouncySecY + 40
+        goBackToStartInfo.y = bouncySecY + 64
+        goBackToStartPill.y = bouncySecY + 62
 
         // HUD Config Widgets
         val hudSecY = effectiveCardY
@@ -1104,13 +1288,21 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         freecamHideGuiInfo.visible = isSettingsQol
         autoSprintPill.visible = isSettingsQol
         autoSprintInfo.visible = isSettingsQol
+        fasterRClickPill.visible = isSettingsQol
+        fasterRClickInfo.visible = isSettingsQol
 
         // ESP Tab
         batEspPill.visible = isEsp
         starMobsEspPill.visible = isEsp
-        lostAdventurerEspPill.visible = isEsp
-        shadowAssassinEspPill.visible = isEsp
-        diamondGuyEspPill.visible = isEsp
+        minibossesEspPill.visible = isEsp
+        partyPlayerEspPill.visible = isEsp
+        otherPlayerEspPill.visible = isEsp
+        showDistancePill.active = ConfigManager.config.playerEsp.otherPlayerEsp
+        showDistancePill.visible = isEsp
+        chestEspPill.visible = isEsp
+        lockpickHelperPill.visible = isEsp
+        whiteGiftsEspPill.visible = isEsp
+        resetGiftsBtn.visible = isEsp
         espTabPestPill.visible = isEsp
 
         // Farming - General Config
@@ -1129,6 +1321,11 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         derpyPill.visible = isPesterConfig
 
         // Misc - General Config
+        expSpeedInfo.visible = isMiscConfig
+        expSpeedPill.visible = isMiscConfig
+        expMaximizeXpInfo.visible = isMiscConfig
+        expMaximizeXpPill.visible = isMiscConfig
+
         bouncyModeInfo.visible = isMiscConfig
         bouncyModePill.visible = isMiscConfig
         targetBouncesSlider.visible = isMiscConfig
@@ -1409,34 +1606,61 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
     }
 
     private fun renderMiscMacroCard(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
-        val effY = cardY - scrollOffset
-        val isHovered = mouseX in cardX until (cardX + cardW) && mouseY in effY until (effY + cardH)
+        val card1Y = cardY - scrollOffset
+        val isCard1Hovered = mouseX in cardX until (cardX + cardW) && mouseY in card1Y until (card1Y + cardH)
 
-        val cardBg = if (isHovered) 0xFF1E293B.toInt() else 0xFF141D2D.toInt()
-        val cardBorder = if (isHovered) 0xFF38BDF8.toInt() else 0xFF334155.toInt()
+        val card1Bg = if (isCard1Hovered) 0xFF1E293B.toInt() else 0xFF141D2D.toInt()
+        val card1Border = if (isCard1Hovered) 0xFF38BDF8.toInt() else 0xFF334155.toInt()
 
-        graphics.fill(cardX - 1, effY - 1, cardX + cardW + 1, effY + cardH + 1, cardBorder)
-        graphics.fill(cardX, effY, cardX + cardW, effY + cardH, cardBg)
+        graphics.fill(cardX - 1, card1Y - 1, cardX + cardW + 1, card1Y + cardH + 1, card1Border)
+        graphics.fill(cardX, card1Y, cardX + cardW, card1Y + cardH, card1Bg)
 
-        val headerBg = if (isHovered) 0xFF334155.toInt() else 0xFF1E293B.toInt()
-        graphics.fill(cardX, effY, cardX + cardW, effY + 20, headerBg)
-        graphics.text(font, "§b§lAuto Bouncy Ball", cardX + 12, effY + 6, 0xFF38BDF8.toInt())
+        val header1Bg = if (isCard1Hovered) 0xFF334155.toInt() else 0xFF1E293B.toInt()
+        graphics.fill(cardX, card1Y, cardX + cardW, card1Y + 20, header1Bg)
+        graphics.text(font, "§b§lAuto Experiment Table Add-ons", cardX + 12, card1Y + 6, 0xFF38BDF8.toInt())
 
-        val actionText = "§lClick to Start Auto Bouncy Ball"
-        val actionColor = if (isHovered) 0xFF4ADE80.toInt() else 0xFFFFFFFF.toInt()
-        graphics.text(font, actionText, cardX + 14, effY + 44, actionColor)
+        val action1Text = if (com.hypcro.experiment.AutoExperimentAddons.isRunning) "§c§lClick to Stop Auto Add-ons" else "§a§lClick to Start Auto Add-ons"
+        val action1Color = if (isCard1Hovered) 0xFF4ADE80.toInt() else 0xFFFFFFFF.toInt()
+        graphics.text(font, action1Text, cardX + 14, card1Y + 44, action1Color)
+
+        // Card 2: Auto Bouncy Ball
+        val card2Y = card1Y + cardH + 10
+        val isCard2Hovered = mouseX in cardX until (cardX + cardW) && mouseY in card2Y until (card2Y + cardH)
+
+        val card2Bg = if (isCard2Hovered) 0xFF1E293B.toInt() else 0xFF141D2D.toInt()
+        val card2Border = if (isCard2Hovered) 0xFF38BDF8.toInt() else 0xFF334155.toInt()
+
+        graphics.fill(cardX - 1, card2Y - 1, cardX + cardW + 1, card2Y + cardH + 1, card2Border)
+        graphics.fill(cardX, card2Y, cardX + cardW, card2Y + cardH, card2Bg)
+
+        val header2Bg = if (isCard2Hovered) 0xFF334155.toInt() else 0xFF1E293B.toInt()
+        graphics.fill(cardX, card2Y, cardX + cardW, card2Y + 20, header2Bg)
+        graphics.text(font, "§b§lAuto Bouncy Ball", cardX + 12, card2Y + 6, 0xFF38BDF8.toInt())
+
+        val action2Text = if (com.hypcro.bouncy.AutoBouncyBall.isRunning) "§c§lClick to Stop Auto Bouncy Ball" else "§a§lClick to Start Auto Bouncy Ball"
+        val action2Color = if (isCard2Hovered) 0xFF4ADE80.toInt() else 0xFFFFFFFF.toInt()
+        graphics.text(font, action2Text, cardX + 14, card2Y + 44, action2Color)
     }
 
     private fun renderMiscConfig(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
         val sec1Y = cardY - scrollOffset
-        val sec1H = 88
+        val sec1H = 64
         graphics.fill(cardX - 1, sec1Y - 1, cardX + cardW + 1, sec1Y + sec1H + 1, 0xFF334155.toInt())
         graphics.fill(cardX, sec1Y, cardX + cardW, sec1Y + sec1H, 0xFF1E293B.toInt())
         graphics.fill(cardX, sec1Y, cardX + cardW, sec1Y + 18, 0xFF334155.toInt())
-        graphics.text(font, "§b§lBouncy Beach Ball", cardX + 10, sec1Y + 5, 0xFF38BDF8.toInt())
-        graphics.text(font, "Movement Mode:", cardX + 12, sec1Y + 25, 0xFF94A3B8.toInt())
-        graphics.text(font, "Target Bounces:", cardX + 12, sec1Y + 45, 0xFF94A3B8.toInt())
-        graphics.text(font, "Go back to Start:", cardX + 12, sec1Y + 67, 0xFF94A3B8.toInt())
+        graphics.text(font, "§b§lAuto Experiment Table Add-ons", cardX + 10, sec1Y + 5, 0xFF38BDF8.toInt())
+        graphics.text(font, "Mouse Speed:", cardX + 12, sec1Y + 25, 0xFF94A3B8.toInt())
+        graphics.text(font, "Maximize XP:", cardX + 12, sec1Y + 45, 0xFF94A3B8.toInt())
+
+        val sec2Y = sec1Y + sec1H + 10
+        val sec2H = 88
+        graphics.fill(cardX - 1, sec2Y - 1, cardX + cardW + 1, sec2Y + sec2H + 1, 0xFF334155.toInt())
+        graphics.fill(cardX, sec2Y, cardX + cardW, sec2Y + sec2H, 0xFF1E293B.toInt())
+        graphics.fill(cardX, sec2Y, cardX + cardW, sec2Y + 18, 0xFF334155.toInt())
+        graphics.text(font, "§b§lBouncy Beach Ball", cardX + 10, sec2Y + 5, 0xFF38BDF8.toInt())
+        graphics.text(font, "Movement Mode:", cardX + 12, sec2Y + 25, 0xFF94A3B8.toInt())
+        graphics.text(font, "Target Bounces:", cardX + 12, sec2Y + 45, 0xFF94A3B8.toInt())
+        graphics.text(font, "Go back to Start:", cardX + 12, sec2Y + 67, 0xFF94A3B8.toInt())
     }
 
     private fun renderHudView(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
@@ -1476,18 +1700,62 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
 
         graphics.text(font, "Bat ESP:", cardX + 12, dngY + 25, 0xFF94A3B8.toInt())
         graphics.text(font, "StarMobs ESP:", cardX + 12, dngY + 47, 0xFF94A3B8.toInt())
-        graphics.text(font, "Lost Adventurer:", cardX + 12, dngY + 69, 0xFF94A3B8.toInt())
-        graphics.text(font, "Shadow Assassin:", cardX + 12, dngY + 91, 0xFF94A3B8.toInt())
-        graphics.text(font, "Diamond Guy:", cardX + 12, dngY + 113, 0xFF94A3B8.toInt())
+        graphics.text(font, "Minibosses ESP:", cardX + 12, dngY + 69, 0xFF94A3B8.toInt())
 
         renderColorSwatch(graphics, mouseX, mouseY, cardX + 326, dngY + 20, dngCfg.batEspColor)
         renderColorSwatch(graphics, mouseX, mouseY, cardX + 326, dngY + 42, dngCfg.starMobsEspColor)
-        renderColorSwatch(graphics, mouseX, mouseY, cardX + 326, dngY + 64, dngCfg.lostAdventurerColor)
-        renderColorSwatch(graphics, mouseX, mouseY, cardX + 326, dngY + 86, dngCfg.shadowAssassinColor)
-        renderColorSwatch(graphics, mouseX, mouseY, cardX + 326, dngY + 108, dngCfg.diamondGuyColor)
+        renderColorSwatch(graphics, mouseX, mouseY, cardX + 326, dngY + 64, dngCfg.minibossColor)
 
-        // 2. Other ESP Card (Below Dungeon)
-        val otherY = dngY + SEC_DUNGEON_ESP_GAP
+        // 2. Player ESP Card
+        val playerY = dngY + SEC_DUNGEON_ESP_GAP
+        val playerH = SEC_PLAYER_ESP_H
+        val playerCfg = ConfigManager.config.playerEsp
+        graphics.fill(cardX - 1, playerY - 1, cardX + cardW + 1, playerY + playerH + 1, 0xFF334155.toInt())
+        graphics.fill(cardX, playerY, cardX + cardW, playerY + playerH, 0xFF1E293B.toInt())
+        graphics.fill(cardX, playerY, cardX + cardW, playerY + 18, 0xFF334155.toInt())
+        graphics.text(font, "§b§lPlayer ESP", cardX + 10, playerY + 5, 0xFF38BDF8.toInt())
+
+        graphics.text(font, "Party Player:", cardX + 12, playerY + 25, 0xFF94A3B8.toInt())
+        graphics.text(font, "Other Player:", cardX + 12, playerY + 47, 0xFF94A3B8.toInt())
+        val distColor = if (playerCfg.otherPlayerEsp) 0xFF94A3B8.toInt() else 0xFF475569.toInt()
+        graphics.text(font, "  └ Show Distance:", cardX + 12, playerY + 69, distColor)
+
+        renderColorSwatch(graphics, mouseX, mouseY, cardX + 326, playerY + 20, playerCfg.partyColor)
+        renderColorSwatch(graphics, mouseX, mouseY, cardX + 326, playerY + 42, playerCfg.otherPlayerColor)
+
+        // 3. Chest & Lockpick ESP Card
+        val chestY = playerY + SEC_PLAYER_ESP_GAP
+        val chestH = SEC_CHEST_ESP_H
+        val chestCfg = ConfigManager.config.chestEsp
+        graphics.fill(cardX - 1, chestY - 1, cardX + cardW + 1, chestY + chestH + 1, 0xFF334155.toInt())
+        graphics.fill(cardX, chestY, cardX + cardW, chestY + chestH, 0xFF1E293B.toInt())
+        graphics.fill(cardX, chestY, cardX + cardW, chestY + 18, 0xFF334155.toInt())
+        graphics.text(font, "§b§lChest & Lockpick ESP", cardX + 10, chestY + 5, 0xFF38BDF8.toInt())
+
+        graphics.text(font, "Chest ESP:", cardX + 12, chestY + 25, 0xFF94A3B8.toInt())
+        graphics.text(font, "Lockpick Helper:", cardX + 12, chestY + 47, 0xFF94A3B8.toInt())
+
+        renderColorSwatch(graphics, mouseX, mouseY, cardX + 326, chestY + 20, chestCfg.chestColor)
+        renderColorSwatch(graphics, mouseX, mouseY, cardX + 326, chestY + 42, chestCfg.helperColor)
+
+        // 4. Jerry's Workshop Card
+        val jerryY = chestY + SEC_CHEST_ESP_GAP
+        val jerryH = SEC_JERRY_ESP_H
+        val jerryCfg = ConfigManager.config.jerryGifts
+        graphics.fill(cardX - 1, jerryY - 1, cardX + cardW + 1, jerryY + jerryH + 1, 0xFF334155.toInt())
+        graphics.fill(cardX, jerryY, cardX + cardW, jerryY + jerryH, 0xFF1E293B.toInt())
+        graphics.fill(cardX, jerryY, cardX + cardW, jerryY + 18, 0xFF334155.toInt())
+        graphics.text(font, "§b§lJerry's Workshop", cardX + 10, jerryY + 5, 0xFF38BDF8.toInt())
+
+        graphics.text(font, "White Gifts:", cardX + 12, jerryY + 25, 0xFF94A3B8.toInt())
+        val foundCount = jerryCfg.discoveredCoords.size
+        val collectedCount = jerryCfg.collectedCoords.size
+        graphics.text(font, "Found: $foundCount/20  Collected: $collectedCount/20", cardX + 12, jerryY + 47, 0xFF94A3B8.toInt())
+
+        renderColorSwatch(graphics, mouseX, mouseY, cardX + 326, jerryY + 20, jerryCfg.color)
+
+        // 5. Other ESP Card (Below Jerry)
+        val otherY = jerryY + SEC_JERRY_ESP_GAP
         val otherH = SEC_OTHER_ESP_H
         graphics.fill(cardX - 1, otherY - 1, cardX + cardW + 1, otherY + otherH + 1, 0xFF334155.toInt())
         graphics.fill(cardX, otherY, cardX + cardW, otherY + otherH, 0xFF1E293B.toInt())
@@ -1633,6 +1901,14 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
                 graphics.fill(cardX, asY, cardX + cardW, asY + 18, 0xFF334155.toInt())
                 graphics.text(font, "§b§lAuto Sprint", cardX + 10, asY + 5, 0xFF38BDF8.toInt())
                 graphics.text(font, "Auto Sprint:", cardX + 12, asY + 25, 0xFF94A3B8.toInt())
+
+                val frcY = asY + SEC_AUTOSPRINT_GAP
+                val frcH = SEC_FASTER_RCLICK_H
+                graphics.fill(cardX - 1, frcY - 1, cardX + cardW + 1, frcY + frcH + 1, 0xFF334155.toInt())
+                graphics.fill(cardX, frcY, cardX + cardW, frcY + frcH, 0xFF1E293B.toInt())
+                graphics.fill(cardX, frcY, cardX + cardW, frcY + 18, 0xFF334155.toInt())
+                graphics.text(font, "§b§lFaster R-click", cardX + 10, frcY + 5, 0xFF38BDF8.toInt())
+                graphics.text(font, "Faster R-click:", cardX + 12, frcY + 25, 0xFF94A3B8.toInt())
             }
         }
     }
@@ -1649,6 +1925,7 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
                 val farmingBoxH = 24
                 if (mouseY in farmingBoxY until (farmingBoxY + farmingBoxH)) {
                     selectedTab = "Farming"
+                    lastTab = "Farming"
                     isModeDropdownOpen = false
                     scrollOffset = 0
                     updateWidgetVisibility()
@@ -1659,6 +1936,7 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
                 val pesterBoxH = 24
                 if (mouseY in pesterBoxY until (pesterBoxY + pesterBoxH)) {
                     selectedTab = "Pester"
+                    lastTab = "Pester"
                     isModeDropdownOpen = false
                     scrollOffset = 0
                     updateWidgetVisibility()
@@ -1669,6 +1947,7 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
                 val miscBoxH = 24
                 if (mouseY in miscBoxY until (miscBoxY + miscBoxH)) {
                     selectedTab = "Misc"
+                    lastTab = "Misc"
                     isModeDropdownOpen = false
                     scrollOffset = 0
                     updateWidgetVisibility()
@@ -1684,6 +1963,7 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
 
                 if (mouseY in espBoxY until (espBoxY + espBoxH)) {
                     selectedTab = "ESP"
+                    lastTab = "ESP"
                     isModeDropdownOpen = false
                     scrollOffset = 0
                     updateWidgetVisibility()
@@ -1692,6 +1972,7 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
 
                 if (mouseY in hudBoxY until (hudBoxY + hudBoxH)) {
                     selectedTab = "HUD"
+                    lastTab = "HUD"
                     isModeDropdownOpen = false
                     scrollOffset = 0
                     updateWidgetVisibility()
@@ -1700,6 +1981,7 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
 
                 if (mouseY in settingsBoxY until (settingsBoxY + settingsBoxH)) {
                     selectedTab = "Settings"
+                    lastTab = "Settings"
                     isModeDropdownOpen = false
                     scrollOffset = 0
                     updateWidgetVisibility()
@@ -1729,15 +2011,30 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
                 return true
             }
 
-            // Misc Macro Card Click
-            if (selectedTab == "Misc" && miscSubTab == 0 && mouseX in cardX until (cardX + cardW) && mouseY in effY until (effY + cardH)) {
-                if (com.hypcro.bouncy.AutoBouncyBall.isRunning) {
-                    com.hypcro.bouncy.AutoBouncyBall.stop()
-                } else {
-                    com.hypcro.bouncy.AutoBouncyBall.start()
+            // Misc Macro Card Clicks
+            if (selectedTab == "Misc" && miscSubTab == 0 && mouseX in cardX until (cardX + cardW)) {
+                val card1Y = effY
+                val card2Y = card1Y + cardH + 10
+
+                if (mouseY in card1Y until (card1Y + cardH)) {
+                    if (com.hypcro.experiment.AutoExperimentAddons.isRunning) {
+                        com.hypcro.experiment.AutoExperimentAddons.stop(reason = "GUI Toggle")
+                    } else {
+                        com.hypcro.experiment.AutoExperimentAddons.start()
+                    }
+                    onClose()
+                    return true
                 }
-                onClose()
-                return true
+
+                if (mouseY in card2Y until (card2Y + cardH)) {
+                    if (com.hypcro.bouncy.AutoBouncyBall.isRunning) {
+                        com.hypcro.bouncy.AutoBouncyBall.stop()
+                    } else {
+                        com.hypcro.bouncy.AutoBouncyBall.start()
+                    }
+                    onClose()
+                    return true
+                }
             }
 
             // ESP Tab Color Swatch Clicks
@@ -1758,29 +2055,59 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
                     return true
                 }
                 if (mouseY in (effY + 64) until (effY + 80)) {
-                    minecraft.gui.setScreen(ColorPickerModal(this, ConfigManager.config.dungeon.lostAdventurerColor) { newHex ->
-                        ConfigManager.config.dungeon.lostAdventurerColor = newHex
+                    minecraft.gui.setScreen(ColorPickerModal(this, ConfigManager.config.dungeon.minibossColor) { newHex ->
+                        ConfigManager.config.dungeon.minibossColor = newHex
                         ConfigManager.save()
                     })
                     return true
                 }
-                if (mouseY in (effY + 86) until (effY + 102)) {
-                    minecraft.gui.setScreen(ColorPickerModal(this, ConfigManager.config.dungeon.shadowAssassinColor) { newHex ->
-                        ConfigManager.config.dungeon.shadowAssassinColor = newHex
+
+                // Player ESP Card Swatches
+                val playerY = effY + SEC_DUNGEON_ESP_GAP
+                if (mouseY in (playerY + 20) until (playerY + 36)) {
+                    minecraft.gui.setScreen(ColorPickerModal(this, ConfigManager.config.playerEsp.partyColor) { newHex ->
+                        ConfigManager.config.playerEsp.partyColor = newHex
                         ConfigManager.save()
                     })
                     return true
                 }
-                if (mouseY in (effY + 108) until (effY + 124)) {
-                    minecraft.gui.setScreen(ColorPickerModal(this, ConfigManager.config.dungeon.diamondGuyColor) { newHex ->
-                        ConfigManager.config.dungeon.diamondGuyColor = newHex
+                if (mouseY in (playerY + 42) until (playerY + 58)) {
+                    minecraft.gui.setScreen(ColorPickerModal(this, ConfigManager.config.playerEsp.otherPlayerColor) { newHex ->
+                        ConfigManager.config.playerEsp.otherPlayerColor = newHex
+                        ConfigManager.save()
+                    })
+                    return true
+                }
+
+                // Chest ESP Card Swatches
+                val chestY = playerY + SEC_PLAYER_ESP_GAP
+                if (mouseY in (chestY + 20) until (chestY + 36)) {
+                    minecraft.gui.setScreen(ColorPickerModal(this, ConfigManager.config.chestEsp.chestColor) { newHex ->
+                        ConfigManager.config.chestEsp.chestColor = newHex
+                        ConfigManager.save()
+                    })
+                    return true
+                }
+                if (mouseY in (chestY + 42) until (chestY + 58)) {
+                    minecraft.gui.setScreen(ColorPickerModal(this, ConfigManager.config.chestEsp.helperColor) { newHex ->
+                        ConfigManager.config.chestEsp.helperColor = newHex
+                        ConfigManager.save()
+                    })
+                    return true
+                }
+
+                // Jerry's Workshop Card Swatch
+                val jerryY = chestY + SEC_CHEST_ESP_GAP
+                if (mouseY in (jerryY + 20) until (jerryY + 36)) {
+                    minecraft.gui.setScreen(ColorPickerModal(this, ConfigManager.config.jerryGifts.color) { newHex ->
+                        ConfigManager.config.jerryGifts.color = newHex
                         ConfigManager.save()
                     })
                     return true
                 }
 
                 // Other ESP Card (Pest ESP) Swatch
-                val otherY = effY + SEC_DUNGEON_ESP_GAP
+                val otherY = jerryY + SEC_JERRY_ESP_GAP
                 if (mouseY in (otherY + 20) until (otherY + 36)) {
                     minecraft.gui.setScreen(ColorPickerModal(this, ConfigManager.config.pestDestroyer.pestEspColor) { newHex ->
                         ConfigManager.config.pestDestroyer.pestEspColor = newHex
@@ -1835,5 +2162,15 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
             return true
         }
         return super.keyPressed(event)
+    }
+
+    override fun onClose() {
+        lastCloseTimeMs = System.currentTimeMillis()
+        lastTab = selectedTab
+        lastFarmingSubTab = farmingSubTab
+        lastPesterSubTab = pesterSubTab
+        lastMiscSubTab = miscSubTab
+        lastSettingsSubTab = settingsSubTab
+        super.onClose()
     }
 }

@@ -5,6 +5,7 @@ import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper
 import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
 import net.minecraft.network.chat.Component
@@ -73,14 +74,61 @@ object HypCroMod : ClientModInitializer {
             }
         }
 
+        // Intercept client-side block interaction to remember opened chests and gifts
+        net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register { player, world, hand, hitResult ->
+            if (world.isClientSide) {
+                com.hypcro.mining.ChestESP.onPlayerInteractBlock(hitResult.blockPos)
+                com.hypcro.jerry.WhiteGiftESP.onPlayerInteractBlock(hitResult.blockPos)
+            }
+            net.minecraft.world.InteractionResult.PASS
+        }
+
+        net.fabricmc.fabric.api.event.player.AttackBlockCallback.EVENT.register { player, world, hand, pos, direction ->
+            if (world.isClientSide) {
+                com.hypcro.jerry.WhiteGiftESP.onPlayerInteractBlock(pos)
+            }
+            net.minecraft.world.InteractionResult.PASS
+        }
+
+        net.fabricmc.fabric.api.event.player.UseEntityCallback.EVENT.register { player, world, hand, entity, hitResult ->
+            if (world.isClientSide) {
+                com.hypcro.jerry.WhiteGiftESP.onPlayerInteractEntity(entity)
+            }
+            net.minecraft.world.InteractionResult.PASS
+        }
+
+        net.fabricmc.fabric.api.event.player.AttackEntityCallback.EVENT.register { player, world, hand, entity, hitResult ->
+            if (world.isClientSide) {
+                com.hypcro.jerry.WhiteGiftESP.onPlayerInteractEntity(entity)
+            }
+            net.minecraft.world.InteractionResult.PASS
+        }
+
         net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.DISCONNECT.register { _, _ ->
             com.hypcro.pest.PestTargetTracker.clearSessionMemory()
             com.hypcro.util.CropBpsTracker.resetSession()
+            com.hypcro.party.PartyApi.reset()
+            com.hypcro.mining.ChestESP.reset()
+            com.hypcro.util.GardenStateReader.reset()
+        }
+
+        LevelRenderEvents.BEFORE_GIZMOS.register { _ ->
+            val client = Minecraft.getInstance()
+            if (client.level != null && client.player != null) {
+                com.hypcro.pathfinding.PathfindingVisualizer.renderWorld()
+                com.hypcro.pest.PestESP.renderWorld()
+                com.hypcro.dungeon.DungeonESP.renderWorld()
+                com.hypcro.bouncy.AutoBouncyBall.renderWorld()
+                com.hypcro.player.PlayerESP.renderWorld()
+                com.hypcro.mining.ChestESP.renderWorld()
+                com.hypcro.jerry.WhiteGiftESP.renderWorld()
+            }
         }
 
         ClientTickEvents.END_CLIENT_TICK.register { client ->
             // Reset Free Look and Freecam on disconnect / world unload
             if (client.level == null || client.player == null) {
+                com.hypcro.util.GardenStateReader.reset()
                 if (com.hypcro.camera.FreeLookManager.isFreeLookActive) {
                     com.hypcro.camera.FreeLookManager.reset(client)
                 }
@@ -90,16 +138,12 @@ object HypCroMod : ClientModInitializer {
             } else {
                 com.hypcro.util.CropBpsTracker.onClientTick(client)
                 com.hypcro.gui.HudOverlayRenderer.onClientTick(client)
-            }
-
-            // Render Pathfinding Visualizer, Pest ESP, Dungeon ESP, and Auto Bouncy Ball in-world Gizmos
-            if (client.level != null && client.player != null) {
                 com.hypcro.pest.PestESP.tick(client)
                 com.hypcro.dungeon.DungeonESP.tick(client)
-                com.hypcro.pathfinding.PathfindingVisualizer.renderWorld()
-                com.hypcro.pest.PestESP.renderWorld()
-                com.hypcro.dungeon.DungeonESP.renderWorld()
-                com.hypcro.bouncy.AutoBouncyBall.renderWorld()
+                com.hypcro.player.PlayerESP.tick(client)
+                com.hypcro.mining.ChestESP.tick(client)
+                com.hypcro.jerry.WhiteGiftESP.tick(client)
+                com.hypcro.qol.FasterRClickHelper.onClientTick(client)
             }
 
             while (openGuiKey.consumeClick()) {
@@ -190,6 +234,11 @@ object HypCroMod : ClientModInitializer {
                 }
                 return false
             }
+            ".hypcroinspectblock" -> {
+                val info = com.hypcro.jerry.WhiteGiftESP.inspectLookTarget(client)
+                log(info)
+                return false
+            }
             ".hypcropathfindverbose" -> {
                 val newState = if (parts.size > 1) {
                     when (parts[1].lowercase()) {
@@ -258,10 +307,37 @@ object HypCroMod : ClientModInitializer {
                     log("• .hypcrotest movecam <pitch> <yaw>")
                     log("• .hypcrotest flyto <x> <y> <z> [pitch] [yaw]")
                     log("• .hypcrotest pathfind <x> <y> <z>")
+                    log("• .hypcrotest party")
+                    log("• .hypcrotest currentyear")
                     return false
                 }
 
                 when (parts[1].lowercase()) {
+                    "party" -> {
+                        val members = com.hypcro.party.PartyApi.getPartyMembers()
+                        val leader = com.hypcro.party.PartyApi.partyLeader
+                        log("=== Tracked Party Info ===")
+                        log("Leader: " + (leader ?: "None / Unknown"))
+                        if (members.isEmpty()) {
+                            log("Tracked Members (0): None")
+                        } else {
+                            log("Tracked Members (${members.size}):")
+                            for (m in members) {
+                                log(" - $m" + if (m.equals(leader, ignoreCase = true)) " [Leader]" else "")
+                            }
+                        }
+                        return false
+                    }
+                    "currentyear" -> {
+                        val year = com.hypcro.util.GardenStateReader.readSkyBlockYear(client)
+                        log("=== SkyBlock Year Check ===")
+                        if (year > 0) {
+                            logSuccess("Detected SkyBlock Year: Year $year")
+                        } else {
+                            logWarn("Could not find SkyBlock Year on scoreboard (current value: 0). Make sure you are in SkyBlock and scoreboard is visible.")
+                        }
+                        return false
+                    }
                     "movecam" -> {
                         if (parts.size < 4) {
                             logWarn("Usage: .hypcrotest movecam <yaw> <pitch>")

@@ -41,7 +41,11 @@ object PestESP {
             return
         }
 
-        // 2. Refresh entity positions every 50ms (client entity tracking distance up to 128 blocks)
+        // 2. Throttle entity positions scan to centralized interval (5ms / 200 Hz)
+        if (now - lastScanTimeMs < com.hypcro.util.EspHelper.SCAN_INTERVAL_MS) {
+            return
+        }
+        lastScanTimeMs = now
         cachedPests = PestTargetTracker.findPestsInRadius(client, player.position(), 128.0)
     }
 
@@ -61,9 +65,11 @@ object PestESP {
             ARGB.color(70, r, g, b)    // Translucent fill
         )
 
+        val partialTicks = com.hypcro.util.EspHelper.getPartialTicks()
+
         for (pest in cachedPests) {
             if (pest.entity.isRemoved) continue
-            val eyePos = pest.entity.eyePosition
+            val eyePos = com.hypcro.util.EspHelper.getInterpolatedEyePosition(pest.entity, partialTicks)
 
             // Expanded custom box wrapped around the pest head skull (2x size, renders through walls)
             val box = AABB(

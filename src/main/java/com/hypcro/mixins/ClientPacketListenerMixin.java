@@ -60,6 +60,14 @@ public class ClientPacketListenerMixin {
             }
 
             try {
+                com.hypcro.party.PartyApi.INSTANCE.reset();
+            } catch (Throwable ignored) {}
+
+            try {
+                com.hypcro.mining.ChestESP.INSTANCE.reset();
+            } catch (Throwable ignored) {}
+
+            try {
                 if (com.hypcro.camera.FreecamManager.INSTANCE.isFreecamActive()) {
                     com.hypcro.camera.FreecamManager.INSTANCE.disable(client);
                 }
@@ -76,6 +84,54 @@ public class ClientPacketListenerMixin {
                 HypCroMod.INSTANCE.logWarn("Error handling transfer watchdog check: " + t.getMessage());
             }
         });
+    }
+
+    @Inject(method = "handleParticleEvent", at = @At("HEAD"))
+    private void onHandleParticleEvent(net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket packet, CallbackInfo ci) {
+        try {
+            com.hypcro.mining.ChestESP.INSTANCE.onParticle(packet.getParticle().getType(), packet.getX(), packet.getY(), packet.getZ());
+        } catch (Throwable ignored) {}
+    }
+
+    @Inject(method = "handleSoundEvent", at = @At("HEAD"))
+    private void onHandleSoundEvent(net.minecraft.network.protocol.game.ClientboundSoundPacket packet, CallbackInfo ci) {
+        try {
+            com.hypcro.mining.ChestESP.INSTANCE.onSound(packet.getSound().value().location().toString(), packet.getPitch());
+        } catch (Throwable ignored) {}
+    }
+
+    @Inject(method = "handleBlockUpdate", at = @At("HEAD"))
+    private void onHandleBlockUpdate(net.minecraft.network.protocol.game.ClientboundBlockUpdatePacket packet, CallbackInfo ci) {
+        try {
+            com.hypcro.mining.ChestESP.INSTANCE.onBlockUpdate(packet.getPos(), packet.getBlockState());
+        } catch (Throwable ignored) {}
+    }
+
+    @Inject(method = "handleSystemChat", at = @At("HEAD"))
+    private void onHandleSystemChat(net.minecraft.network.protocol.game.ClientboundSystemChatPacket packet, CallbackInfo ci) {
+        try {
+            String msg = packet.content().getString();
+            com.hypcro.party.PartyApi.INSTANCE.onChatMessage(msg);
+            com.hypcro.mining.ChestESP.INSTANCE.onChatMessage(msg);
+        } catch (Throwable ignored) {}
+    }
+
+    @Inject(method = "handleDisguisedChat", at = @At("HEAD"))
+    private void onHandleDisguisedChat(net.minecraft.network.protocol.game.ClientboundDisguisedChatPacket packet, CallbackInfo ci) {
+        try {
+            String msg = packet.message().getString();
+            com.hypcro.party.PartyApi.INSTANCE.onChatMessage(msg);
+            com.hypcro.mining.ChestESP.INSTANCE.onChatMessage(msg);
+        } catch (Throwable ignored) {}
+    }
+
+    @Inject(method = "handlePlayerChat", at = @At("HEAD"))
+    private void onHandlePlayerChat(net.minecraft.network.protocol.game.ClientboundPlayerChatPacket packet, CallbackInfo ci) {
+        try {
+            String msg = packet.body().content();
+            com.hypcro.party.PartyApi.INSTANCE.onChatMessage(msg);
+            com.hypcro.mining.ChestESP.INSTANCE.onChatMessage(msg);
+        } catch (Throwable ignored) {}
     }
 
     @Inject(method = "sendChat", at = @At("HEAD"), cancellable = true)

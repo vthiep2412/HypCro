@@ -5,6 +5,7 @@
   "mixins": [
   ],
   "client": [
+    "AccessorAbstractContainerScreen",
     "CameraMixin",
     "ChatComponentMixin",
     "ClientPacketListenerMixin",
@@ -17,6 +18,7 @@
     "KeyMappingAccessor",
     "LocalPlayerMixin",
     "MouseMixin",
+    "MinecraftAccessor",
     "MinecraftMixin",
     "OptionsAccessor"
   ],

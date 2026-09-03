@@ -15,9 +15,10 @@ Standard home router queues allow packets to pile up in huge unmanaged hardware 
   - Configure **CAKE** (Common Applications Kept Enhanced) or **FQ-CoDel** (Fair Queueing Controlled Delay) on the home gateway / router (via OpenWrt, pfSense, or router QoS settings).
   - Apply active bandwidth rate limiting at 90% to 95% of tested maximum download and upload speeds to force traffic into the managed SQM queues.
   - Prioritize small interactive packets (gaming TCP ACKs, small Netty packets) ahead of high-throughput bulk streams.
-- **Queue Burst Stabilization**:
-  - Prevent packet drops under burst conditions by smoothing ingress traffic before it hits local network adapters.
-  - Eliminate bufferbloat induced packet retransmissions.
+- **Queue Burst Stabilization & Performance Targets**:
+  - Target sub-5ms added bufferbloat latency under full bidirectional saturation.
+  - Track managed queue drops or ECN marks at the router boundary separately from unmanaged tail drops.
+  - Maintain near-zero transport layer packet loss and minimal TCP retransmissions for real-time game traffic.
 
 ---
 

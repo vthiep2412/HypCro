@@ -143,7 +143,8 @@ Key architectural highlights include:
 | `patch.py` | Python automation patching script | Applies programmatic code edits to `CentralMovementCoordinator.kt` for flight activation and deviation logic |
 | `scratch_mouse.kt` | Kotlin reflection inspection script | Standalone utility to print method names from Minecraft `MouseHandler` class during development |
 | `scratch_test.kt` | Kotlin reflection inspection script | Standalone utility to inspect Minecraft `KeyEvent` method signatures |
-| `test_keymapping.kt` | Kotlin reflection inspection script | Standalone utility to inspect Minecraft `KeyMapping` method signatures |
+| `inspect_bytecode.py` | Bytecode inspection utility | Inspects local Loom deobfuscated JAR bytecode using javap for exact method signatures |
+| `inspect_query.txt` | Bytecode inspection target input | Holds target class names and javap inspection parameters |
 | `.gitignore` | Git ignore rules | Excludes build artifacts, Gradle daemon files, Kotlin cache, virtual environments, and IDE metadata |
 
 #### 2. Gradle Wrapper (`gradle/`)
