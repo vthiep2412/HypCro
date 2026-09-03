@@ -17,7 +17,6 @@
     "KeyMappingAccessor",
     "LocalPlayerMixin",
     "MouseMixin",
-    "MinecraftAccessor",
     "MinecraftMixin",
     "OptionsAccessor"
   ],

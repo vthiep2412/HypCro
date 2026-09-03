@@ -54,8 +54,7 @@ data class QOLConfig(
     var freeLookRespectInvertMouse: String = "ON", // "OFF", "ON", "ALWAYS"
     var freecamSpeed: Double = 1.0,
     var freecamHideGui: Boolean = false,
-    var autoSprint: Boolean = false,
-    var fasterRClick: Boolean = false
+    var autoSprint: Boolean = false
 )
 
 @Serializable

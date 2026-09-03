@@ -52,7 +52,6 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         private const val SEC_FREECAM_GAP = 74
         private const val SEC_AUTOSPRINT_H = 46
         private const val SEC_AUTOSPRINT_GAP = 52
-        private const val SEC_FASTER_RCLICK_H = 46
         private const val SEC_WATCHDOG_H = 164
         private const val SEC_WATCHDOG_GAP = 170
         private const val SEC_LOCK_H = 124
@@ -149,8 +148,6 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
     private lateinit var freecamHideGuiInfo: InfoIconWidget
     private lateinit var autoSprintPill: PillToggleWidget
     private lateinit var autoSprintInfo: InfoIconWidget
-    private lateinit var fasterRClickPill: PillToggleWidget
-    private lateinit var fasterRClickInfo: InfoIconWidget
 
     // Settings - Key and Mouse Lock Widgets
     private lateinit var keyMouseLockHeaderInfo: InfoIconWidget
@@ -494,19 +491,6 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
 
         autoSprintInfo = InfoIconWidget(cardX + 12 + font.width(Component.literal("Auto Sprint:")) + 6, asY + 22, "§eAuto Sprint QOL\n\nAutomatically sprints when moving forward with W.\nPauses while farming macros are active.")
         addRenderableWidget(autoSprintInfo)
-
-        val frcY = asY + SEC_AUTOSPRINT_GAP
-        fasterRClickPill = PillToggleWidget(
-            cardX + 220, frcY + 20, 100, 16,
-            listOf("OFF", "ON"), if (ConfigManager.config.qolConfig.fasterRClick) 1 else 0
-        ) { idx ->
-            ConfigManager.config.qolConfig.fasterRClick = (idx == 1)
-            ConfigManager.save()
-        }
-        addRenderableWidget(fasterRClickPill)
-
-        fasterRClickInfo = InfoIconWidget(cardX + 12 + font.width(Component.literal("Faster R-click:")) + 6, frcY + 22, "§eFaster R-click QOL\n\nHold Right Click with a weapon containing 'SWORD' and 'RIGHT CLICK' to burst at 9–13 CPS with humanized jitter and acceleration.\nSingle clicks and manual taps are ignored.")
-        addRenderableWidget(fasterRClickInfo)
 
         // 6. Settings View - Failsafe Sub-Tab: WatchDog
         val genCfg = ConfigManager.config.generalConfig
@@ -1044,7 +1028,7 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
             "Settings" -> when (settingsSubTab) {
                 0 -> SEC_MOUSE_GAP + SEC_PATHFINDING_H + 20
                 1 -> SEC_WATCHDOG_GAP + SEC_LOCK_H + 20
-                2 -> SEC_FREELOOK_GAP + SEC_FREECAM_GAP + SEC_AUTOSPRINT_GAP + SEC_FASTER_RCLICK_H + 20
+                2 -> SEC_FREELOOK_GAP + SEC_FREECAM_GAP + SEC_AUTOSPRINT_H + 20
                 else -> 100
             }
             "Farming" -> if (farmingSubTab == 1) SEC_FARM_FLY_GAP + SEC_FARM_PEST_GAP + 20 else cardH + 20
@@ -1115,10 +1099,6 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         val asY = fcY + SEC_FREECAM_GAP
         autoSprintPill.y = asY + 20
         autoSprintInfo.y = asY + 22
-
-        val frcY = asY + SEC_AUTOSPRINT_GAP
-        fasterRClickPill.y = frcY + 20
-        fasterRClickInfo.y = frcY + 22
 
         // ESP Tab Widgets
         val dngY = effectiveCardY
@@ -1288,8 +1268,6 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
         freecamHideGuiInfo.visible = isSettingsQol
         autoSprintPill.visible = isSettingsQol
         autoSprintInfo.visible = isSettingsQol
-        fasterRClickPill.visible = isSettingsQol
-        fasterRClickInfo.visible = isSettingsQol
 
         // ESP Tab
         batEspPill.visible = isEsp
@@ -1901,14 +1879,6 @@ class MainFarmingScreen : Screen(Component.literal("HypCro Deck")) {
                 graphics.fill(cardX, asY, cardX + cardW, asY + 18, 0xFF334155.toInt())
                 graphics.text(font, "§b§lAuto Sprint", cardX + 10, asY + 5, 0xFF38BDF8.toInt())
                 graphics.text(font, "Auto Sprint:", cardX + 12, asY + 25, 0xFF94A3B8.toInt())
-
-                val frcY = asY + SEC_AUTOSPRINT_GAP
-                val frcH = SEC_FASTER_RCLICK_H
-                graphics.fill(cardX - 1, frcY - 1, cardX + cardW + 1, frcY + frcH + 1, 0xFF334155.toInt())
-                graphics.fill(cardX, frcY, cardX + cardW, frcY + frcH, 0xFF1E293B.toInt())
-                graphics.fill(cardX, frcY, cardX + cardW, frcY + 18, 0xFF334155.toInt())
-                graphics.text(font, "§b§lFaster R-click", cardX + 10, frcY + 5, 0xFF38BDF8.toInt())
-                graphics.text(font, "Faster R-click:", cardX + 12, frcY + 25, 0xFF94A3B8.toInt())
             }
         }
     }

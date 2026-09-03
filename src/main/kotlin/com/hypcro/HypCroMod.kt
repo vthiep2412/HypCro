@@ -25,6 +25,8 @@ object HypCroMod : ClientModInitializer {
     lateinit var freeLookKey: KeyMapping
     lateinit var freecamKey: KeyMapping
 
+    private var lastEspRenderTimeMs: Long = 0L
+
     private val CATEGORY = KeyMapping.Category.register(
         Identifier.fromNamespaceAndPath(MOD_ID, "main")
     )
@@ -43,7 +45,7 @@ object HypCroMod : ClientModInitializer {
             KeyMapping(
                 "key.hypcro.freelook",
                 InputConstants.Type.KEYSYM,
-                GLFW.GLFW_KEY_V,
+                InputConstants.UNKNOWN.value,
                 CATEGORY
             )
         )
@@ -52,7 +54,7 @@ object HypCroMod : ClientModInitializer {
             KeyMapping(
                 "key.hypcro.freecam",
                 InputConstants.Type.KEYSYM,
-                GLFW.GLFW_KEY_U,
+                InputConstants.UNKNOWN.value,
                 CATEGORY
             )
         )
@@ -115,13 +117,24 @@ object HypCroMod : ClientModInitializer {
         LevelRenderEvents.BEFORE_GIZMOS.register { _ ->
             val client = Minecraft.getInstance()
             if (client.level != null && client.player != null) {
-                com.hypcro.pathfinding.PathfindingVisualizer.renderWorld()
-                com.hypcro.pest.PestESP.renderWorld()
-                com.hypcro.dungeon.DungeonESP.renderWorld()
-                com.hypcro.bouncy.AutoBouncyBall.renderWorld()
-                com.hypcro.player.PlayerESP.renderWorld()
-                com.hypcro.mining.ChestESP.renderWorld()
-                com.hypcro.jerry.WhiteGiftESP.renderWorld()
+                val isMacroActive = com.hypcro.farming.MacroController.isAnyMacroActive()
+                if (isMacroActive) {
+                    val now = System.currentTimeMillis()
+                    if (now - lastEspRenderTimeMs < 33L) {
+                        return@register
+                    }
+                    lastEspRenderTimeMs = now
+                    com.hypcro.pathfinding.PathfindingVisualizer.renderWorld()
+                    com.hypcro.pest.PestESP.renderWorld()
+                } else {
+                    com.hypcro.pathfinding.PathfindingVisualizer.renderWorld()
+                    com.hypcro.pest.PestESP.renderWorld()
+                    com.hypcro.dungeon.DungeonESP.renderWorld()
+                    com.hypcro.bouncy.AutoBouncyBall.renderWorld()
+                    com.hypcro.player.PlayerESP.renderWorld()
+                    com.hypcro.mining.ChestESP.renderWorld()
+                    com.hypcro.jerry.WhiteGiftESP.renderWorld()
+                }
             }
         }
 
@@ -139,11 +152,12 @@ object HypCroMod : ClientModInitializer {
                 com.hypcro.util.CropBpsTracker.onClientTick(client)
                 com.hypcro.gui.HudOverlayRenderer.onClientTick(client)
                 com.hypcro.pest.PestESP.tick(client)
-                com.hypcro.dungeon.DungeonESP.tick(client)
-                com.hypcro.player.PlayerESP.tick(client)
-                com.hypcro.mining.ChestESP.tick(client)
-                com.hypcro.jerry.WhiteGiftESP.tick(client)
-                com.hypcro.qol.FasterRClickHelper.onClientTick(client)
+                if (!com.hypcro.farming.MacroController.isAnyMacroActive()) {
+                    com.hypcro.dungeon.DungeonESP.tick(client)
+                    com.hypcro.player.PlayerESP.tick(client)
+                    com.hypcro.mining.ChestESP.tick(client)
+                    com.hypcro.jerry.WhiteGiftESP.tick(client)
+                }
             }
 
             while (openGuiKey.consumeClick()) {
@@ -239,21 +253,6 @@ object HypCroMod : ClientModInitializer {
                 log(info)
                 return false
             }
-            ".hypcroparty" -> {
-                val members = com.hypcro.party.PartyApi.getPartyMembers()
-                val leader = com.hypcro.party.PartyApi.partyLeader
-                log("=== Tracked Party Info ===")
-                log("Leader: " + (leader ?: "None / Unknown"))
-                if (members.isEmpty()) {
-                    log("Tracked Members (0): None")
-                } else {
-                    log("Tracked Members (${members.size}):")
-                    for (m in members) {
-                        log(" - $m" + if (m.equals(leader, ignoreCase = true)) " [Leader]" else "")
-                    }
-                }
-                return false
-            }
             ".hypcropathfindverbose" -> {
                 val newState = if (parts.size > 1) {
                     when (parts[1].lowercase()) {
@@ -322,6 +321,8 @@ object HypCroMod : ClientModInitializer {
                     log("• .hypcrotest movecam <pitch> <yaw>")
                     log("• .hypcrotest flyto <x> <y> <z> [pitch] [yaw]")
                     log("• .hypcrotest pathfind <x> <y> <z>")
+                    log("• .hypcrotest party")
+                    log("• .hypcrotest currentyear")
                     return false
                 }
 
@@ -409,6 +410,33 @@ object HypCroMod : ClientModInitializer {
                             } else {
                                 logSuccess("Computed ${path.size} waypoints in ${elapsed}ms via ${com.hypcro.config.ConfigManager.config.pestDestroyer.pathfindingAlgorithm}")
                             }
+                        }
+                        return false
+                    }
+                    "party" -> {
+                        val members = com.hypcro.party.PartyApi.getPartyMembers()
+                        val leader = com.hypcro.party.PartyApi.partyLeader
+                        log("=== Tracked Party Info ===")
+                        log("Leader: " + (leader ?: "None / Unknown"))
+                        if (members.isEmpty()) {
+                            log("Tracked Members (0): None")
+                        } else {
+                            log("Tracked Members (${members.size}):")
+                            for (m in members) {
+                                log(" - $m" + if (m.equals(leader, ignoreCase = true)) " [Leader]" else "")
+                            }
+                        }
+                        return false
+                    }
+                    "currentyear" -> {
+                        val year = com.hypcro.util.GardenStateReader.readSkyBlockYear(client)
+                        val scoreLines = com.hypcro.util.GardenStateReader.readScoreboardLines(client)
+                        val yearLine = scoreLines.find { it.contains("Year", ignoreCase = true) }
+                        log("=== SkyBlock Current Year Scoreboard Check ===")
+                        if (year > 0) {
+                            logSuccess("Detected SkyBlock Year: $year (Scoreboard line: \"${yearLine ?: "N/A"}\")")
+                        } else {
+                            logWarn("SkyBlock Year not detected on scoreboard. Matched line: \"${yearLine ?: "None"}\"")
                         }
                         return false
                     }

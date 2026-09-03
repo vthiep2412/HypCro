@@ -52,7 +52,7 @@ A client-side Fabric mod for Hypixel SkyBlock Garden farming with zero memory in
     - Dedicated **Jerry's Workshop** card in the ESP tab with White Gifts toggle, White (`#FFFFFF`) color swatch, live collected counter `(Collected: X / 20)`, and `Reset Collected` button.
   - **Party API**:
     - Ported from SkyHanni with comprehensive regex pattern matching for joins, leaves, kicks, offline kicks, voluntary/leave transfers, disbands, and party lists.
-    - Dot-command query: `.hypcroparty`.
+    - Dot-command query: `.hypcrotest party`.
   - **Dungeon ESP**:
     - Dedicated Dungeon card in the ESP tab with 45Hz scan refresh and x-ray Gizmo vector bounding boxes up to 128 blocks away.
     - Independent toggles and customizable color swatches for Secret Bats (Brown default `#8B4513`), Starred Mobs (Orange default `#F57738`), Lost Adventurers (Gold Yellow default `#FEE15C`), Shadow Assassins (Purple default `#5B2CB2`), and Diamond Guys (Aqua default `#57C2F7`).
@@ -65,10 +65,11 @@ A client-side Fabric mod for Hypixel SkyBlock Garden farming with zero memory in
   - **Failsafe**: WatchDog detection suite and Key & Mouse Lock options.
   - **QOL**:
     - **Free Look**: 360-degree third-person camera decoupling with smooth scroll zoom up to 50 blocks.
-    - **Freecam**: Pure client-side no-clip camera flight through blocks via `U` keybind. Supports WASD movement, Space/Shift vertical flight, configurable flight speed (0.1x to 5.0x), and 1.2x sprint boost. Strictly zero angle snap on toggle off.
+    - **Freecam**: Pure client-side no-clip camera flight through blocks. Supports WASD movement, Space/Shift vertical flight, configurable flight speed (0.1x to 5.0x), and 1.2x sprint boost. Strictly zero angle snap on toggle off.
   - Dedicated **ESP**, **HUD**, and **Settings** navigation in the lower sidebar group.
 - **Testing Command Suite**:
-  - `.hypcroparty`: Prints all currently tracked party members and party leader status.
+  - `.hypcrotest party`: Prints all currently tracked party members and party leader status.
+  - `.hypcrotest currentyear`: Checks and prints the active SkyBlock year from the sidebar scoreboard.
   - `.hypcrotest movecam <pitch> <yaw>`: Tests camera rotation to exact angles.
   - `.hypcrotest flyto <x> <y> <z> [pitch] [yaw]`: Executes 3D flight navigation (supports `~` for undefined coordinates).
   - `.hypcrotest pathfind <x> <y> <z>`: Computes path, benchmarks calculation time in milliseconds, and validates chunk boundaries.
